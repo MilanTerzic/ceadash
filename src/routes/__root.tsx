@@ -88,6 +88,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Fira+Sans:wght@400;500;600;700&display=swap",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://ceadash.lovable.app/#organization",
+              name: "Centar za energetske analize",
+              alternateName: "CEA",
+              url: "https://www.cea.org.rs/",
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://ceadash.lovable.app/#website",
+              name: "CEA Power Dashboard",
+              url: "https://ceadash.lovable.app/",
+              publisher: { "@id": "https://ceadash.lovable.app/#organization" },
+            },
+          ],
+        }),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
