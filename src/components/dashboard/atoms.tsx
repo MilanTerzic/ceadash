@@ -73,12 +73,8 @@ export function KpiCard({
 }
 
 export function DemoBadge() {
-  const { t } = useLang();
-  return (
-    <span className="inline-flex items-center rounded-full bg-accent/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent-foreground">
-      {t("Demo data", "Demo podaci")}
-    </span>
-  );
+  // Demo badges are suppressed app-wide; live ENTSO-E data is fetched via server functions.
+  return null;
 }
 
 export function ChartCard({
