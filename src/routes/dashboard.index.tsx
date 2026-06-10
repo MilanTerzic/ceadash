@@ -84,6 +84,8 @@ function OverviewPage() {
   }
 
   const latest = data[data.length - 1];
+  const last24 = useMemo(() => data.slice(-24), [data]);
+  const baseloadLatest = last24.length ? last24.reduce((a, b) => a + b.price, 0) / last24.length : NaN;
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
   const peakHours = (d: HourlyPoint[]) =>
@@ -154,8 +156,8 @@ function OverviewPage() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label={t("Latest baseload", "Najnoviji baseload")}
-          hint={t("Latest hourly SEEPEX day-ahead price.", "Najnovija satna SEEPEX day-ahead cena.")}
-          value={fmt(latest.price)}
+          hint={t("Average SEEPEX day-ahead price over the latest 24 available hours.", "Prosečna SEEPEX day-ahead cena za poslednja 24 dostupna sata.")}
+          value={fmt(baseloadLatest)}
           unit="EUR/MWh"
         />
         <KpiCard
