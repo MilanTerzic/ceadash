@@ -374,22 +374,21 @@ function ContiguousRow({
   min: number;
   max: number;
   cellMap: Map<string, number>;
+  colW: number;
 }) {
   return (
     <>
       <div className="text-[10px] pr-2 text-right text-muted-foreground">{h.toString().padStart(2, "0")}</div>
       {days.map((d) => {
         const v = cellMap.get(`${h}-${d}`);
-        if (v == null) return <div key={d} className="h-4 w-4 bg-muted/30" />;
+        if (v == null) return <div key={d} style={{ width: colW, height: colW }} className="bg-muted/30" />;
         const t = (v - min) / Math.max(0.001, max - min);
-        // green -> amber -> red
         const hue = 130 - t * 130;
         return (
           <div
             key={d}
-            className="h-4 w-4"
+            style={{ width: colW, height: colW, backgroundColor: `oklch(0.65 0.13 ${hue + 30})` }}
             title={`${v.toFixed(1)} EUR/MWh`}
-            style={{ backgroundColor: `oklch(0.65 0.13 ${hue + 30})` }}
           />
         );
       })}
