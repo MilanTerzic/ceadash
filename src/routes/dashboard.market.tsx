@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
@@ -48,6 +49,8 @@ export const Route = createFileRoute("/dashboard/market")({
 });
 
 function MarketPage() {
+  const { t } = useLang();
+  
   
   const live = useQuery({
     queryKey: ["market-prices"],
@@ -79,7 +82,7 @@ function MarketPage() {
       ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
       : range?.from
       ? format(range.from, "d MMM yyyy")
-      : "Pick a date range";
+      : t("Pick a date range", "Izaberi opseg datuma");
 
   const filtered = useMemo(() => {
     const start = new Date(from);
@@ -212,7 +215,7 @@ function MarketPage() {
         <div className="grid gap-4 md:grid-cols-12 items-end">
           <div className="md:col-span-5">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Period (day to day)
+              {t("Period (day to day)", "Period (od dana do dana)")}
             </Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -250,46 +253,46 @@ function MarketPage() {
                 className="h-7 px-2 text-xs"
                 onClick={() => setRange({ from: dataMin, to: dataMax })}
               >
-                Full year
+                {t("Full year", "Cela godina")}
               </Button>
             </div>
           </div>
           <div className="md:col-span-3">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">View</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("View", "Prikaz")}</Label>
             <Select value={view} onValueChange={(v) => setView(v as typeof view)}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="hourly">Hourly / daily auto</SelectItem>
-                <SelectItem value="baseload">Baseload (daily avg)</SelectItem>
-                <SelectItem value="peakload">Peakload (weekday 08–20)</SelectItem>
+                <SelectItem value="hourly">{t("Hourly / daily auto", "Satno / dnevno auto")}</SelectItem>
+                <SelectItem value="baseload">{t("Baseload (daily avg)", "Baseload (dnevni prosek)")}</SelectItem>
+                <SelectItem value="peakload">{t("Peakload (weekday 08–20)", "Peakload (radni dan 08–20)")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="md:col-span-2 flex items-center gap-2">
             <Switch checked={negOnly} onCheckedChange={setNegOnly} id="neg" />
-            <Label htmlFor="neg" className="text-sm">Negative only</Label>
+            <Label htmlFor="neg" className="text-sm">{t("Negative only", "Samo negativne")}</Label>
           </div>
           <div className="md:col-span-2 flex items-center gap-2">
             <Switch checked={highOnly} onCheckedChange={setHighOnly} id="high" />
-            <Label htmlFor="high" className="text-sm">High (&gt;150) only</Label>
+            <Label htmlFor="high" className="text-sm">{t("High (>150) only", "Samo visoke (>150)")}</Label>
           </div>
         </div>
       </div>
 
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Period average" value={stats.mean.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label="Peakload" value={stats.peak.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label="Volatility (σ)" value={stats.sd.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label="Min / Max" value={`${stats.min.toFixed(0)} / ${stats.max.toFixed(0)}`} unit="EUR/MWh" demo />
-          <KpiCard label="Hours < 0 EUR" value={stats.neg} demo />
-          <KpiCard label="Hours < 30 EUR" value={stats.low30} demo />
-          <KpiCard label="Hours > 150 EUR" value={stats.high150} demo />
-          <KpiCard label="Weekday / Weekend" value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`} unit="EUR/MWh" demo />
+          <KpiCard label={t("Period average", "Prosek perioda")} value={stats.mean.toFixed(1)} unit="EUR/MWh" demo />
+          <KpiCard label={t("Peakload", "Peakload")} value={stats.peak.toFixed(1)} unit="EUR/MWh" demo />
+          <KpiCard label={t("Volatility (σ)", "Volatilnost (σ)")} value={stats.sd.toFixed(1)} unit="EUR/MWh" demo />
+          <KpiCard label={t("Min / Max", "Min / Max")} value={`${stats.min.toFixed(0)} / ${stats.max.toFixed(0)}`} unit="EUR/MWh" demo />
+          <KpiCard label={t("Hours < 0 EUR", "Sati < 0 EUR")} value={stats.neg} demo />
+          <KpiCard label={t("Hours < 30 EUR", "Sati < 30 EUR")} value={stats.low30} demo />
+          <KpiCard label={t("Hours > 150 EUR", "Sati > 150 EUR")} value={stats.high150} demo />
+          <KpiCard label={t("Weekday / Weekend", "Radni dan / Vikend")} value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`} unit="EUR/MWh" demo />
         </div>
       )}
 
-      <ChartCard title={`Day-ahead price — ${rangeLabel}${useDaily ? " (daily avg)" : ""}`} demo>
+      <ChartCard title={`${t("Day-ahead price", "Day-ahead cena")} — ${rangeLabel}${useDaily ? t(" (daily avg)", " (dnevni prosek)") : ""}`} demo>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={series}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -308,8 +311,11 @@ function MarketPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
-          title="Price duration curve"
-          description="Hours sorted from highest to lowest price. Steep tails indicate scarcity and surplus events."
+          title={t("Price duration curve", "Kriva trajanja cene")}
+          description={t(
+            "Hours sorted from highest to lowest price. Steep tails indicate scarcity and surplus events.",
+            "Sati sortirani od najviše do najniže cene. Strmi krajevi ukazuju na oskudicu i viškove.",
+          )}
           demo
         >
           <ResponsiveContainer width="100%" height={260}>
@@ -324,9 +330,9 @@ function MarketPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Weekday vs weekend average" demo>
+        <ChartCard title={t("Weekday vs weekend average", "Prosek radni dan vs vikend")} demo>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={[{ name: "Weekday", value: +wdAvg.toFixed(1) }, { name: "Weekend", value: +weAvg.toFixed(1) }]}>
+            <BarChart data={[{ name: t("Weekday", "Radni dan"), value: +wdAvg.toFixed(1) }, { name: t("Weekend", "Vikend"), value: +weAvg.toFixed(1) }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
@@ -338,8 +344,8 @@ function MarketPage() {
       </div>
 
       <ChartCard
-        title="Heatmap — hour of day × day"
-        description="Average hourly price per cell across the selected period."
+        title={t("Heatmap — hour of day × day", "Mapa toplote — sat dana × dan")}
+        description={t("Average hourly price per cell across the selected period.", "Prosečna satna cena po ćeliji za izabrani period.")}
         demo
       >
         <Heatmap cells={heat.cells} days={heat.dayOrder} />
