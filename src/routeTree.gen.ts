@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardRegionalRouteImport } from './routes/dashboard.regional'
 import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
 import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
 import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRegionalRoute = DashboardRegionalRouteImport.update({
+  id: '/regional',
+  path: '/regional',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardNewsRoute = DashboardNewsRouteImport.update({
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/dashboard/market'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/regional'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/dashboard/market'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/regional'
     | '/dashboard'
   id:
     | '__root__'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/dashboard/market'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/regional'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -159,6 +171,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/regional': {
+      id: '/dashboard/regional'
+      path: '/regional'
+      fullPath: '/dashboard/regional'
+      preLoaderRoute: typeof DashboardRegionalRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/news': {
@@ -213,6 +232,7 @@ interface DashboardRouteChildren {
   DashboardMarketRoute: typeof DashboardMarketRoute
   DashboardMethodologyRoute: typeof DashboardMethodologyRoute
   DashboardNewsRoute: typeof DashboardNewsRoute
+  DashboardRegionalRoute: typeof DashboardRegionalRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -223,6 +243,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardMarketRoute: DashboardMarketRoute,
   DashboardMethodologyRoute: DashboardMethodologyRoute,
   DashboardNewsRoute: DashboardNewsRoute,
+  DashboardRegionalRoute: DashboardRegionalRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
