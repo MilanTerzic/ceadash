@@ -172,7 +172,7 @@ function NewsPage() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <div className="space-y-3">
-          {items === DEMO_ITEMS && <DemoBadge />}
+          {usingDemo && <DemoBadge />}
           {filtered.map((i) => (
             <article key={i.id} className="rounded-xl border border-border/70 p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
