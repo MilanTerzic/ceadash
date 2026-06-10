@@ -94,21 +94,7 @@ function OverviewPage() {
   const last30 = useMemo(() => data.slice(-30 * 24), [data]);
   const last7 = useMemo(() => data.slice(-7 * 24), [data]);
 
-
-  if (live.isLoading) {
-    return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
-  }
-  if (!hasReal) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {t("Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.", "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.")}
-        {live.isError && <span className="block mt-1 text-critical">{String(live.error)}</span>}
-      </p>
-    );
-  }
-
   // Group hours by Belgrade calendar day; keep only complete days (24 hours)
-  // for baseload — incomplete trailing days (publishing window) skew the average.
   const dayMap = useMemo(() => {
     const m = new Map<string, number[]>();
     for (const p of data) {
@@ -142,32 +128,6 @@ function OverviewPage() {
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
   }, [rangeKeys, dayMap]);
 
-  const rangeButtonLabel = effRange?.from
-    ? effRange.to && belgradeDayKey(effRange.to) !== belgradeDayKey(effRange.from)
-      ? `${format(effRange.from, "d MMM yyyy")} – ${format(effRange.to, "d MMM yyyy")}`
-      : format(effRange.from, "d MMM yyyy")
-    : t("Pick a day", "Izaberi dan");
-
-  const baseloadLatest = baseloadRange;
-  const last24 = useMemo(() => data.slice(-24), [data]);
-  const latest = data[data.length - 1];
-  const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
-  const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
-  const peakHours = (d: HourlyPoint[]) =>
-    d.filter((p) => {
-      const h = p.ts.getHours();
-      const dow = p.ts.getDay();
-      return dow >= 1 && dow <= 5 && h >= 8 && h < 20;
-    });
-  const peak7 = peakHours(last7);
-  const peakloadLatest = peak7.length ? peak7.reduce((a, b) => a + b.price, 0) / peak7.length : NaN;
-
-  // Current month
-  const cm = latest.ts.toISOString().slice(0, 7);
-  const monthHours = data.filter((p) => p.ts.toISOString().slice(0, 7) === cm);
-  const negCount = monthHours.filter((p) => p.price < 0).length;
-  const negShare = monthHours.length ? (negCount / monthHours.length) * 100 : NaN;
-
   const monthly = useMemo(() => monthlyAvgLocal(data), [data]);
 
   const negByMonth = useMemo(() => {
@@ -178,11 +138,6 @@ function OverviewPage() {
     }
     return Array.from(m.entries()).map(([month, negHours]) => ({ month: month.slice(5), negHours }));
   }, [data]);
-
-  const last48Chart = last7.slice(-48).map((p) => ({
-    t: p.ts.toISOString().slice(5, 16).replace("T", " "),
-    price: +p.price.toFixed(1),
-  }));
 
   const dailyBaseloadPeakload = useMemo(() => {
     const m = new Map<string, { base: number[]; peak: number[] }>();
@@ -202,6 +157,49 @@ function OverviewPage() {
         : null,
     }));
   }, [last30]);
+
+  if (live.isLoading) {
+    return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
+  }
+  if (!hasReal) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.", "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.")}
+        {live.isError && <span className="block mt-1 text-critical">{String(live.error)}</span>}
+      </p>
+    );
+  }
+
+  const rangeButtonLabel = effRange?.from
+    ? effRange.to && belgradeDayKey(effRange.to) !== belgradeDayKey(effRange.from)
+      ? `${format(effRange.from, "d MMM yyyy")} – ${format(effRange.to, "d MMM yyyy")}`
+      : format(effRange.from, "d MMM yyyy")
+    : t("Pick a day", "Izaberi dan");
+
+  const baseloadLatest = baseloadRange;
+  const latest = data[data.length - 1];
+  const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
+  const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
+  const peakHours = (d: HourlyPoint[]) =>
+    d.filter((p) => {
+      const h = p.ts.getHours();
+      const dow = p.ts.getDay();
+      return dow >= 1 && dow <= 5 && h >= 8 && h < 20;
+    });
+  const peak7 = peakHours(last7);
+  const peakloadLatest = peak7.length ? peak7.reduce((a, b) => a + b.price, 0) / peak7.length : NaN;
+
+  // Current month
+  const cm = latest.ts.toISOString().slice(0, 7);
+  const monthHours = data.filter((p) => p.ts.toISOString().slice(0, 7) === cm);
+  const negCount = monthHours.filter((p) => p.price < 0).length;
+  const negShare = monthHours.length ? (negCount / monthHours.length) * 100 : NaN;
+
+  const last48Chart = last7.slice(-48).map((p) => ({
+    t: p.ts.toISOString().slice(5, 16).replace("T", " "),
+    price: +p.price.toFixed(1),
+  }));
+
 
   return (
     <div className="space-y-8">
