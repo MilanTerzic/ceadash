@@ -92,6 +92,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cross_border_flows_hourly: {
+        Row: {
+          created_at: string
+          datetime: string
+          flow_mw: number
+          from_zone: string
+          id: number
+          source: string
+          to_zone: string
+        }
+        Insert: {
+          created_at?: string
+          datetime: string
+          flow_mw: number
+          from_zone: string
+          id?: number
+          source?: string
+          to_zone: string
+        }
+        Update: {
+          created_at?: string
+          datetime?: string
+          flow_mw?: number
+          from_zone?: string
+          id?: number
+          source?: string
+          to_zone?: string
+        }
+        Relationships: []
+      }
       market_prices_hourly: {
         Row: {
           created_at: string
