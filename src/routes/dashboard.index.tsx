@@ -27,7 +27,7 @@ import { fetchMarketPrices } from "@/lib/market.functions";
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
     meta: [
-      { title: "Overview — Serbia RES Market Dashboard" },
+      { title: "Overview — CEA Power Dashboard" },
       { name: "description", content: "Key Serbian power market and RES indicators at a glance." },
     ],
   }),
