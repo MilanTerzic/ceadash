@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
@@ -48,6 +49,8 @@ export const Route = createFileRoute("/dashboard/market")({
 });
 
 function MarketPage() {
+  const { t } = useLang();
+  
   
   const live = useQuery({
     queryKey: ["market-prices"],
