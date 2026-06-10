@@ -66,7 +66,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
-    .eq("market", "SEEPEX_DA")
+    .eq("market", "DA_RS")
     .order("datetime", { ascending: true })
     .limit(10000);
 
@@ -112,7 +112,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
   if (fresh.length > 0) {
     const rows = fresh.map((p) => ({
       datetime: p.ts.toISOString(),
-      market: "SEEPEX_DA",
+      market: "DA_RS",
       price_eur_mwh: p.value,
       source: "ENTSO-E",
     }));
@@ -120,7 +120,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
     await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
-      .eq("market", "SEEPEX_DA")
+      .eq("market", "DA_RS")
       .gte("datetime", from.toISOString())
       .lt("datetime", to.toISOString());
     await supabaseAdmin.from("market_prices_hourly").insert(rows);
