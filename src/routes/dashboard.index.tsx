@@ -15,13 +15,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
-import {
-  applyRealPrices,
-  captureMetricsByMonth,
-  getDemoYear,
-  getRecentDays,
-  monthlyAvg,
-} from "@/lib/demo-data";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
 
@@ -41,6 +34,21 @@ export const Route = createFileRoute("/dashboard/")({
 
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
+type HourlyPoint = { ts: Date; price: number; solar: number; wind: number };
+
+function monthlyAvgLocal(points: HourlyPoint[]) {
+  const map = new Map<string, number[]>();
+  for (const p of points) {
+    const k = p.ts.toISOString().slice(0, 7);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(p.price);
+  }
+  return Array.from(map.entries()).map(([month, vals]) => ({
+    month,
+    value: vals.reduce((a, b) => a + b, 0) / vals.length,
+  }));
+}
+
 function OverviewPage() {
   const { t } = useLang();
   const live = useQuery({
@@ -49,12 +57,19 @@ function OverviewPage() {
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
-  const data = useMemo(
-    () => applyRealPrices(getDemoYear(), live.data?.points ?? []),
+  const data = useMemo<HourlyPoint[]>(
+    () =>
+      (live.data?.points ?? []).map((p) => ({
+        ts: new Date(p.ts),
+        price: p.price,
+        solar: 0,
+        wind: 0,
+      })),
     [live.data],
   );
-  const last30 = useMemo(() => getRecentDays(30, data), [data]);
-  const last7 = useMemo(() => getRecentDays(7, data), [data]);
+  const last30 = useMemo(() => data.slice(-30 * 24), [data]);
+  const last7 = useMemo(() => data.slice(-7 * 24), [data]);
+
 
   const latest = data[data.length - 1];
   const baseload7 = last7.reduce((a, b) => a + b.price, 0) / last7.length;
