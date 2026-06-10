@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import {
   ResponsiveContainer,
   LineChart,
@@ -11,12 +14,14 @@ import {
   BarChart,
   Bar,
   ReferenceLine,
-  Legend,
 } from "recharts";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
 import { getDemoYear } from "@/lib/demo-data";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -24,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
