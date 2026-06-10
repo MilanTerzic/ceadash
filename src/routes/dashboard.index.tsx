@@ -28,8 +28,12 @@ export const Route = createFileRoute("/dashboard/")({
   head: () => ({
     meta: [
       { title: "Overview — CEA Power Dashboard" },
-      { name: "description", content: "Key Serbian power market and RES indicators at a glance." },
+      { name: "description", content: "Key Serbian power market and renewable indicators at a glance." },
+      { property: "og:title", content: "Overview — CEA Power Dashboard" },
+      { property: "og:description", content: "Key Serbian power market and renewable indicators at a glance." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard" }],
   }),
   component: OverviewPage,
 });

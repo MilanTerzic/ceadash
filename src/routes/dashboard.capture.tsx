@@ -21,12 +21,13 @@ import { captureMetricsByMonth, getDemoYear } from "@/lib/demo-data";
 export const Route = createFileRoute("/dashboard/capture")({
   head: () => ({
     meta: [
-      { title: "RES Capture Prices — Serbia RES Dashboard" },
-      {
-        name: "description",
-        content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia.",
-      },
+      { title: "Capture Prices — CEA Power Dashboard" },
+      { name: "description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
+      { property: "og:title", content: "Capture Prices — CEA Power Dashboard" },
+      { property: "og:description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/capture" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/capture" }],
   }),
   component: CapturePage,
 });

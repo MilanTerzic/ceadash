@@ -15,12 +15,12 @@ export const Route = createFileRoute("/dashboard/regional")({
   head: () => ({
     meta: [
       { title: "Regional Prices & Flows — CEA Power Dashboard" },
-      {
-        name: "description",
-        content:
-          "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E.",
-      },
+      { name: "description", content: "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E." },
+      { property: "og:title", content: "Regional Prices & Flows — CEA Power Dashboard" },
+      { property: "og:description", content: "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/regional" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/regional" }],
   }),
   component: RegionalPage,
 });

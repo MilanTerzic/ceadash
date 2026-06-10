@@ -4,9 +4,13 @@ import { ChartCard } from "@/components/dashboard/atoms";
 export const Route = createFileRoute("/dashboard/methodology")({
   head: () => ({
     meta: [
-      { title: "Methodology — Serbia RES Dashboard" },
+      { title: "Methodology — CEA Power Dashboard" },
       { name: "description", content: "Data sources, formulas and assumptions used in the CEA Power Dashboard." },
+      { property: "og:title", content: "Methodology — CEA Power Dashboard" },
+      { property: "og:description", content: "Data sources, formulas and assumptions used in the CEA Power Dashboard." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/methodology" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/methodology" }],
   }),
   component: MethPage,
 });

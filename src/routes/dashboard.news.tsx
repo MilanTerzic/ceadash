@@ -24,8 +24,25 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/dashboard/news")({
   head: () => ({
     meta: [
-      { title: "News & Policy Monitor — Serbia RES Dashboard" },
-      { name: "description", content: "Serbian and regional renewable energy news, policy and market updates." },
+      { title: "News & Policy Monitor — CEA Power Dashboard" },
+      { name: "description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
+      { property: "og:title", content: "News & Policy Monitor — CEA Power Dashboard" },
+      { property: "og:description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/news" },
+      { property: "og:type", content: "article" },
+    ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/news" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "News & Policy Monitor",
+          url: "https://ceadash.lovable.app/dashboard/news",
+          about: "Serbian and regional renewable energy news, policy and market updates.",
+        }),
+      },
     ],
   }),
   component: NewsPage,

@@ -1,0 +1,16 @@
+# CEA Power Dashboard
+
+> Analytical tool by Centar za energetske analize (CEA) tracking renewable energy market signals, capture prices, regional power flows and solar project economics in Serbia.
+
+The dashboard combines SEEPEX day-ahead prices, ENTSO-E data, PVGIS irradiation and curated news to give renewable energy stakeholders a single view of the Serbian power market.
+
+## Pages
+
+- [Dashboard overview](/dashboard): Key Serbian power market and renewable indicators at a glance.
+- [Market prices](/dashboard/market): SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics.
+- [Capture prices](/dashboard/capture): Solar and wind capture prices, capture rates and negative-price exposure.
+- [Regional prices & flows](/dashboard/regional): Day-ahead prices and cross-border flows for Serbia and surrounding markets.
+- [Market insights](/dashboard/insights): Analytical commentary on market signals and storage opportunities.
+- [Solar project calculator](/dashboard/calculator): LCOE, IRR, NPV and capture price for solar projects in Serbia.
+- [News & policy monitor](/dashboard/news): Curated Serbian and regional renewable energy news.
+- [Methodology](/dashboard/methodology): Data sources, formulas and assumptions.
