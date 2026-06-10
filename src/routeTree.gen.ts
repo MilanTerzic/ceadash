@@ -9,38 +9,144 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
+import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
+import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
+import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
+import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
+import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
 
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardNewsRoute = DashboardNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMethodologyRoute = DashboardMethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMarketRoute = DashboardMarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
+  id: '/capture',
+  path: '/capture',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/dashboard/calculator'
+    | '/dashboard/capture'
+    | '/dashboard/insights'
+    | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/dashboard/calculator'
+    | '/dashboard/capture'
+    | '/dashboard/insights'
+    | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
+    | '/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/dashboard/calculator'
+    | '/dashboard/capture'
+    | '/dashboard/insights'
+    | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
+    | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +154,85 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/news': {
+      id: '/dashboard/news'
+      path: '/news'
+      fullPath: '/dashboard/news'
+      preLoaderRoute: typeof DashboardNewsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/methodology': {
+      id: '/dashboard/methodology'
+      path: '/methodology'
+      fullPath: '/dashboard/methodology'
+      preLoaderRoute: typeof DashboardMethodologyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/market': {
+      id: '/dashboard/market'
+      path: '/market'
+      fullPath: '/dashboard/market'
+      preLoaderRoute: typeof DashboardMarketRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/insights': {
+      id: '/dashboard/insights'
+      path: '/insights'
+      fullPath: '/dashboard/insights'
+      preLoaderRoute: typeof DashboardInsightsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/capture': {
+      id: '/dashboard/capture'
+      path: '/capture'
+      fullPath: '/dashboard/capture'
+      preLoaderRoute: typeof DashboardCaptureRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/calculator': {
+      id: '/dashboard/calculator'
+      path: '/calculator'
+      fullPath: '/dashboard/calculator'
+      preLoaderRoute: typeof DashboardCalculatorRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardCalculatorRoute: typeof DashboardCalculatorRoute
+  DashboardCaptureRoute: typeof DashboardCaptureRoute
+  DashboardInsightsRoute: typeof DashboardInsightsRoute
+  DashboardMarketRoute: typeof DashboardMarketRoute
+  DashboardMethodologyRoute: typeof DashboardMethodologyRoute
+  DashboardNewsRoute: typeof DashboardNewsRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardCalculatorRoute: DashboardCalculatorRoute,
+  DashboardCaptureRoute: DashboardCaptureRoute,
+  DashboardInsightsRoute: DashboardInsightsRoute,
+  DashboardMarketRoute: DashboardMarketRoute,
+  DashboardMethodologyRoute: DashboardMethodologyRoute,
+  DashboardNewsRoute: DashboardNewsRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
