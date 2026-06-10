@@ -148,6 +148,11 @@ export type ZonePrice = {
   zone: ZoneCode;
   name: string;
   avg24h: number | null;
+  baseload: number | null;
+  windCapture: number | null;
+  solarCapture: number | null;
+  windCaptureRatio: number | null;
+  solarCaptureRatio: number | null;
   latest: number | null;
   latestTs: string | null;
   points: { ts: string; price: number }[];
