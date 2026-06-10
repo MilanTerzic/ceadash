@@ -127,6 +127,7 @@ export type Database = {
           ai_generated: boolean
           category: string
           created_at: string
+          created_by: string | null
           date: string
           id: string
           original_url: string
@@ -140,6 +141,7 @@ export type Database = {
           ai_generated?: boolean
           category?: string
           created_at?: string
+          created_by?: string | null
           date: string
           id?: string
           original_url: string
@@ -153,6 +155,7 @@ export type Database = {
           ai_generated?: boolean
           category?: string
           created_at?: string
+          created_by?: string | null
           date?: string
           id?: string
           original_url?: string
