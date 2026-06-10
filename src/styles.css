@@ -158,11 +158,27 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-weight: 450;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, .font-display {
+  body {
+    font-size: 15.5px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
+
+  h1 { font-weight: 650; }
+
+  label {
+    font-weight: 550;
+    color: var(--color-foreground);
   }
 }
