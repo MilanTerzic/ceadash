@@ -97,6 +97,48 @@ async function fetchPhysicalFlow(fromEic: string, toEic: string, from: Date, to:
   return parsePoints(r.xml);
 }
 
+// Actual generation per production type (B16=Solar, B18=Wind Offshore, B19=Wind Onshore)
+async function fetchGeneration(eic: string, psrType: string, from: Date, to: Date) {
+  const r = await callEntsoe({
+    documentType: "A75",
+    processType: "A16",
+    in_Domain: eic,
+    psrType,
+    periodStart: fmtUtc(from),
+    periodEnd: fmtUtc(to),
+  });
+  if (!r.ok) return [];
+  return parsePoints(r.xml);
+}
+
+function toHourly(pts: { ts: Date; value: number }[]): Map<string, number> {
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const p of pts) {
+    const d = new Date(p.ts);
+    d.setUTCMinutes(0, 0, 0);
+    const k = d.toISOString();
+    const a = acc.get(k) ?? { sum: 0, n: 0 };
+    a.sum += p.value;
+    a.n += 1;
+    acc.set(k, a);
+  }
+  const out = new Map<string, number>();
+  for (const [k, v] of acc) out.set(k, v.sum / v.n);
+  return out;
+}
+
+function captureFrom(prices: Map<string, number>, gen: Map<string, number>) {
+  let num = 0,
+    den = 0;
+  for (const [k, g] of gen) {
+    const p = prices.get(k);
+    if (p == null || !isFinite(g) || g <= 0) continue;
+    num += p * g;
+    den += g;
+  }
+  return den > 0 ? num / den : null;
+}
+
 // In-memory hot cache (per warm worker) — 30 min
 type CacheEntry = { ts: number; data: RegionalSnapshot };
 const HOT: { current?: CacheEntry } = {};
@@ -106,6 +148,11 @@ export type ZonePrice = {
   zone: ZoneCode;
   name: string;
   avg24h: number | null;
+  baseload: number | null;
+  windCapture: number | null;
+  solarCapture: number | null;
+  windCaptureRatio: number | null;
+  solarCaptureRatio: number | null;
   latest: number | null;
   latestTs: string | null;
   points: { ts: string; price: number }[];
@@ -168,6 +215,11 @@ async function snapshotFromCache(
       zone: z,
       name: ZONES[z].name,
       avg24h: avg,
+      baseload: avg,
+      windCapture: null,
+      solarCapture: null,
+      windCaptureRatio: null,
+      solarCaptureRatio: null,
       latest: latest ? latest.value : null,
       latestTs: latest ? latest.ts.toISOString() : null,
       points: pts.map((p) => ({ ts: p.ts.toISOString(), price: p.value })),
@@ -303,10 +355,63 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
       }
     }
 
+    // Capture prices per zone — fetch wind+solar generation and weight against DA
+    const captureByZone = new Map<
+      ZoneCode,
+      { wind: number | null; solar: number | null; windRatio: number | null; solarRatio: number | null }
+    >();
+    if (hasToken) {
+      const zoneList = Object.keys(ZONES) as ZoneCode[];
+      const capFrom = new Date(to.getTime() - 24 * 3600_000);
+      const capResults = await Promise.all(
+        zoneList.map(async (z) => {
+          const [priceP, solarP, windOn, windOff] = await Promise.all([
+            fetchDayAheadPrice(ZONES[z].eic, capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B16", capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B19", capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B18", capFrom, to),
+          ]);
+          const priceH = toHourly(priceP);
+          const solarH = toHourly(solarP);
+          const windH = toHourly([...windOn, ...windOff]);
+          const baseload = priceH.size
+            ? Array.from(priceH.values()).reduce((a, b) => a + b, 0) / priceH.size
+            : null;
+          const wc = captureFrom(priceH, windH);
+          const sc = captureFrom(priceH, solarH);
+          return {
+            z,
+            wind: wc,
+            solar: sc,
+            windRatio: wc != null && baseload ? wc / baseload : null,
+            solarRatio: sc != null && baseload ? sc / baseload : null,
+          };
+        }),
+      );
+      for (const r of capResults) {
+        captureByZone.set(r.z, {
+          wind: r.wind,
+          solar: r.solar,
+          windRatio: r.windRatio,
+          solarRatio: r.solarRatio,
+        });
+      }
+    }
+
     // Build snapshot from the DB (which now includes anything we just wrote).
     const snap = await snapshotFromCache(supabaseAdmin, from, to);
     if (liveAny) snap.source = "live";
     if (!hasToken && !snap.ok) snap.reason = "missing_token";
+
+    for (const p of snap.prices) {
+      const c = captureByZone.get(p.zone);
+      if (c) {
+        p.windCapture = c.wind;
+        p.solarCapture = c.solar;
+        p.windCaptureRatio = c.windRatio;
+        p.solarCaptureRatio = c.solarRatio;
+      }
+    }
 
     HOT.current = { ts: now, data: snap };
     return snap;

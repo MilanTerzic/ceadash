@@ -239,39 +239,56 @@ function RegionalPage() {
               <thead>
                 <tr className="text-left text-xs uppercase text-muted-foreground border-b border-border/60">
                   <th className="py-2 pr-4">Zone</th>
-                  <th className="py-2 pr-4 text-right">24h avg (€/MWh)</th>
+                  <th className="py-2 pr-4 text-right">Baseload (€/MWh)</th>
+                  <th className="py-2 pr-4 text-right">Wind capture</th>
+                  <th className="py-2 pr-4 text-right">Solar capture</th>
                   <th className="py-2 pr-4 text-right">Latest (€/MWh)</th>
                   <th className="py-2 pr-4">Latest hour (UTC)</th>
                 </tr>
               </thead>
               <tbody>
-                {data!.prices.map((p) => (
-                  <tr key={p.zone} className="border-b border-border/40">
-                    <td className="py-2 pr-4 font-medium">
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
-                        style={{ background: priceColor(p.avg24h) }}
-                      />
-                      {p.name}
-                      {p.zone === "RS" && (
-                        <Badge variant="outline" className="ml-2 text-[9px]">
-                          Home
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums">
-                      {p.avg24h != null ? p.avg24h.toFixed(2) : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums">
-                      {p.latest != null ? p.latest.toFixed(2) : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-xs text-muted-foreground">
-                      {p.latestTs ? new Date(p.latestTs).toISOString().slice(0, 16).replace("T", " ") : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {data!.prices.map((p) => {
+                  const fmtCap = (v: number | null, r: number | null) =>
+                    v == null
+                      ? "—"
+                      : `${v.toFixed(2)}${r != null ? ` (${(r * 100).toFixed(0)}%)` : ""}`;
+                  return (
+                    <tr key={p.zone} className="border-b border-border/40">
+                      <td className="py-2 pr-4 font-medium">
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
+                          style={{ background: priceColor(p.baseload ?? p.avg24h) }}
+                        />
+                        {p.name}
+                        {p.zone === "RS" && (
+                          <Badge variant="outline" className="ml-2 text-[9px]">
+                            Home
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {p.baseload != null ? p.baseload.toFixed(2) : "—"}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {fmtCap(p.windCapture, p.windCaptureRatio)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {fmtCap(p.solarCapture, p.solarCaptureRatio)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {p.latest != null ? p.latest.toFixed(2) : "—"}
+                      </td>
+                      <td className="py-2 pr-4 text-xs text-muted-foreground">
+                        {p.latestTs ? new Date(p.latestTs).toISOString().slice(0, 16).replace("T", " ") : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            <p className="text-xs text-muted-foreground mt-3">
+              Baseload = 24h average day-ahead price. Capture price = generation-weighted day-ahead price using ENTSO-E actual wind/solar output per country. Ratio in parentheses = capture / baseload (cannibalisation indicator). Dashes mean the country has no reported wind or solar generation for the window.
+            </p>
           </div>
         )}
       </ChartCard>
