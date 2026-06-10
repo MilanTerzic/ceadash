@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
-// Serbia bidding zone EIC code
-const SERBIA_ZONE = "10YCS-SERBIA-T";
+// Serbia bidding zone — use the same EIC the regional snapshot uses (returns data).
+const SERBIA_ZONE = "10YCS-SERBIATSOV";
+const MARKET = "DA_RS";
 
 function fmtUtc(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
