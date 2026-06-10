@@ -4,7 +4,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Serbia RES Market Dashboard — CEA" },
+      { title: "CEA Power Dashboard" },
       {
         name: "description",
         content:
@@ -26,7 +26,7 @@ function DashboardLayout() {
                 CEA Analytical Tool
               </div>
               <h1 className="mt-1 font-display text-4xl md:text-5xl text-foreground">
-                Serbia RES Market Dashboard
+                CEA Power Dashboard
               </h1>
               <p className="mt-3 text-muted-foreground max-w-2xl">
                 An analytical tool for tracking renewable energy market signals, capture prices and

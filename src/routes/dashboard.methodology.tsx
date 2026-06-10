@@ -5,7 +5,7 @@ export const Route = createFileRoute("/dashboard/methodology")({
   head: () => ({
     meta: [
       { title: "Methodology — Serbia RES Dashboard" },
-      { name: "description", content: "Data sources, formulas and assumptions used in the CEA Serbia RES Market Dashboard." },
+      { name: "description", content: "Data sources, formulas and assumptions used in the CEA Power Dashboard." },
     ],
   }),
   component: MethPage,

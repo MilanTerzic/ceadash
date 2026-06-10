@@ -68,14 +68,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Serbia RES Market Dashboard — CEA" },
+      { title: "CEA Power Dashboard" },
       {
         name: "description",
         content:
           "Analytical tool by Centar za energetske analize (CEA) tracking renewable energy market signals, capture prices and project economics in Serbia.",
       },
       { name: "author", content: "Centar za energetske analize — CEA" },
-      { property: "og:title", content: "Serbia RES Market Dashboard — CEA" },
+      { property: "og:title", content: "CEA Power Dashboard" },
       {
         property: "og:description",
         content:
@@ -83,10 +83,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Serbia RES Market Dashboard — CEA" },
-      { name: "description", content: "Serbia RES Market Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
-      { property: "og:description", content: "Serbia RES Market Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
-      { name: "twitter:description", content: "Serbia RES Market Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
+      { name: "twitter:title", content: "CEA Power Dashboard" },
+      { name: "description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
+      { property: "og:description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
+      { name: "twitter:description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e13c113f-4ade-4017-ac14-75e917642739/id-preview-362c8451--b25719ce-1fa7-48cd-a27e-36a18a4404cd.lovable.app-1781097895539.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e13c113f-4ade-4017-ac14-75e917642739/id-preview-362c8451--b25719ce-1fa7-48cd-a27e-36a18a4404cd.lovable.app-1781097895539.png" },
     ],
@@ -152,7 +152,7 @@ function SiteFooter() {
     <footer className="mt-20 border-t border-border/60 bg-surface">
       <div className="mx-auto max-w-7xl px-6 py-10 grid gap-6 md:grid-cols-3 text-sm">
         <div>
-          <div className="font-display text-lg text-foreground">Serbia RES Market Dashboard</div>
+          <div className="font-display text-lg text-foreground">CEA Power Dashboard</div>
           <p className="mt-2 text-muted-foreground max-w-sm">
             An analytical tool by Centar za energetske analize tracking renewable energy market
             signals, capture prices and project economics in Serbia.
