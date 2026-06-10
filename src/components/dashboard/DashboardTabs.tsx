@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { to: "/dashboard", label: "Overview" },
   { to: "/dashboard/market", label: "Market Prices" },
+  { to: "/dashboard/regional", label: "Regional Prices" },
   { to: "/dashboard/capture", label: "RES Capture Prices" },
   { to: "/dashboard/calculator", label: "Solar Project Calculator" },
   { to: "/dashboard/insights", label: "Serbia RES Insights" },
