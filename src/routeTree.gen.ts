@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
+import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
 import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
+import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
 import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
+import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
@@ -30,9 +34,24 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardNewsRoute = DashboardNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMethodologyRoute = DashboardMethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardMarketRoute = DashboardMarketRouteImport.update({
   id: '/market',
   path: '/market',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
@@ -40,26 +59,43 @@ const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
   path: '/capture',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/methodology': typeof DashboardMethodologyRoute
+  '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -67,17 +103,33 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/dashboard/calculator'
     | '/dashboard/capture'
+    | '/dashboard/insights'
     | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard/capture' | '/dashboard/market' | '/dashboard'
+  to:
+    | '/'
+    | '/dashboard/calculator'
+    | '/dashboard/capture'
+    | '/dashboard/insights'
+    | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
+    | '/dashboard'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/dashboard/calculator'
     | '/dashboard/capture'
+    | '/dashboard/insights'
     | '/dashboard/market'
+    | '/dashboard/methodology'
+    | '/dashboard/news'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -109,11 +161,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/news': {
+      id: '/dashboard/news'
+      path: '/news'
+      fullPath: '/dashboard/news'
+      preLoaderRoute: typeof DashboardNewsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/methodology': {
+      id: '/dashboard/methodology'
+      path: '/methodology'
+      fullPath: '/dashboard/methodology'
+      preLoaderRoute: typeof DashboardMethodologyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/market': {
       id: '/dashboard/market'
       path: '/market'
       fullPath: '/dashboard/market'
       preLoaderRoute: typeof DashboardMarketRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/insights': {
+      id: '/dashboard/insights'
+      path: '/insights'
+      fullPath: '/dashboard/insights'
+      preLoaderRoute: typeof DashboardInsightsRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/capture': {
@@ -123,18 +196,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCaptureRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/calculator': {
+      id: '/dashboard/calculator'
+      path: '/calculator'
+      fullPath: '/dashboard/calculator'
+      preLoaderRoute: typeof DashboardCalculatorRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 interface DashboardRouteChildren {
+  DashboardCalculatorRoute: typeof DashboardCalculatorRoute
   DashboardCaptureRoute: typeof DashboardCaptureRoute
+  DashboardInsightsRoute: typeof DashboardInsightsRoute
   DashboardMarketRoute: typeof DashboardMarketRoute
+  DashboardMethodologyRoute: typeof DashboardMethodologyRoute
+  DashboardNewsRoute: typeof DashboardNewsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardCalculatorRoute: DashboardCalculatorRoute,
   DashboardCaptureRoute: DashboardCaptureRoute,
+  DashboardInsightsRoute: DashboardInsightsRoute,
   DashboardMarketRoute: DashboardMarketRoute,
+  DashboardMethodologyRoute: DashboardMethodologyRoute,
+  DashboardNewsRoute: DashboardNewsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
@@ -149,3 +237,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
