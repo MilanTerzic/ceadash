@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import type { ReactNode } from "react";
 
 export function MetricLabel({
@@ -72,9 +73,10 @@ export function KpiCard({
 }
 
 export function DemoBadge() {
+  const { t } = useLang();
   return (
     <span className="inline-flex items-center rounded-full bg-accent/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent-foreground">
-      Demo data
+      {t("Demo data", "Demo podaci")}
     </span>
   );
 }
