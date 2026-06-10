@@ -218,10 +218,53 @@ function OverviewPage() {
               )}
         </p>
       </div>
+      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t("Baseload period (day to day)", "Period baseload-a (od dana do dana)")}
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("mt-1.5 w-[280px] justify-start text-left font-normal", !effRange?.from && "text-muted-foreground")}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {rangeButtonLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={effRange}
+                  onSelect={setRange}
+                  numberOfMonths={2}
+                  defaultMonth={effRange?.from}
+                  disabled={{
+                    before: firstCompleteDay ? dateFromBelgradeKey(firstCompleteDay) : undefined,
+                    after: latestCompleteDay ? dateFromBelgradeKey(latestCompleteDay) : undefined,
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-md">
+            {t(
+              `Averaged over ${rangeKeys.length} complete day(s) (24 SEEPEX DA hours each, Europe/Belgrade).`,
+              `Prosek za ${rangeKeys.length} kompletnih dana (24 SEEPEX DA sata svaki, vreme Europe/Belgrade).`,
+            )}
+          </p>
+        </div>
+      </div>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label={t("Latest baseload", "Najnoviji baseload")}
-          hint={t("Average SEEPEX day-ahead price over the latest 24 available hours.", "Prosečna SEEPEX day-ahead cena za poslednja 24 dostupna sata.")}
+          label={rangeKeys.length === 1
+            ? `${t("Baseload", "Baseload")} · ${format(dateFromBelgradeKey(rangeKeys[0]), "d MMM")}`
+            : t("Baseload (range)", "Baseload (opseg)")}
+          hint={t("Average of all 24 SEEPEX DA hours per day within the selected range (Europe/Belgrade).", "Prosek svih 24 SEEPEX DA sati po danu u izabranom opsegu (Europe/Belgrade).")}
           value={fmt(baseloadLatest)}
           unit="EUR/MWh"
         />
