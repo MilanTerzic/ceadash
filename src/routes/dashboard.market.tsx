@@ -16,7 +16,9 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { getDemoYear } from "@/lib/demo-data";
+import { applyRealPrices, getDemoYear } from "@/lib/demo-data";
+import { useQuery } from "@tanstack/react-query";
+import { fetchMarketPrices } from "@/lib/market.functions";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -45,7 +47,17 @@ export const Route = createFileRoute("/dashboard/market")({
 });
 
 function MarketPage() {
-  const data = useMemo(() => getDemoYear(), []);
+  
+  const live = useQuery({
+    queryKey: ["market-prices"],
+    queryFn: () => fetchMarketPrices(),
+    staleTime: 60 * 60_000,
+  });
+  const hasReal = (live.data?.points?.length ?? 0) > 0;
+  const data = useMemo(
+    () => applyRealPrices(getDemoYear(), live.data?.points ?? []),
+    [live.data],
+  );
   const dataMin = useMemo(() => data[0]?.ts ?? new Date(), [data]);
   const dataMax = useMemo(() => data[data.length - 1]?.ts ?? new Date(), [data]);
 

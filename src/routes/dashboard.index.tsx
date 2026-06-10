@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ResponsiveContainer,
   LineChart,
@@ -14,7 +15,14 @@ import {
   ReferenceLine,
 } from "recharts";
 import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
-import { getDemoYear, getRecentDays, captureMetricsByMonth, monthlyAvg } from "@/lib/demo-data";
+import {
+  applyRealPrices,
+  captureMetricsByMonth,
+  getDemoYear,
+  getRecentDays,
+  monthlyAvg,
+} from "@/lib/demo-data";
+import { fetchMarketPrices } from "@/lib/market.functions";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -29,9 +37,18 @@ export const Route = createFileRoute("/dashboard/")({
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
 function OverviewPage() {
-  const data = useMemo(() => getDemoYear(), []);
-  const last30 = useMemo(() => getRecentDays(30), []);
-  const last7 = useMemo(() => getRecentDays(7), []);
+  const live = useQuery({
+    queryKey: ["market-prices"],
+    queryFn: () => fetchMarketPrices(),
+    staleTime: 60 * 60_000,
+  });
+  const hasReal = (live.data?.points?.length ?? 0) > 0;
+  const data = useMemo(
+    () => applyRealPrices(getDemoYear(), live.data?.points ?? []),
+    [live.data],
+  );
+  const last30 = useMemo(() => getRecentDays(30, data), [data]);
+  const last7 = useMemo(() => getRecentDays(7, data), [data]);
 
   const latest = data[data.length - 1];
   const baseload7 = last7.reduce((a, b) => a + b.price, 0) / last7.length;
@@ -98,36 +115,43 @@ function OverviewPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {live.isLoading
+            ? "Fetching live ENTSO-E day-ahead prices…"
+            : hasReal
+              ? `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}). Remaining hours use synthetic data.`
+              : "Live ENTSO-E data unavailable — showing synthetic demo year."}
+        </p>
+        {live.isError && (
+          <span className="text-xs text-critical">Live fetch failed: {String(live.error)}</span>
+        )}
+      </div>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Latest baseload"
-          hint="Latest hourly SEEPEX day-ahead price (demo)."
+          hint="Latest hourly SEEPEX day-ahead price."
           value={fmt(latest.price)}
           unit="EUR/MWh"
-          demo
+          demo={!hasReal}
         />
         <KpiCard
           label="Latest peakload"
           hint="Average of weekday hours 08:00–20:00 over the last 7 days."
           value={fmt(peakloadLatest)}
           unit="EUR/MWh"
-          demo
+          demo={!hasReal}
         />
-        <KpiCard label="7-day avg" value={fmt(baseload7)} unit="EUR/MWh" demo />
-        <KpiCard label="30-day avg" value={fmt(baseload30)} unit="EUR/MWh" demo />
+        <KpiCard label="7-day avg" value={fmt(baseload7)} unit="EUR/MWh" demo={!hasReal} />
+        <KpiCard label="30-day avg" value={fmt(baseload30)} unit="EUR/MWh" demo={!hasReal} />
         <KpiCard
           label="Neg. hours (MTD)"
           hint="Hours with SEEPEX price < 0 EUR/MWh this month."
           value={negCount}
           unit="hours"
-          demo
+          demo={!hasReal}
         />
-        <KpiCard
-          label="Neg. share (MTD)"
-          value={fmt(negShare)}
-          unit="%"
-          demo
-        />
+        <KpiCard label="Neg. share (MTD)" value={fmt(negShare)} unit="%" demo={!hasReal} />
         <KpiCard
           label="Solar capture price"
           hint="Σ(price × solar) ÷ Σ(solar) for the current month."
@@ -135,12 +159,7 @@ function OverviewPage() {
           unit="EUR/MWh"
           demo
         />
-        <KpiCard
-          label="Wind capture price"
-          value={fmt(windCapture)}
-          unit="EUR/MWh"
-          demo
-        />
+        <KpiCard label="Wind capture price" value={fmt(windCapture)} unit="EUR/MWh" demo />
         <KpiCard
           label="Solar capture rate"
           hint="Solar capture price ÷ baseload price."
@@ -153,6 +172,7 @@ function OverviewPage() {
           demo
         />
       </div>
+
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
