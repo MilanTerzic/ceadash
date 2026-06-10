@@ -150,6 +150,7 @@ function OverviewPage() {
 
   const baseloadLatest = baseloadRange;
   const last24 = useMemo(() => data.slice(-24), [data]);
+  const latest = data[data.length - 1];
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
   const peakHours = (d: HourlyPoint[]) =>
