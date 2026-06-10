@@ -129,9 +129,9 @@ export type RegionalSnapshot = {
   reason?: string;
 };
 
-type SupabaseAdmin = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server").then>
->["supabaseAdmin"];
+type SupabaseAdmin =
+  typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+
 
 // Build snapshot from DB rows only (used as fallback / pre-warm)
 async function snapshotFromCache(
