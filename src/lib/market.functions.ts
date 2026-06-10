@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
-// Serbia bidding zone EIC code
-const SERBIA_ZONE = "10YCS-SERBIA-T";
+// Serbia bidding zone — use the same EIC the regional snapshot uses (returns data).
+const SERBIA_ZONE = "10YCS-SERBIATSOV";
+const MARKET = "DA_RS";
 
 function fmtUtc(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -65,7 +66,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
-    .eq("market", "SEEPEX_DA")
+    .eq("market", "DA_RS")
     .order("datetime", { ascending: true })
     .limit(10000);
 
@@ -111,7 +112,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
   if (fresh.length > 0) {
     const rows = fresh.map((p) => ({
       datetime: p.ts.toISOString(),
-      market: "SEEPEX_DA",
+      market: "DA_RS",
       price_eur_mwh: p.value,
       source: "ENTSO-E",
     }));
@@ -119,7 +120,7 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
     await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
-      .eq("market", "SEEPEX_DA")
+      .eq("market", "DA_RS")
       .gte("datetime", from.toISOString())
       .lt("datetime", to.toISOString());
     await supabaseAdmin.from("market_prices_hourly").insert(rows);

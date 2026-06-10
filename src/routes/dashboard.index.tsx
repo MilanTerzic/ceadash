@@ -140,10 +140,15 @@ function OverviewPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-muted-foreground">
-          {t(
-            `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}).`,
-            `Prikazano je ${live.data?.points.length} sati uživo iz ENTSO-E (izvor: ${live.data?.source}).`,
-          )}
+          {live.data?.source === "cache"
+            ? t(
+                `Showing ${live.data?.points.length} cached hours (latest ${latest.ts.toLocaleString()}). Live ENTSO-E refresh unavailable.`,
+                `Prikazano ${live.data?.points.length} keširanih sati (najnoviji ${latest.ts.toLocaleString()}). Osvežavanje sa ENTSO-E nije dostupno.`,
+              )
+            : t(
+                `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}).`,
+                `Prikazano je ${live.data?.points.length} sati uživo iz ENTSO-E (izvor: ${live.data?.source}).`,
+              )}
         </p>
       </div>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
