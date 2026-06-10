@@ -124,56 +124,62 @@ function OverviewPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-muted-foreground">
           {live.isLoading
-            ? "Fetching live ENTSO-E day-ahead prices…"
+            ? t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")
             : hasReal
-              ? `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}). Remaining hours use synthetic data.`
-              : "Live ENTSO-E data unavailable — showing synthetic demo year."}
+              ? t(
+                  `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}). Remaining hours use synthetic data.`,
+                  `Prikazano je ${live.data?.points.length} sati uživo iz ENTSO-E (izvor: ${live.data?.source}). Preostali sati koriste sintetičke podatke.`,
+                )
+              : t(
+                  "Live ENTSO-E data unavailable — showing synthetic demo year.",
+                  "ENTSO-E podaci uživo nisu dostupni — prikazana je sintetička demo godina.",
+                )}
         </p>
         {live.isError && (
-          <span className="text-xs text-critical">Live fetch failed: {String(live.error)}</span>
+          <span className="text-xs text-critical">{t("Live fetch failed:", "Preuzimanje nije uspelo:")} {String(live.error)}</span>
         )}
       </div>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label="Latest baseload"
-          hint="Latest hourly SEEPEX day-ahead price."
+          label={t("Latest baseload", "Najnoviji baseload")}
+          hint={t("Latest hourly SEEPEX day-ahead price.", "Najnovija satna SEEPEX day-ahead cena.")}
           value={fmt(latest.price)}
           unit="EUR/MWh"
           demo={!hasReal}
         />
         <KpiCard
-          label="Latest peakload"
-          hint="Average of weekday hours 08:00–20:00 over the last 7 days."
+          label={t("Latest peakload", "Najnoviji peakload")}
+          hint={t("Average of weekday hours 08:00–20:00 over the last 7 days.", "Prosek radnih dana 08:00–20:00 tokom poslednjih 7 dana.")}
           value={fmt(peakloadLatest)}
           unit="EUR/MWh"
           demo={!hasReal}
         />
-        <KpiCard label="7-day avg" value={fmt(baseload7)} unit="EUR/MWh" demo={!hasReal} />
-        <KpiCard label="30-day avg" value={fmt(baseload30)} unit="EUR/MWh" demo={!hasReal} />
+        <KpiCard label={t("7-day avg", "Prosek 7 dana")} value={fmt(baseload7)} unit="EUR/MWh" demo={!hasReal} />
+        <KpiCard label={t("30-day avg", "Prosek 30 dana")} value={fmt(baseload30)} unit="EUR/MWh" demo={!hasReal} />
         <KpiCard
-          label="Neg. hours (MTD)"
-          hint="Hours with SEEPEX price < 0 EUR/MWh this month."
+          label={t("Neg. hours (MTD)", "Neg. sati (MTD)")}
+          hint={t("Hours with SEEPEX price < 0 EUR/MWh this month.", "Sati sa SEEPEX cenom < 0 EUR/MWh u ovom mesecu.")}
           value={negCount}
-          unit="hours"
+          unit={t("hours", "sati")}
           demo={!hasReal}
         />
-        <KpiCard label="Neg. share (MTD)" value={fmt(negShare)} unit="%" demo={!hasReal} />
+        <KpiCard label={t("Neg. share (MTD)", "Udeo neg. (MTD)")} value={fmt(negShare)} unit="%" demo={!hasReal} />
         <KpiCard
-          label="Solar capture price"
-          hint="Σ(price × solar) ÷ Σ(solar) for the current month."
+          label={t("Solar capture price", "Solarna capture cena")}
+          hint={t("Σ(price × solar) ÷ Σ(solar) for the current month.", "Σ(cena × solar) ÷ Σ(solar) za tekući mesec.")}
           value={fmt(solarCapture)}
           unit="EUR/MWh"
           demo
         />
-        <KpiCard label="Wind capture price" value={fmt(windCapture)} unit="EUR/MWh" demo />
+        <KpiCard label={t("Wind capture price", "Vetro capture cena")} value={fmt(windCapture)} unit="EUR/MWh" demo />
         <KpiCard
-          label="Solar capture rate"
-          hint="Solar capture price ÷ baseload price."
+          label={t("Solar capture rate", "Solarna capture stopa")}
+          hint={t("Solar capture price ÷ baseload price.", "Solarna capture cena ÷ baseload cena.")}
           value={`${fmt((solarCapture / monthBaseload) * 100)}%`}
           demo
         />
         <KpiCard
-          label="Wind capture rate"
+          label={t("Wind capture rate", "Vetro capture stopa")}
           value={`${fmt((windCapture / monthBaseload) * 100)}%`}
           demo
         />
@@ -182,8 +188,8 @@ function OverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
-          title="Hourly day-ahead price"
-          description="Last 48 hours of SEEPEX-style hourly prices."
+          title={t("Hourly day-ahead price", "Satna day-ahead cena")}
+          description={t("Last 48 hours of SEEPEX-style hourly prices.", "Poslednja 48 sati SEEPEX-style satnih cena.")}
           demo
         >
           <ResponsiveContainer width="100%" height={280}>
@@ -199,8 +205,8 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
-          title="Daily baseload & peakload"
-          description="Last 30 days. Peakload = weekday 08:00–20:00 average."
+          title={t("Daily baseload & peakload", "Dnevni baseload i peakload")}
+          description={t("Last 30 days. Peakload = weekday 08:00–20:00 average.", "Poslednjih 30 dana. Peakload = prosek radnim danima 08:00–20:00.")}
           demo
         >
           <ResponsiveContainer width="100%" height={280}>
@@ -210,13 +216,13 @@ function OverviewPage() {
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Legend />
-              <Bar dataKey="baseload" fill="var(--color-chart-1)" name="Baseload" />
-              <Bar dataKey="peakload" fill="var(--color-chart-3)" name="Peakload" />
+              <Bar dataKey="baseload" fill="var(--color-chart-1)" name={t("Baseload", "Baseload")} />
+              <Bar dataKey="peakload" fill="var(--color-chart-3)" name={t("Peakload", "Peakload")} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Monthly average price" demo>
+        <ChartCard title={t("Monthly average price", "Mesečna prosečna cena")} demo>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly.map((m) => ({ month: m.month.slice(5), value: +m.value.toFixed(1) }))}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -228,7 +234,7 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Negative price hours per month" demo>
+        <ChartCard title={t("Negative price hours per month", "Sati negativnih cena po mesecu")} demo>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={negByMonth}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -242,8 +248,11 @@ function OverviewPage() {
       </div>
 
       <ChartCard
-        title="Solar & wind capture price vs baseload"
-        description="Monthly comparison illustrating RES cannibalisation. Capture rate below 100% means realised price is lower than the market average."
+        title={t("Solar & wind capture price vs baseload", "Solarna i vetro capture cena vs baseload")}
+        description={t(
+          "Monthly comparison illustrating RES cannibalisation. Capture rate below 100% means realised price is lower than the market average.",
+          "Mesečno poređenje koje ilustruje kanibalizaciju OIE. Capture stopa ispod 100% znači da je realizovana cena niža od proseka tržišta.",
+        )}
         demo
       >
         <ResponsiveContainer width="100%" height={320}>
@@ -260,9 +269,9 @@ function OverviewPage() {
             <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
             <RTooltip />
             <Legend />
-            <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-5)" strokeWidth={2} name="Baseload" />
-            <Line type="monotone" dataKey="solar" stroke="var(--color-chart-3)" strokeWidth={2} name="Solar capture" />
-            <Line type="monotone" dataKey="wind" stroke="var(--color-chart-2)" strokeWidth={2} name="Wind capture" />
+            <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-5)" strokeWidth={2} name={t("Baseload", "Baseload")} />
+            <Line type="monotone" dataKey="solar" stroke="var(--color-chart-3)" strokeWidth={2} name={t("Solar capture", "Solarni capture")} />
+            <Line type="monotone" dataKey="wind" stroke="var(--color-chart-2)" strokeWidth={2} name={t("Wind capture", "Vetro capture")} />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
