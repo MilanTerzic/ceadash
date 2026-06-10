@@ -210,8 +210,21 @@ function MarketPage() {
     return { cells, dayOrder };
   }, [filtered]);
 
+  if (live.isLoading) {
+    return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
+  }
+  if (!hasReal) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.", "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.")}
+        {live.isError && <span className="block mt-1 text-critical">{String(live.error)}</span>}
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-6">
+
       <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
         <div className="grid gap-4 md:grid-cols-12 items-end">
           <div className="md:col-span-5">
