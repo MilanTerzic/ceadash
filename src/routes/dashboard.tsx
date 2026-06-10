@@ -4,7 +4,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "CEA Power Dashboard" },
+      { title: "Dashboard — CEA Power Dashboard" },
       {
         name: "description",
         content:

@@ -6,9 +6,13 @@ import { captureMetricsByMonth, getDemoYear } from "@/lib/demo-data";
 export const Route = createFileRoute("/dashboard/insights")({
   head: () => ({
     meta: [
-      { title: "Serbia RES Insights — CEA Dashboard" },
-      { name: "description", content: "Analytical insights on renewable energy market signals in Serbia." },
+      { title: "Market Insights — CEA Power Dashboard" },
+      { name: "description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
+      { property: "og:title", content: "Market Insights — CEA Power Dashboard" },
+      { property: "og:description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/insights" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/insights" }],
   }),
   component: InsightsPage,
 });

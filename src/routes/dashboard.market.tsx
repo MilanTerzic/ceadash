@@ -36,12 +36,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
     meta: [
-      { title: "Market Prices — Serbia RES Dashboard" },
-      {
-        name: "description",
-        content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative price analytics for Serbia.",
-      },
+      { title: "Market Prices — CEA Power Dashboard" },
+      { name: "description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
+      { property: "og:title", content: "Market Prices — CEA Power Dashboard" },
+      { property: "og:description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
+      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/market" },
     ],
+    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/market" }],
   }),
   component: MarketPage,
 });

@@ -75,20 +75,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Analytical tool by Centar za energetske analize (CEA) tracking renewable energy market signals, capture prices and project economics in Serbia.",
       },
       { name: "author", content: "Centar za energetske analize — CEA" },
-      { property: "og:title", content: "CEA Power Dashboard" },
-      {
-        property: "og:description",
-        content:
-          "Renewable energy market analytics for Serbia: SEEPEX prices, capture prices, solar project economics.",
-      },
+      { property: "og:site_name", content: "CEA Power Dashboard" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "CEA Power Dashboard" },
-      { name: "description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
-      { property: "og:description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
-      { name: "twitter:description", content: "CEA Power Dashboard provides insights into the Serbian electricity market for renewable energy stakeholders." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e13c113f-4ade-4017-ac14-75e917642739/id-preview-362c8451--b25719ce-1fa7-48cd-a27e-36a18a4404cd.lovable.app-1781097895539.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e13c113f-4ade-4017-ac14-75e917642739/id-preview-362c8451--b25719ce-1fa7-48cd-a27e-36a18a4404cd.lovable.app-1781097895539.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -97,6 +86,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Fira+Sans:wght@400;500;600;700&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://ceadash.lovable.app/#organization",
+              name: "Centar za energetske analize",
+              alternateName: "CEA",
+              url: "https://www.cea.org.rs/",
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://ceadash.lovable.app/#website",
+              name: "CEA Power Dashboard",
+              url: "https://ceadash.lovable.app/",
+              publisher: { "@id": "https://ceadash.lovable.app/#organization" },
+            },
+          ],
+        }),
       },
     ],
   }),
