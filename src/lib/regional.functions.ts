@@ -355,10 +355,63 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
       }
     }
 
+    // Capture prices per zone — fetch wind+solar generation and weight against DA
+    const captureByZone = new Map<
+      ZoneCode,
+      { wind: number | null; solar: number | null; windRatio: number | null; solarRatio: number | null }
+    >();
+    if (hasToken) {
+      const zoneList = Object.keys(ZONES) as ZoneCode[];
+      const capFrom = new Date(to.getTime() - 24 * 3600_000);
+      const capResults = await Promise.all(
+        zoneList.map(async (z) => {
+          const [priceP, solarP, windOn, windOff] = await Promise.all([
+            fetchDayAheadPrice(ZONES[z].eic, capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B16", capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B19", capFrom, to),
+            fetchGeneration(ZONES[z].eic, "B18", capFrom, to),
+          ]);
+          const priceH = toHourly(priceP);
+          const solarH = toHourly(solarP);
+          const windH = toHourly([...windOn, ...windOff]);
+          const baseload = priceH.size
+            ? Array.from(priceH.values()).reduce((a, b) => a + b, 0) / priceH.size
+            : null;
+          const wc = captureFrom(priceH, windH);
+          const sc = captureFrom(priceH, solarH);
+          return {
+            z,
+            wind: wc,
+            solar: sc,
+            windRatio: wc != null && baseload ? wc / baseload : null,
+            solarRatio: sc != null && baseload ? sc / baseload : null,
+          };
+        }),
+      );
+      for (const r of capResults) {
+        captureByZone.set(r.z, {
+          wind: r.wind,
+          solar: r.solar,
+          windRatio: r.windRatio,
+          solarRatio: r.solarRatio,
+        });
+      }
+    }
+
     // Build snapshot from the DB (which now includes anything we just wrote).
     const snap = await snapshotFromCache(supabaseAdmin, from, to);
     if (liveAny) snap.source = "live";
     if (!hasToken && !snap.ok) snap.reason = "missing_token";
+
+    for (const p of snap.prices) {
+      const c = captureByZone.get(p.zone);
+      if (c) {
+        p.windCapture = c.wind;
+        p.solarCapture = c.solar;
+        p.windCaptureRatio = c.windRatio;
+        p.solarCaptureRatio = c.solarRatio;
+      }
+    }
 
     HOT.current = { ts: now, data: snap };
     return snap;
