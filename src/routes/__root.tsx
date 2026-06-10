@@ -12,22 +12,24 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { LanguageProvider, LanguageToggle, useLang } from "@/lib/i18n";
 
 function NotFoundComponent() {
+  const { t } = useLang();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="font-display text-7xl text-foreground">404</h1>
-        <h2 className="mt-4 text-xl text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl text-foreground">{t("Page not found", "Stranica nije pronađena")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist.
+          {t("The page you're looking for doesn't exist.", "Stranica koju tražite ne postoji.")}
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Back to dashboard
+            {t("Back to dashboard", "Nazad na dashboard")}
           </Link>
         </div>
       </div>
@@ -38,6 +40,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const { t } = useLang();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
