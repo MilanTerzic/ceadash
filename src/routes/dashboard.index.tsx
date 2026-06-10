@@ -156,8 +156,8 @@ function OverviewPage() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label={t("Latest baseload", "Najnoviji baseload")}
-          hint={t("Latest hourly SEEPEX day-ahead price.", "Najnovija satna SEEPEX day-ahead cena.")}
-          value={fmt(latest.price)}
+          hint={t("Average SEEPEX day-ahead price over the latest 24 available hours.", "Prosečna SEEPEX day-ahead cena za poslednja 24 dostupna sata.")}
+          value={fmt(baseloadLatest)}
           unit="EUR/MWh"
         />
         <KpiCard
