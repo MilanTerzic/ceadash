@@ -84,12 +84,17 @@ const DEMO_ITEMS: NewsItem[] = [
 ];
 
 function NewsPage() {
-  const [items, setItems] = useState<NewsItem[]>([]);
+  const [dbItems, setDbItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<string>("all");
   const [region, setRegion] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const fetchEkapija = useServerFn(getEkapijaNews);
+  const { data: ekapija } = useQuery({
+    queryKey: ["ekapija-news"],
+    queryFn: () => fetchEkapija(),
+    staleTime: 30 * 60 * 1000,
+  });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ? { id: data.user.id } : null));
@@ -99,25 +104,31 @@ function NewsPage() {
       .order("date", { ascending: false })
       .limit(100)
       .then(({ data }) => {
-        if (data && data.length) setItems(data as NewsItem[]);
-        else setItems(DEMO_ITEMS);
+        setDbItems((data && data.length ? (data as NewsItem[]) : []));
         setLoading(false);
       });
   }, []);
 
-  const filtered = items.filter(
+  const merged: NewsItem[] = (() => {
+    const ek = (ekapija?.items ?? []) as NewsItem[];
+    const base = dbItems.length ? dbItems : DEMO_ITEMS;
+    const seen = new Set(ek.map((i) => i.original_url));
+    const combined = [...ek, ...base.filter((i) => !seen.has(i.original_url))];
+    return combined.sort((a, b) => (a.date < b.date ? 1 : -1));
+  })();
+
+  const filtered = merged.filter(
     (i) =>
-      (source === "all" || i.source === source) &&
       (region === "all" || i.region === region) &&
       (category === "all" || i.category === category),
   );
 
-  const sources = Array.from(new Set(items.map((i) => i.source)));
+  const usingDemo = dbItems.length === 0 && (ekapija?.items?.length ?? 0) === 0;
 
   return (
     <ChartCard
       title="News & Policy Monitor"
-      description="Curated renewable energy news for Serbia and the region."
+      description="Curated renewable energy news for Serbia and the region, including live summaries from eKapija."
       right={
         <Sheet>
           <SheetTrigger asChild>
@@ -129,19 +140,12 @@ function NewsPage() {
             <SheetHeader>
               <SheetTitle>Add news item</SheetTitle>
             </SheetHeader>
-            <AddNewsForm userId={user?.id} onAdded={(it) => setItems((p) => [it, ...p])} />
+            <AddNewsForm userId={user?.id} onAdded={(it) => setDbItems((p) => [it, ...p])} />
           </SheetContent>
         </Sheet>
       }
     >
-      <div className="grid gap-3 md:grid-cols-3 mb-4">
-        <Select value={source} onValueChange={setSource}>
-          <SelectTrigger><SelectValue placeholder="Source" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
-            {sources.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <div className="grid gap-3 md:grid-cols-2 mb-4">
         <Select value={region} onValueChange={setRegion}>
           <SelectTrigger><SelectValue placeholder="Region" /></SelectTrigger>
           <SelectContent>
@@ -162,6 +166,7 @@ function NewsPage() {
           </SelectContent>
         </Select>
       </div>
+
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
