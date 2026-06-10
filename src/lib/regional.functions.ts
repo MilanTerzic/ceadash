@@ -196,8 +196,9 @@ async function snapshotFromCache(
     const expAvg = exp ? exp.sum / exp.n : 0;
     const impAvg = imp ? imp.sum / imp.n : 0;
     const net = expAvg - impAvg;
-    return { from: "RS", to: n, netMw: Math.round(net), absMw: Math.round(Math.abs(net)) };
+    return { from: "RS" as ZoneCode, to: n, netMw: Math.round(net), absMw: Math.round(Math.abs(net)) };
   }).filter((f) => f.absMw > 0);
+
 
   const hasAnyPrice = prices.some((p) => p.avg24h != null || p.latest != null);
   return {
