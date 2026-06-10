@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer,
   LineChart,
@@ -35,6 +43,22 @@ export const Route = createFileRoute("/dashboard/")({
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
 type HourlyPoint = { ts: Date; price: number; solar: number; wind: number };
+
+// Belgrade (CET/CEST) calendar-day key, e.g. "2026-06-09"
+const BELGRADE_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Belgrade",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+function belgradeDayKey(d: Date) {
+  return BELGRADE_FMT.format(d); // en-CA → YYYY-MM-DD
+}
+function dateFromBelgradeKey(key: string) {
+  // local Date at midnight, used only for calendar/display
+  const [y, m, day] = key.split("-").map(Number);
+  return new Date(y, m - 1, day);
+}
 
 function monthlyAvgLocal(points: HourlyPoint[]) {
   const map = new Map<string, number[]>();
@@ -83,9 +107,50 @@ function OverviewPage() {
     );
   }
 
-  const latest = data[data.length - 1];
+  // Group hours by Belgrade calendar day; keep only complete days (24 hours)
+  // for baseload — incomplete trailing days (publishing window) skew the average.
+  const dayMap = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const p of data) {
+      const k = belgradeDayKey(p.ts);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(p.price);
+    }
+    return m;
+  }, [data]);
+  const completeDays = useMemo(
+    () => Array.from(dayMap.entries()).filter(([, v]) => v.length === 24).map(([k]) => k).sort(),
+    [dayMap],
+  );
+  const latestCompleteDay = completeDays[completeDays.length - 1];
+  const firstCompleteDay = completeDays[0];
+
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const effRange: DateRange | undefined = range ?? (latestCompleteDay
+    ? { from: dateFromBelgradeKey(latestCompleteDay), to: dateFromBelgradeKey(latestCompleteDay) }
+    : undefined);
+
+  const rangeKeys = useMemo(() => {
+    if (!effRange?.from) return [] as string[];
+    const fromK = belgradeDayKey(effRange.from);
+    const toK = belgradeDayKey(effRange.to ?? effRange.from);
+    return completeDays.filter((k) => k >= fromK && k <= toK);
+  }, [effRange, completeDays]);
+
+  const baseloadRange = useMemo(() => {
+    const vals = rangeKeys.flatMap((k) => dayMap.get(k) ?? []);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
+  }, [rangeKeys, dayMap]);
+
+  const rangeButtonLabel = effRange?.from
+    ? effRange.to && belgradeDayKey(effRange.to) !== belgradeDayKey(effRange.from)
+      ? `${format(effRange.from, "d MMM yyyy")} – ${format(effRange.to, "d MMM yyyy")}`
+      : format(effRange.from, "d MMM yyyy")
+    : t("Pick a day", "Izaberi dan");
+
+  const baseloadLatest = baseloadRange;
   const last24 = useMemo(() => data.slice(-24), [data]);
-  const baseloadLatest = last24.length ? last24.reduce((a, b) => a + b.price, 0) / last24.length : NaN;
+  const latest = data[data.length - 1];
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
   const peakHours = (d: HourlyPoint[]) =>
@@ -153,10 +218,54 @@ function OverviewPage() {
               )}
         </p>
       </div>
+      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t("Baseload period (day to day)", "Period baseload-a (od dana do dana)")}
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("mt-1.5 w-[280px] justify-start text-left font-normal", !effRange?.from && "text-muted-foreground")}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {rangeButtonLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={effRange}
+                  onSelect={setRange}
+                  numberOfMonths={2}
+                  defaultMonth={effRange?.from}
+                  disabled={
+                    firstCompleteDay && latestCompleteDay
+                      ? { before: dateFromBelgradeKey(firstCompleteDay), after: dateFromBelgradeKey(latestCompleteDay) }
+                      : undefined
+                  }
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-md">
+            {t(
+              `Averaged over ${rangeKeys.length} complete day(s) (24 SEEPEX DA hours each, Europe/Belgrade).`,
+              `Prosek za ${rangeKeys.length} kompletnih dana (24 SEEPEX DA sata svaki, vreme Europe/Belgrade).`,
+            )}
+          </p>
+        </div>
+      </div>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label={t("Latest baseload", "Najnoviji baseload")}
-          hint={t("Average SEEPEX day-ahead price over the latest 24 available hours.", "Prosečna SEEPEX day-ahead cena za poslednja 24 dostupna sata.")}
+          label={rangeKeys.length === 1
+            ? `${t("Baseload", "Baseload")} · ${format(dateFromBelgradeKey(rangeKeys[0]), "d MMM")}`
+            : t("Baseload (range)", "Baseload (opseg)")}
+          hint={t("Average of all 24 SEEPEX DA hours per day within the selected range (Europe/Belgrade).", "Prosek svih 24 SEEPEX DA sati po danu u izabranom opsegu (Europe/Belgrade).")}
           value={fmt(baseloadLatest)}
           unit="EUR/MWh"
         />
