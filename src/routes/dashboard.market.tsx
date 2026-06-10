@@ -343,13 +343,13 @@ function Heatmap({ cells, days }: { cells: { h: number; day: string; v: number }
   const colW = days.length > 60 ? 10 : days.length > 31 ? 14 : 18;
   return (
     <div className="overflow-x-auto">
-      <div className="inline-grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, 18px)` }}>
+      <div className="inline-grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, ${colW}px)` }}>
         <div />
         {days.map((d) => (
-          <div key={d} className="text-[9px] text-center text-muted-foreground">{d}</div>
+          <div key={d} className="text-[9px] text-center text-muted-foreground truncate">{d}</div>
         ))}
         {Array.from({ length: 24 }, (_, h) => (
-          <ContiguousRow key={h} h={h} days={days} min={min} max={max} cellMap={cellMap} />
+          <ContiguousRow key={h} h={h} days={days} min={min} max={max} cellMap={cellMap} colW={colW} />
         ))}
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
@@ -367,9 +367,10 @@ function ContiguousRow({
   min,
   max,
   cellMap,
+  colW,
 }: {
   h: number;
-  days: number[];
+  days: string[];
   min: number;
   max: number;
   cellMap: Map<string, number>;
