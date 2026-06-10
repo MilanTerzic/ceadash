@@ -18,8 +18,9 @@ export const ZONES: Record<ZoneCode, { name: string; eic: string; lat: number; l
   IT: { name: "Italy (North)", eic: "10Y1001A1001A73I", lat: 45.5, lng: 9.2 },
 };
 
-// Serbia's transmission neighbours (for power flows)
 export const RS_NEIGHBOURS: ZoneCode[] = ["HU", "RO", "BG", "MK", "ME", "BA", "HR"];
+
+const MARKET_PREFIX = "DA_";
 
 function fmtUtc(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -96,9 +97,10 @@ async function fetchPhysicalFlow(fromEic: string, toEic: string, from: Date, to:
   return parsePoints(r.xml);
 }
 
+// In-memory hot cache (per warm worker) — 30 min
 type CacheEntry = { ts: number; data: RegionalSnapshot };
-const CACHE: { current?: CacheEntry } = {};
-const TTL_MS = 60 * 60 * 1000;
+const HOT: { current?: CacheEntry } = {};
+const HOT_TTL_MS = 30 * 60 * 1000;
 
 export type ZonePrice = {
   zone: ZoneCode;
@@ -112,7 +114,7 @@ export type ZonePrice = {
 export type FlowSummary = {
   from: ZoneCode;
   to: ZoneCode;
-  netMw: number; // positive = from -> to, negative = to -> from
+  netMw: number;
   absMw: number;
 };
 
@@ -123,86 +125,189 @@ export type RegionalSnapshot = {
   windowTo: string;
   prices: ZonePrice[];
   flows: FlowSummary[];
+  source: "live" | "cache" | "none";
   reason?: string;
 };
+
+type SupabaseAdmin = Awaited<
+  ReturnType<typeof import("@/integrations/supabase/client.server").then>
+>["supabaseAdmin"];
+
+// Build snapshot from DB rows only (used as fallback / pre-warm)
+async function snapshotFromCache(
+  supabaseAdmin: SupabaseAdmin,
+  windowFrom: Date,
+  windowTo: Date,
+): Promise<RegionalSnapshot> {
+  const zoneList = Object.keys(ZONES) as ZoneCode[];
+  const markets = zoneList.map((z) => `${MARKET_PREFIX}${z}`);
+
+  const priceRows = await supabaseAdmin
+    .from("market_prices_hourly")
+    .select("datetime, market, price_eur_mwh")
+    .in("market", markets)
+    .gte("datetime", windowFrom.toISOString())
+    .lt("datetime", windowTo.toISOString())
+    .order("datetime", { ascending: true });
+
+  const byZone = new Map<ZoneCode, { ts: Date; value: number }[]>();
+  for (const z of zoneList) byZone.set(z, []);
+  for (const r of priceRows.data ?? []) {
+    const z = (r.market as string).slice(MARKET_PREFIX.length) as ZoneCode;
+    if (!byZone.has(z)) continue;
+    byZone.get(z)!.push({ ts: new Date(r.datetime as string), value: Number(r.price_eur_mwh) });
+  }
+
+  const cutoff = windowTo.getTime() - 24 * 3600_000;
+  const prices: ZonePrice[] = zoneList.map((z) => {
+    const pts = byZone.get(z)!;
+    const last24 = pts.filter((p) => p.ts.getTime() >= cutoff);
+    const avg = last24.length ? last24.reduce((s, p) => s + p.value, 0) / last24.length : null;
+    const latest = pts.length ? pts[pts.length - 1] : null;
+    return {
+      zone: z,
+      name: ZONES[z].name,
+      avg24h: avg,
+      latest: latest ? latest.value : null,
+      latestTs: latest ? latest.ts.toISOString() : null,
+      points: pts.map((p) => ({ ts: p.ts.toISOString(), price: p.value })),
+    };
+  });
+
+  // Flows: pull last 24h, average per neighbour (signed RS -> n)
+  const flowFrom = new Date(windowTo.getTime() - 24 * 3600_000);
+  const flowRows = await supabaseAdmin
+    .from("cross_border_flows_hourly")
+    .select("datetime, from_zone, to_zone, flow_mw")
+    .gte("datetime", flowFrom.toISOString())
+    .lt("datetime", windowTo.toISOString());
+
+  const flowAcc = new Map<string, { sum: number; n: number }>();
+  for (const r of flowRows.data ?? []) {
+    const key = `${r.from_zone}|${r.to_zone}`;
+    const acc = flowAcc.get(key) ?? { sum: 0, n: 0 };
+    acc.sum += Number(r.flow_mw);
+    acc.n += 1;
+    flowAcc.set(key, acc);
+  }
+  const flows: FlowSummary[] = RS_NEIGHBOURS.map((n) => {
+    const exp = flowAcc.get(`RS|${n}`);
+    const imp = flowAcc.get(`${n}|RS`);
+    const expAvg = exp ? exp.sum / exp.n : 0;
+    const impAvg = imp ? imp.sum / imp.n : 0;
+    const net = expAvg - impAvg;
+    return { from: "RS", to: n, netMw: Math.round(net), absMw: Math.round(Math.abs(net)) };
+  }).filter((f) => f.absMw > 0);
+
+  const hasAnyPrice = prices.some((p) => p.avg24h != null || p.latest != null);
+  return {
+    ok: hasAnyPrice,
+    generatedAt: new Date().toISOString(),
+    windowFrom: windowFrom.toISOString(),
+    windowTo: windowTo.toISOString(),
+    prices: prices.sort((a, b) => (b.avg24h ?? -1) - (a.avg24h ?? -1)),
+    flows: flows.sort((a, b) => b.absMw - a.absMw),
+    source: hasAnyPrice ? "cache" : "none",
+  };
+}
 
 export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
   async (): Promise<RegionalSnapshot> => {
     const now = Date.now();
-    if (CACHE.current && now - CACHE.current.ts < TTL_MS) return CACHE.current.data;
+    if (HOT.current && now - HOT.current.ts < HOT_TTL_MS) return HOT.current.data;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const to = new Date();
     to.setUTCMinutes(0, 0, 0);
-    // Day-ahead is published ~12:00 CET for next day; pull 48h window so we always have data.
-    const from = new Date(to.getTime() - 48 * 3600_000);
+    const from = new Date(to.getTime() - 7 * 24 * 3600_000); // keep a week of context
 
-    if (!process.env.ENTSOE_SECURITY_TOKEN) {
-      const empty: RegionalSnapshot = {
-        ok: false,
-        generatedAt: new Date().toISOString(),
-        windowFrom: from.toISOString(),
-        windowTo: to.toISOString(),
-        prices: [],
-        flows: [],
-        reason: "missing_token",
-      };
-      return empty;
+    // Always try to refresh from ENTSO-E; on any failure fall back to DB cache.
+    const hasToken = Boolean(process.env.ENTSOE_SECURITY_TOKEN);
+    let liveAny = false;
+
+    if (hasToken) {
+      const zoneList = Object.keys(ZONES) as ZoneCode[];
+      const fetchFrom = new Date(to.getTime() - 48 * 3600_000);
+
+      // Prices
+      const priceResults = await Promise.all(
+        zoneList.map(async (z) => ({
+          z,
+          pts: await fetchDayAheadPrice(ZONES[z].eic, fetchFrom, to),
+        })),
+      );
+      const priceRows: {
+        datetime: string;
+        market: string;
+        price_eur_mwh: number;
+        source: string;
+      }[] = [];
+      for (const { z, pts } of priceResults) {
+        if (pts.length) liveAny = true;
+        for (const p of pts) {
+          priceRows.push({
+            datetime: p.ts.toISOString(),
+            market: `${MARKET_PREFIX}${z}`,
+            price_eur_mwh: p.value,
+            source: "ENTSO-E",
+          });
+        }
+      }
+      if (priceRows.length) {
+        await supabaseAdmin
+          .from("market_prices_hourly")
+          .upsert(priceRows, { onConflict: "datetime,market" });
+      }
+
+      // Flows (Serbia ↔ neighbours, 24h window)
+      const flowFrom = new Date(to.getTime() - 24 * 3600_000);
+      const flowResults = await Promise.all(
+        RS_NEIGHBOURS.flatMap((n) => [
+          fetchPhysicalFlow(ZONES.RS.eic, ZONES[n].eic, flowFrom, to).then((pts) => ({
+            from: "RS" as ZoneCode,
+            to: n,
+            pts,
+          })),
+          fetchPhysicalFlow(ZONES[n].eic, ZONES.RS.eic, flowFrom, to).then((pts) => ({
+            from: n,
+            to: "RS" as ZoneCode,
+            pts,
+          })),
+        ]),
+      );
+      const flowRows: {
+        datetime: string;
+        from_zone: string;
+        to_zone: string;
+        flow_mw: number;
+        source: string;
+      }[] = [];
+      for (const { from: fz, to: tz, pts } of flowResults) {
+        if (pts.length) liveAny = true;
+        for (const p of pts) {
+          flowRows.push({
+            datetime: p.ts.toISOString(),
+            from_zone: fz,
+            to_zone: tz,
+            flow_mw: p.value,
+            source: "ENTSO-E",
+          });
+        }
+      }
+      if (flowRows.length) {
+        await supabaseAdmin
+          .from("cross_border_flows_hourly")
+          .upsert(flowRows, { onConflict: "datetime,from_zone,to_zone" });
+      }
     }
 
-    // Prices — all zones in parallel
-    const zoneList = Object.keys(ZONES) as ZoneCode[];
-    const priceResults = await Promise.all(
-      zoneList.map(async (z) => {
-        const pts = await fetchDayAheadPrice(ZONES[z].eic, from, to);
-        const sorted = pts.sort((a, b) => a.ts.getTime() - b.ts.getTime());
-        const last24 = sorted.filter((p) => p.ts.getTime() >= to.getTime() - 24 * 3600_000);
-        const avg = last24.length
-          ? last24.reduce((s, p) => s + p.value, 0) / last24.length
-          : null;
-        const latest = sorted.length ? sorted[sorted.length - 1] : null;
-        const out: ZonePrice = {
-          zone: z,
-          name: ZONES[z].name,
-          avg24h: avg,
-          latest: latest ? latest.value : null,
-          latestTs: latest ? latest.ts.toISOString() : null,
-          points: sorted.map((p) => ({ ts: p.ts.toISOString(), price: p.value })),
-        };
-        return out;
-      }),
-    );
+    // Build snapshot from the DB (which now includes anything we just wrote).
+    const snap = await snapshotFromCache(supabaseAdmin, from, to);
+    if (liveAny) snap.source = "live";
+    if (!hasToken && !snap.ok) snap.reason = "missing_token";
 
-    // Flows — Serbia to each neighbour, both directions
-    const flowResults: FlowSummary[] = [];
-    const flowFrom = new Date(to.getTime() - 24 * 3600_000);
-    await Promise.all(
-      RS_NEIGHBOURS.map(async (n) => {
-        const [exp, imp] = await Promise.all([
-          fetchPhysicalFlow(ZONES.RS.eic, ZONES[n].eic, flowFrom, to),
-          fetchPhysicalFlow(ZONES[n].eic, ZONES.RS.eic, flowFrom, to),
-        ]);
-        const avg = (arr: { value: number }[]) =>
-          arr.length ? arr.reduce((s, p) => s + p.value, 0) / arr.length : 0;
-        const net = avg(exp) - avg(imp); // positive: RS exports to n
-        flowResults.push({
-          from: "RS",
-          to: n,
-          netMw: Math.round(net),
-          absMw: Math.round(Math.abs(net)),
-        });
-      }),
-    );
-
-    const snapshot: RegionalSnapshot = {
-      ok: true,
-      generatedAt: new Date().toISOString(),
-      windowFrom: from.toISOString(),
-      windowTo: to.toISOString(),
-      prices: priceResults.sort((a, b) => (b.avg24h ?? -1) - (a.avg24h ?? -1)),
-      flows: flowResults.sort((a, b) => b.absMw - a.absMw),
-    };
-
-    CACHE.current = { ts: now, data: snapshot };
-    return snapshot;
+    HOT.current = { ts: now, data: snap };
+    return snap;
   },
 );
