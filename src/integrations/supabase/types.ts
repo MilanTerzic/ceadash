@@ -14,7 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calculator_scenarios: {
+        Row: {
+          assumptions_json: Json
+          capacity_mwp: number | null
+          capex_eur_kwp: number | null
+          created_at: string
+          id: string
+          location: string | null
+          merchant_share: number | null
+          opex_fixed: number | null
+          ppa_price: number | null
+          results_json: Json
+          scenario_name: string
+          user_id: string | null
+        }
+        Insert: {
+          assumptions_json?: Json
+          capacity_mwp?: number | null
+          capex_eur_kwp?: number | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          merchant_share?: number | null
+          opex_fixed?: number | null
+          ppa_price?: number | null
+          results_json?: Json
+          scenario_name: string
+          user_id?: string | null
+        }
+        Update: {
+          assumptions_json?: Json
+          capacity_mwp?: number | null
+          capex_eur_kwp?: number | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          merchant_share?: number | null
+          opex_fixed?: number | null
+          ppa_price?: number | null
+          results_json?: Json
+          scenario_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      capture_price_metrics: {
+        Row: {
+          baseload_price: number
+          capture_price: number
+          capture_rate: number
+          created_at: string
+          id: number
+          negative_price_generation_share: number | null
+          period: string
+          technology: string
+        }
+        Insert: {
+          baseload_price: number
+          capture_price: number
+          capture_rate: number
+          created_at?: string
+          id?: number
+          negative_price_generation_share?: number | null
+          period: string
+          technology: string
+        }
+        Update: {
+          baseload_price?: number
+          capture_price?: number
+          capture_rate?: number
+          created_at?: string
+          id?: number
+          negative_price_generation_share?: number | null
+          period?: string
+          technology?: string
+        }
+        Relationships: []
+      }
+      market_prices_hourly: {
+        Row: {
+          created_at: string
+          datetime: string
+          id: number
+          market: string
+          price_eur_mwh: number
+          source: string
+          volume_mwh: number | null
+        }
+        Insert: {
+          created_at?: string
+          datetime: string
+          id?: number
+          market?: string
+          price_eur_mwh: number
+          source?: string
+          volume_mwh?: number | null
+        }
+        Update: {
+          created_at?: string
+          datetime?: string
+          id?: number
+          market?: string
+          price_eur_mwh?: number
+          source?: string
+          volume_mwh?: number | null
+        }
+        Relationships: []
+      }
+      news_items: {
+        Row: {
+          ai_generated: boolean
+          category: string
+          created_at: string
+          date: string
+          id: string
+          original_url: string
+          region: string
+          source: string
+          summary_en: string | null
+          tags: string[]
+          title: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          category?: string
+          created_at?: string
+          date: string
+          id?: string
+          original_url: string
+          region?: string
+          source: string
+          summary_en?: string | null
+          tags?: string[]
+          title: string
+        }
+        Update: {
+          ai_generated?: boolean
+          category?: string
+          created_at?: string
+          date?: string
+          id?: string
+          original_url?: string
+          region?: string
+          source?: string
+          summary_en?: string | null
+          tags?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
+      res_generation_profiles: {
+        Row: {
+          created_at: string
+          datetime: string
+          generation_mwh_per_mw: number
+          id: number
+          location: string
+          source: string
+          technology: string
+        }
+        Insert: {
+          created_at?: string
+          datetime: string
+          generation_mwh_per_mw: number
+          id?: number
+          location?: string
+          source: string
+          technology: string
+        }
+        Update: {
+          created_at?: string
+          datetime?: string
+          generation_mwh_per_mw?: number
+          id?: number
+          location?: string
+          source?: string
+          technology?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
