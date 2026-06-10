@@ -47,7 +47,7 @@ export const Route = createFileRoute("/dashboard/market")({
 });
 
 function MarketPage() {
-  const data = useMemo(() => getDemoYear(), []);
+  
   const live = useQuery({
     queryKey: ["market-prices"],
     queryFn: () => fetchMarketPrices(),
