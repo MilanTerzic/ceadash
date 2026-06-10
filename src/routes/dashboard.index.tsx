@@ -44,6 +44,22 @@ const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
 type HourlyPoint = { ts: Date; price: number; solar: number; wind: number };
 
+// Belgrade (CET/CEST) calendar-day key, e.g. "2026-06-09"
+const BELGRADE_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Belgrade",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+function belgradeDayKey(d: Date) {
+  return BELGRADE_FMT.format(d); // en-CA → YYYY-MM-DD
+}
+function dateFromBelgradeKey(key: string) {
+  // local Date at midnight, used only for calendar/display
+  const [y, m, day] = key.split("-").map(Number);
+  return new Date(y, m - 1, day);
+}
+
 function monthlyAvgLocal(points: HourlyPoint[]) {
   const map = new Map<string, number[]>();
   for (const p of points) {
