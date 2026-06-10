@@ -241,10 +241,11 @@ function OverviewPage() {
                   onSelect={setRange}
                   numberOfMonths={2}
                   defaultMonth={effRange?.from}
-                  disabled={{
-                    before: firstCompleteDay ? dateFromBelgradeKey(firstCompleteDay) : undefined,
-                    after: latestCompleteDay ? dateFromBelgradeKey(latestCompleteDay) : undefined,
-                  }}
+                  disabled={
+                    firstCompleteDay && latestCompleteDay
+                      ? { before: dateFromBelgradeKey(firstCompleteDay), after: dateFromBelgradeKey(latestCompleteDay) }
+                      : undefined
+                  }
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />
