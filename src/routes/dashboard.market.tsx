@@ -16,7 +16,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { applyRealPrices, getDemoYear } from "@/lib/demo-data";
+// Live data only: fetched via fetchMarketPrices (ENTSO-E with DB cache fallback).
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { Label } from "@/components/ui/label";
