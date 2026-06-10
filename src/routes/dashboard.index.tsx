@@ -107,9 +107,49 @@ function OverviewPage() {
     );
   }
 
-  const latest = data[data.length - 1];
+  // Group hours by Belgrade calendar day; keep only complete days (24 hours)
+  // for baseload — incomplete trailing days (publishing window) skew the average.
+  const dayMap = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const p of data) {
+      const k = belgradeDayKey(p.ts);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(p.price);
+    }
+    return m;
+  }, [data]);
+  const completeDays = useMemo(
+    () => Array.from(dayMap.entries()).filter(([, v]) => v.length === 24).map(([k]) => k).sort(),
+    [dayMap],
+  );
+  const latestCompleteDay = completeDays[completeDays.length - 1];
+  const firstCompleteDay = completeDays[0];
+
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const effRange: DateRange | undefined = range ?? (latestCompleteDay
+    ? { from: dateFromBelgradeKey(latestCompleteDay), to: dateFromBelgradeKey(latestCompleteDay) }
+    : undefined);
+
+  const rangeKeys = useMemo(() => {
+    if (!effRange?.from) return [] as string[];
+    const fromK = belgradeDayKey(effRange.from);
+    const toK = belgradeDayKey(effRange.to ?? effRange.from);
+    return completeDays.filter((k) => k >= fromK && k <= toK);
+  }, [effRange, completeDays]);
+
+  const baseloadRange = useMemo(() => {
+    const vals = rangeKeys.flatMap((k) => dayMap.get(k) ?? []);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
+  }, [rangeKeys, dayMap]);
+
+  const rangeButtonLabel = effRange?.from
+    ? effRange.to && belgradeDayKey(effRange.to) !== belgradeDayKey(effRange.from)
+      ? `${format(effRange.from, "d MMM yyyy")} – ${format(effRange.to, "d MMM yyyy")}`
+      : format(effRange.from, "d MMM yyyy")
+    : t("Pick a day", "Izaberi dan");
+
+  const baseloadLatest = baseloadRange;
   const last24 = useMemo(() => data.slice(-24), [data]);
-  const baseloadLatest = last24.length ? last24.reduce((a, b) => a + b.price, 0) / last24.length : NaN;
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
   const peakHours = (d: HourlyPoint[]) =>
