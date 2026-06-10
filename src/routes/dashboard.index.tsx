@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ResponsiveContainer,
   LineChart,
@@ -14,7 +15,14 @@ import {
   ReferenceLine,
 } from "recharts";
 import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
-import { getDemoYear, getRecentDays, captureMetricsByMonth, monthlyAvg } from "@/lib/demo-data";
+import {
+  applyRealPrices,
+  captureMetricsByMonth,
+  getDemoYear,
+  getRecentDays,
+  monthlyAvg,
+} from "@/lib/demo-data";
+import { fetchMarketPrices } from "@/lib/market.functions";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -29,9 +37,18 @@ export const Route = createFileRoute("/dashboard/")({
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
 function OverviewPage() {
-  const data = useMemo(() => getDemoYear(), []);
-  const last30 = useMemo(() => getRecentDays(30), []);
-  const last7 = useMemo(() => getRecentDays(7), []);
+  const live = useQuery({
+    queryKey: ["market-prices"],
+    queryFn: () => fetchMarketPrices(),
+    staleTime: 60 * 60_000,
+  });
+  const hasReal = (live.data?.points?.length ?? 0) > 0;
+  const data = useMemo(
+    () => applyRealPrices(getDemoYear(), live.data?.points ?? []),
+    [live.data],
+  );
+  const last30 = useMemo(() => getRecentDays(30, data), [data]);
+  const last7 = useMemo(() => getRecentDays(7, data), [data]);
 
   const latest = data[data.length - 1];
   const baseload7 = last7.reduce((a, b) => a + b.price, 0) / last7.length;
