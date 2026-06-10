@@ -97,6 +97,48 @@ async function fetchPhysicalFlow(fromEic: string, toEic: string, from: Date, to:
   return parsePoints(r.xml);
 }
 
+// Actual generation per production type (B16=Solar, B18=Wind Offshore, B19=Wind Onshore)
+async function fetchGeneration(eic: string, psrType: string, from: Date, to: Date) {
+  const r = await callEntsoe({
+    documentType: "A75",
+    processType: "A16",
+    in_Domain: eic,
+    psrType,
+    periodStart: fmtUtc(from),
+    periodEnd: fmtUtc(to),
+  });
+  if (!r.ok) return [];
+  return parsePoints(r.xml);
+}
+
+function toHourly(pts: { ts: Date; value: number }[]): Map<string, number> {
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const p of pts) {
+    const d = new Date(p.ts);
+    d.setUTCMinutes(0, 0, 0);
+    const k = d.toISOString();
+    const a = acc.get(k) ?? { sum: 0, n: 0 };
+    a.sum += p.value;
+    a.n += 1;
+    acc.set(k, a);
+  }
+  const out = new Map<string, number>();
+  for (const [k, v] of acc) out.set(k, v.sum / v.n);
+  return out;
+}
+
+function captureFrom(prices: Map<string, number>, gen: Map<string, number>) {
+  let num = 0,
+    den = 0;
+  for (const [k, g] of gen) {
+    const p = prices.get(k);
+    if (p == null || !isFinite(g) || g <= 0) continue;
+    num += p * g;
+    den += g;
+  }
+  return den > 0 ? num / den : null;
+}
+
 // In-memory hot cache (per warm worker) — 30 min
 type CacheEntry = { ts: number; data: RegionalSnapshot };
 const HOT: { current?: CacheEntry } = {};
