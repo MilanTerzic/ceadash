@@ -72,35 +72,35 @@
 
   /* Warm cream like cea.org.rs background */
   --background: oklch(0.975 0.012 95);
-  --foreground: oklch(0.28 0.02 110);
+  --foreground: oklch(0.18 0.02 110);
 
   /* Slightly lighter cream for section bands */
-  --surface: oklch(0.96 0.014 95);
+  --surface: oklch(0.955 0.014 95);
 
-  --card: oklch(0.995 0.005 95);
-  --card-foreground: oklch(0.24 0.02 110);
-  --popover: oklch(0.995 0.005 95);
-  --popover-foreground: oklch(0.24 0.02 110);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.02 110);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.02 110);
 
-  /* Muted olive/sage — CEA brand tone */
-  --primary: oklch(0.45 0.045 120);
-  --primary-foreground: oklch(0.98 0.01 95);
+  /* Muted olive/sage — CEA brand tone (darker for contrast) */
+  --primary: oklch(0.36 0.05 130);
+  --primary-foreground: oklch(0.99 0.01 95);
 
-  --secondary: oklch(0.92 0.022 105);
-  --secondary-foreground: oklch(0.32 0.03 115);
+  --secondary: oklch(0.9 0.025 105);
+  --secondary-foreground: oklch(0.22 0.03 115);
 
-  --muted: oklch(0.93 0.018 100);
-  --muted-foreground: oklch(0.5 0.022 110);
+  --muted: oklch(0.91 0.02 100);
+  --muted-foreground: oklch(0.36 0.025 110);
 
-  --accent: oklch(0.88 0.04 90);
-  --accent-foreground: oklch(0.3 0.03 110);
+  --accent: oklch(0.85 0.05 90);
+  --accent-foreground: oklch(0.2 0.03 110);
 
-  --destructive: oklch(0.55 0.16 28);
-  --destructive-foreground: oklch(0.98 0.01 95);
+  --destructive: oklch(0.5 0.18 28);
+  --destructive-foreground: oklch(0.99 0.01 95);
 
-  --border: oklch(0.86 0.018 100);
-  --input: oklch(0.88 0.018 100);
-  --ring: oklch(0.55 0.05 120);
+  --border: oklch(0.78 0.022 100);
+  --input: oklch(0.82 0.02 100);
+  --ring: oklch(0.45 0.06 120);
 
   /* Signal palette */
   --positive: oklch(0.58 0.1 150);
