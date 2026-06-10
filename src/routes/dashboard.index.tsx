@@ -23,6 +23,7 @@ import {
   monthlyAvg,
 } from "@/lib/demo-data";
 import { fetchMarketPrices } from "@/lib/market.functions";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/dashboard/")({
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
 function OverviewPage() {
+  const { t } = useLang();
   const live = useQuery({
     queryKey: ["market-prices"],
     queryFn: () => fetchMarketPrices(),
