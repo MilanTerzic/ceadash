@@ -58,8 +58,9 @@ function MarketPage() {
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
-  const data = useMemo(
-    () => applyRealPrices(getDemoYear(), live.data?.points ?? []),
+  type Pt = { ts: Date; price: number };
+  const data = useMemo<Pt[]>(
+    () => (live.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
     [live.data],
   );
   const dataMin = useMemo(() => data[0]?.ts ?? new Date(), [data]);
