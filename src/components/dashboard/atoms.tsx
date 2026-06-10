@@ -114,6 +114,7 @@ export function ChartCard({
 }
 
 export function SignalPill({ signal }: { signal: "Positive" | "Neutral" | "Warning" | "Critical" }) {
+  const { t } = useLang();
   const color =
     signal === "Positive"
       ? "bg-positive/15 text-positive"
@@ -122,9 +123,17 @@ export function SignalPill({ signal }: { signal: "Positive" | "Neutral" | "Warni
         : signal === "Critical"
           ? "bg-critical/15 text-critical"
           : "bg-muted text-muted-foreground";
+  const label =
+    signal === "Positive"
+      ? t("Positive", "Pozitivno")
+      : signal === "Warning"
+        ? t("Warning", "Upozorenje")
+        : signal === "Critical"
+          ? t("Critical", "Kritično")
+          : t("Neutral", "Neutralno");
   return (
     <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium", color)}>
-      {signal}
+      {label}
     </span>
   );
 }
