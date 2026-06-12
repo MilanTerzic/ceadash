@@ -10,6 +10,7 @@ export function DashboardTabs() {
     { to: "/dashboard/market", label: t("Market Prices", "Cene na tržištu") },
     { to: "/dashboard/regional", label: t("Regional Prices", "Regionalne cene") },
     { to: "/dashboard/capture", label: t("RES Capture Prices", "Capture cene OIE") },
+    { to: "/dashboard/weekly", label: t("Weekly Intelligence", "Nedeljna analiza") },
     { to: "/dashboard/calculator", label: t("Solar Project Calculator", "Kalkulator solarnog projekta") },
     { to: "/dashboard/insights", label: t("Serbia RES Insights", "OIE uvidi — Srbija") },
     { to: "/dashboard/news", label: t("News & Policy", "Vesti i regulativa") },
