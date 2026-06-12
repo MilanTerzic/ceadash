@@ -1,8 +1,16 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { z } from "zod";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { useLang } from "@/lib/i18n";
 
+const searchSchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  preset: z.enum(["7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
+});
+
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (s) => searchSchema.parse(s),
   head: () => ({
     meta: [
       { title: "Dashboard — CEA Power Dashboard" },
@@ -47,4 +55,3 @@ function DashboardLayout() {
     </div>
   );
 }
-

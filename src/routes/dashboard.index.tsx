@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import type { DateRange } from "react-day-picker";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer,
   LineChart,
@@ -23,8 +15,15 @@ import {
   ReferenceLine,
 } from "recharts";
 import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
+import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
+import {
+  bucketByBelgradeDay,
+  aggregatePeriod,
+  type HourlyPrice,
+} from "@/lib/baseload";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -42,35 +41,27 @@ export const Route = createFileRoute("/dashboard/")({
 
 const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 
-type HourlyPoint = { ts: Date; price: number; solar: number; wind: number };
-
-// Belgrade (CET/CEST) calendar-day key, e.g. "2026-06-09"
-const BELGRADE_FMT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Belgrade",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-function belgradeDayKey(d: Date) {
-  return BELGRADE_FMT.format(d); // en-CA → YYYY-MM-DD
-}
-function dateFromBelgradeKey(key: string) {
-  // local Date at midnight, used only for calendar/display
-  const [y, m, day] = key.split("-").map(Number);
-  return new Date(y, m - 1, day);
-}
-
-function monthlyAvgLocal(points: HourlyPoint[]) {
-  const map = new Map<string, number[]>();
-  for (const p of points) {
-    const k = p.ts.toISOString().slice(0, 7);
-    if (!map.has(k)) map.set(k, []);
-    map.get(k)!.push(p.price);
-  }
-  return Array.from(map.entries()).map(([month, vals]) => ({
-    month,
-    value: vals.reduce((a, b) => a + b, 0) / vals.length,
-  }));
+function methodology(opts: {
+  metric: string;
+  range: string;
+  hours: number;
+  days: number;
+  formula: string;
+  lastUpdate?: Date;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="font-medium">{opts.metric}</div>
+      <div><span className="text-muted-foreground">Source:</span> ENTSO-E DA (Serbia SEEPEX, EIC 10YCS-SERBIATSOV)</div>
+      <div><span className="text-muted-foreground">Range:</span> {opts.range}</div>
+      <div><span className="text-muted-foreground">Time zone:</span> Europe/Belgrade</div>
+      <div><span className="text-muted-foreground">Method:</span> {opts.formula}</div>
+      <div><span className="text-muted-foreground">Sample:</span> {opts.hours} hours · {opts.days} complete day(s)</div>
+      {opts.lastUpdate && (
+        <div><span className="text-muted-foreground">Updated:</span> {opts.lastUpdate.toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}</div>
+      )}
+    </div>
+  );
 }
 
 function OverviewPage() {
@@ -81,82 +72,70 @@ function OverviewPage() {
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
-  const data = useMemo<HourlyPoint[]>(
-    () =>
-      (live.data?.points ?? []).map((p) => ({
-        ts: new Date(p.ts),
-        price: p.price,
-        solar: 0,
-        wind: 0,
-      })),
+
+  const data = useMemo<HourlyPrice[]>(
+    () => (live.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
     [live.data],
   );
-  const last30 = useMemo(() => data.slice(-30 * 24), [data]);
-  const last7 = useMemo(() => data.slice(-7 * 24), [data]);
 
-  // Group hours by Belgrade calendar day; keep only complete days (24 hours)
-  const dayMap = useMemo(() => {
-    const m = new Map<string, number[]>();
-    for (const p of data) {
-      const k = belgradeDayKey(p.ts);
-      if (!m.has(k)) m.set(k, []);
-      m.get(k)!.push(p.price);
+  const buckets = useMemo(() => bucketByBelgradeDay(data), [data]);
+  const completeDays = useMemo(() => buckets.filter((b) => b.complete), [buckets]);
+  const incompleteCount = buckets.length - completeDays.length;
+  const firstAvailable = completeDays[0]?.date;
+  const latestAvailable = completeDays[completeDays.length - 1]?.date;
+  const lastTs = data[data.length - 1]?.ts;
+
+  const { fromKey, toKey, range } = useDashboardRange({ firstAvailable, latestAvailable });
+
+  const period = useMemo(() => aggregatePeriod(buckets, fromKey, toKey), [buckets, fromKey, toKey]);
+
+  // Rolling references (independent of selected range)
+  const last7 = useMemo(() => completeDays.slice(-7), [completeDays]);
+  const last30 = useMemo(() => completeDays.slice(-30), [completeDays]);
+  const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
+  const baseload30 = last30.length ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length : NaN;
+
+  // Monthly series (full history) for charts
+  const monthly = useMemo(() => {
+    const m = new Map<string, { sum: number; n: number; neg: number }>();
+    for (const b of completeDays) {
+      const k = b.key.slice(0, 7);
+      const cur = m.get(k) ?? { sum: 0, n: 0, neg: 0 };
+      cur.sum += b.baseload;
+      cur.n += 1;
+      cur.neg += b.hours.filter((h) => h.price < 0).length;
+      m.set(k, cur);
     }
-    return m;
-  }, [data]);
-  const completeDays = useMemo(
-    () => Array.from(dayMap.entries()).filter(([, v]) => v.length === 24).map(([k]) => k).sort(),
-    [dayMap],
+    return Array.from(m.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => ({
+        month: k.slice(5),
+        baseload: +(v.sum / v.n).toFixed(1),
+        negHours: v.neg,
+      }));
+  }, [completeDays]);
+
+  // Daily chart (in-range)
+  const inRangeDaily = useMemo(
+    () =>
+      buckets
+        .filter((b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey))
+        .map((b) => ({
+          day: b.key.slice(5),
+          baseload: +b.baseload.toFixed(1),
+          peakload: b.peakload != null ? +b.peakload.toFixed(1) : null,
+        })),
+    [buckets, fromKey, toKey],
   );
-  const latestCompleteDay = completeDays[completeDays.length - 1];
-  const firstCompleteDay = completeDays[0];
 
-  const [range, setRange] = useState<DateRange | undefined>(undefined);
-  const effRange: DateRange | undefined = range ?? (latestCompleteDay
-    ? { from: dateFromBelgradeKey(latestCompleteDay), to: dateFromBelgradeKey(latestCompleteDay) }
-    : undefined);
-
-  const rangeKeys = useMemo(() => {
-    if (!effRange?.from) return [] as string[];
-    const fromK = belgradeDayKey(effRange.from);
-    const toK = belgradeDayKey(effRange.to ?? effRange.from);
-    return completeDays.filter((k) => k >= fromK && k <= toK);
-  }, [effRange, completeDays]);
-
-  const baseloadRange = useMemo(() => {
-    const vals = rangeKeys.flatMap((k) => dayMap.get(k) ?? []);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
-  }, [rangeKeys, dayMap]);
-
-  const monthly = useMemo(() => monthlyAvgLocal(data), [data]);
-
-  const negByMonth = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of data) {
-      const k = p.ts.toISOString().slice(0, 7);
-      m.set(k, (m.get(k) ?? 0) + (p.price < 0 ? 1 : 0));
-    }
-    return Array.from(m.entries()).map(([month, negHours]) => ({ month: month.slice(5), negHours }));
-  }, [data]);
-
-  const dailyBaseloadPeakload = useMemo(() => {
-    const m = new Map<string, { base: number[]; peak: number[] }>();
-    for (const p of last30) {
-      const k = p.ts.toISOString().slice(0, 10);
-      if (!m.has(k)) m.set(k, { base: [], peak: [] });
-      m.get(k)!.base.push(p.price);
-      const h = p.ts.getHours();
-      const dow = p.ts.getDay();
-      if (dow >= 1 && dow <= 5 && h >= 8 && h < 20) m.get(k)!.peak.push(p.price);
-    }
-    return Array.from(m.entries()).map(([day, v]) => ({
-      day: day.slice(5),
-      baseload: +(v.base.reduce((a, b) => a + b, 0) / v.base.length).toFixed(1),
-      peakload: v.peak.length
-        ? +(v.peak.reduce((a, b) => a + b, 0) / v.peak.length).toFixed(1)
-        : null,
-    }));
-  }, [last30]);
+  const last48Chart = useMemo(
+    () =>
+      data.slice(-48).map((p) => ({
+        t: p.ts.toISOString().slice(5, 16).replace("T", " "),
+        price: +p.price.toFixed(1),
+      })),
+    [data],
+  );
 
   if (live.isLoading) {
     return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
@@ -170,120 +149,108 @@ function OverviewPage() {
     );
   }
 
-  const rangeButtonLabel = effRange?.from
-    ? effRange.to && belgradeDayKey(effRange.to) !== belgradeDayKey(effRange.from)
-      ? `${format(effRange.from, "d MMM yyyy")} – ${format(effRange.to, "d MMM yyyy")}`
-      : format(effRange.from, "d MMM yyyy")
-    : t("Pick a day", "Izaberi dan");
-
-  const baseloadLatest = baseloadRange;
-  const latest = data[data.length - 1];
-  const baseload7 = last7.length ? last7.reduce((a, b) => a + b.price, 0) / last7.length : NaN;
-  const baseload30 = last30.length ? last30.reduce((a, b) => a + b.price, 0) / last30.length : NaN;
-  const peakHours = (d: HourlyPoint[]) =>
-    d.filter((p) => {
-      const h = p.ts.getHours();
-      const dow = p.ts.getDay();
-      return dow >= 1 && dow <= 5 && h >= 8 && h < 20;
-    });
-  const peak7 = peakHours(last7);
-  const peakloadLatest = peak7.length ? peak7.reduce((a, b) => a + b.price, 0) / peak7.length : NaN;
-
-  // Current month
-  const cm = latest.ts.toISOString().slice(0, 7);
-  const monthHours = data.filter((p) => p.ts.toISOString().slice(0, 7) === cm);
-  const negCount = monthHours.filter((p) => p.price < 0).length;
-  const negShare = monthHours.length ? (negCount / monthHours.length) * 100 : NaN;
-
-  const last48Chart = last7.slice(-48).map((p) => ({
-    t: p.ts.toISOString().slice(5, 16).replace("T", " "),
-    price: +p.price.toFixed(1),
-  }));
-
+  const rangeLabel = range
+    ? `${range.from.toISOString().slice(0, 10)} → ${range.to.toISOString().slice(0, 10)}`
+    : "—";
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          {live.data?.source === "cache"
+    <div className="space-y-6">
+      <DataStatusBanner
+        source={(live.data?.source as "entsoe" | "cache" | "none") ?? "none"}
+        lastUpdate={lastTs}
+        hours={data.length}
+        completeDays={completeDays.length}
+        incompleteDays={incompleteCount}
+        warning={
+          incompleteCount > 0
             ? t(
-                `Showing ${live.data?.points.length} cached hours (latest ${latest.ts.toLocaleString()}). Live ENTSO-E refresh unavailable.`,
-                `Prikazano ${live.data?.points.length} keširanih sati (najnoviji ${latest.ts.toLocaleString()}). Osvežavanje sa ENTSO-E nije dostupno.`,
+                `${incompleteCount} day(s) excluded from baseload because they have fewer than 24 hourly prices (DST or today-so-far).`,
+                `${incompleteCount} dan(a) izuzeto iz baseload-a zbog manje od 24 satnih cena (DST ili tekući dan).`,
               )
-            : t(
-                `Showing ${live.data?.points.length} live ENTSO-E hours (source: ${live.data?.source}).`,
-                `Prikazano je ${live.data?.points.length} sati uživo iz ENTSO-E (izvor: ${live.data?.source}).`,
-              )}
-        </p>
-      </div>
-      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {t("Baseload period (day to day)", "Period baseload-a (od dana do dana)")}
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("mt-1.5 w-[280px] justify-start text-left font-normal", !effRange?.from && "text-muted-foreground")}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {rangeButtonLabel}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={effRange}
-                  onSelect={setRange}
-                  numberOfMonths={2}
-                  defaultMonth={effRange?.from}
-                  disabled={
-                    firstCompleteDay && latestCompleteDay
-                      ? { before: dateFromBelgradeKey(firstCompleteDay), after: dateFromBelgradeKey(latestCompleteDay) }
-                      : undefined
-                  }
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-md">
-            {t(
-              `Averaged over ${rangeKeys.length} complete day(s) (24 SEEPEX DA hours each, Europe/Belgrade).`,
-              `Prosek za ${rangeKeys.length} kompletnih dana (24 SEEPEX DA sata svaki, vreme Europe/Belgrade).`,
-            )}
-          </p>
-        </div>
-      </div>
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
-        <KpiCard
-          label={rangeKeys.length === 1
-            ? `${t("Baseload", "Baseload")} · ${format(dateFromBelgradeKey(rangeKeys[0]), "d MMM")}`
-            : t("Baseload (range)", "Baseload (opseg)")}
-          hint={t("Average of all 24 SEEPEX DA hours per day within the selected range (Europe/Belgrade).", "Prosek svih 24 SEEPEX DA sati po danu u izabranom opsegu (Europe/Belgrade).")}
-          value={fmt(baseloadLatest)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          label={t("Latest peakload", "Najnoviji peakload")}
-          hint={t("Average of weekday hours 08:00–20:00 over the last 7 days.", "Prosek radnih dana 08:00–20:00 tokom poslednjih 7 dana.")}
-          value={fmt(peakloadLatest)}
-          unit="EUR/MWh"
-        />
-        <KpiCard label={t("7-day avg", "Prosek 7 dana")} value={fmt(baseload7)} unit="EUR/MWh" />
-        <KpiCard label={t("30-day avg", "Prosek 30 dana")} value={fmt(baseload30)} unit="EUR/MWh" />
-        <KpiCard
-          label={t("Neg. hours (MTD)", "Neg. sati (MTD)")}
-          hint={t("Hours with SEEPEX price < 0 EUR/MWh this month.", "Sati sa SEEPEX cenom < 0 EUR/MWh u ovom mesecu.")}
-          value={negCount}
-          unit={t("hours", "sati")}
-        />
-        <KpiCard label={t("Neg. share (MTD)", "Udeo neg. (MTD)")} value={fmt(negShare)} unit="%" />
-      </div>
+            : undefined
+        }
+      />
 
+      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
+
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label={t("Baseload (period)", "Baseload (period)")}
+          value={fmt(period.baseload)}
+          unit="EUR/MWh"
+          hint={methodology({
+            metric: "Period baseload",
+            range: rangeLabel,
+            hours: period.hoursCount,
+            days: period.completeDaysCount,
+            formula: "Mean of daily baseloads (each = mean of 24 hourly prices) over complete days only.",
+            lastUpdate: lastTs,
+          })}
+        />
+        <KpiCard
+          label={t("Peakload (period)", "Peakload (period)")}
+          value={fmt(period.peakload ?? NaN)}
+          unit="EUR/MWh"
+          hint={methodology({
+            metric: "Period peakload",
+            range: rangeLabel,
+            hours: period.hoursCount,
+            days: period.completeDaysCount,
+            formula: "Mean of daily peakloads (Mon–Fri 08:00–20:00 Europe/Belgrade) over complete days.",
+            lastUpdate: lastTs,
+          })}
+        />
+        <KpiCard
+          label={t("Negative hours", "Negativni sati")}
+          value={period.negHours}
+          unit={t("hours", "sati")}
+          hint={methodology({
+            metric: "Negative price hours",
+            range: rangeLabel,
+            hours: period.hoursCount,
+            days: period.completeDaysCount,
+            formula: "Count of hourly DA prices < 0 EUR/MWh in the selected range.",
+          })}
+        />
+        <KpiCard
+          label={t("Volatility (σ)", "Volatilnost (σ)")}
+          value={fmt(period.sd)}
+          unit="EUR/MWh"
+          hint={methodology({
+            metric: "Volatility",
+            range: rangeLabel,
+            hours: period.hoursCount,
+            days: period.completeDaysCount,
+            formula: "Population standard deviation of hourly DA prices in the range.",
+          })}
+        />
+        <KpiCard label={t("Min hour", "Min sat")} value={fmt(period.minHour, 0)} unit="EUR/MWh" />
+        <KpiCard label={t("Max hour", "Max sat")} value={fmt(period.maxHour, 0)} unit="EUR/MWh" />
+        <KpiCard
+          label={t("7-day baseload", "Baseload 7d")}
+          value={fmt(baseload7)}
+          unit="EUR/MWh"
+          hint={methodology({
+            metric: "Rolling 7-day baseload",
+            range: `${last7[0]?.key ?? "?"} → ${last7[last7.length - 1]?.key ?? "?"}`,
+            hours: last7.reduce((a, b) => a + b.hours.length, 0),
+            days: last7.length,
+            formula: "Mean of last 7 complete daily baseloads.",
+          })}
+        />
+        <KpiCard
+          label={t("30-day baseload", "Baseload 30d")}
+          value={fmt(baseload30)}
+          unit="EUR/MWh"
+          hint={methodology({
+            metric: "Rolling 30-day baseload",
+            range: `${last30[0]?.key ?? "?"} → ${last30[last30.length - 1]?.key ?? "?"}`,
+            hours: last30.reduce((a, b) => a + b.hours.length, 0),
+            days: last30.length,
+            formula: "Mean of last 30 complete daily baseloads.",
+          })}
+        />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
@@ -294,7 +261,7 @@ function OverviewPage() {
             <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} unit="" />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
               <Line type="monotone" dataKey="price" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} />
@@ -303,11 +270,11 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
-          title={t("Daily baseload & peakload", "Dnevni baseload i peakload")}
-          description={t("Last 30 days. Peakload = weekday 08:00–20:00 average.", "Poslednjih 30 dana. Peakload = prosek radnim danima 08:00–20:00.")}
+          title={t("Daily baseload & peakload (period)", "Dnevni baseload i peakload (period)")}
+          description={t("In selected range. Peakload = Mon–Fri 08:00–20:00.", "U izabranom opsegu. Peakload = Pon–Pet 08:00–20:00.")}
         >
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={dailyBaseloadPeakload}>
+            <BarChart data={inRangeDaily}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
@@ -319,21 +286,21 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Monthly average price", "Mesečna prosečna cena")}>
+        <ChartCard title={t("Monthly baseload", "Mesečni baseload")}>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={monthly.map((m) => ({ month: m.month.slice(5), value: +m.value.toFixed(1) }))}>
+            <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
-              <Line type="monotone" dataKey="value" stroke="var(--color-chart-2)" strokeWidth={2} />
+              <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-2)" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard title={t("Negative price hours per month", "Sati negativnih cena po mesecu")}>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={negByMonth}>
+            <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
@@ -343,7 +310,22 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
       </div>
+
+      <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card text-sm space-y-2">
+        <h3 className="font-display text-lg">{t("Data check & methodology", "Provera podataka i metodologija")}</h3>
+        <p className="text-muted-foreground">
+          {t(
+            "Baseload prices are computed as the simple mean of daily baseloads, where each daily baseload is the simple mean of that day's 24 hourly SEEPEX DA prices in Europe/Belgrade local time. Incomplete days (DST or today-so-far) are excluded so that month-to-date numbers are comparable with exchange-published averages.",
+            "Baseload cene se računaju kao prost prosek dnevnih baseload-a, gde je dnevni baseload prost prosek 24 satnih SEEPEX DA cena u lokalnom vremenu Europe/Belgrade. Nepotpuni dani (DST ili tekući dan) se izuzimaju kako bi MTD brojevi bili uporedivi sa zvaničnim prosecima berze.",
+          )}
+        </p>
+        <p className="text-muted-foreground">
+          {t(
+            "If you see a small gap vs SEEPEX WB — note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on any KPI to see exact range, hours included and last update.",
+            "Ako vidite malo odstupanje u odnosu na SEEPEX WB — SEEPEX WB je regionalna referenca Zapadnog Balkana; ova kontrolna tabla koristi srpsku zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na KPI-jevima za tačan opseg, sate i poslednje ažuriranje.",
+          )}
+        </p>
+      </div>
     </div>
   );
 }
-
