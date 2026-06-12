@@ -1,75 +1,58 @@
-## Serbia RES Market Dashboard — Build Plan
 
-A new, CEA-branded analytical dashboard built fresh in this project. Visual language matches cea.org.rs: warm cream background (#f7f4ea-ish), muted olive/sage primary, serif display headings (Cormorant/Playfair-style), clean sans body, generous spacing, soft cards.
+# Dashboard Upgrade Plan
 
-### 1. Design System (src/styles.css)
-- Palette tokens: `--background` cream, `--card` white, `--primary` muted olive/sage, `--accent` warm sand, charts in olive/sage/sky/amber/clay (no neon).
-- Typography: serif display (Cormorant Garamond) for H1/H2/KPI numbers; Inter for body. Loaded via `<link>` in `__root.tsx`.
-- Components: soft-shadow rounded-2xl cards, thin dividers, restrained motion. Tooltip + Info icon for every metric.
+This is a large request. I'll deliver it in **4 phases** so you can review after each. Tell me which phase to start with (or say "all" to proceed sequentially).
 
-### 2. Routing (TanStack Start, file-based)
-```
-src/routes/
-  __root.tsx                 — header with CEA-style nav + EN locale, intro strip
-  index.tsx                  — landing redirect/intro → /dashboard
-  dashboard.tsx              — layout: tabs nav + <Outlet/>
-  dashboard.index.tsx        — Tab 1: Overview
-  dashboard.market.tsx       — Tab 2: Market Prices
-  dashboard.capture.tsx      — Tab 3: RES Capture Prices
-  dashboard.calculator.tsx   — Tab 4: Solar Project Calculator
-  dashboard.insights.tsx     — Tab 5: Serbia RES Insights
-  dashboard.news.tsx         — Tab 6: News & Policy Monitor
-  dashboard.methodology.tsx  — Tab 7: Data Sources / Methodology
-```
-Each leaf has its own `head()` meta (title/description/og).
+---
 
-### 3. Backend (Lovable Cloud)
-Enable Supabase. Tables (all with GRANTs + RLS):
-- `market_prices_hourly` (datetime, market, price_eur_mwh, volume_mwh, source) — public SELECT (anon+authenticated), service_role write.
-- `res_generation_profiles` (datetime, technology, location, generation_mwh_per_mw, source) — public SELECT.
-- `capture_price_metrics` (period, technology, baseload_price, capture_price, capture_rate, negative_price_generation_share) — public SELECT.
-- `news_items` (date, source, title, original_url, summary_en, tags[]) — public SELECT, admin-only INSERT via service role.
-- `calculator_scenarios` (user_id, scenario_name, location, capacity_mwp, ..., assumptions_json, results_json) — RLS: owner-only via `auth.uid()`. Sign-in optional; anonymous users get localStorage fallback.
+## Phase 1 — Data trust & global date range
 
-### 4. Server functions (`src/lib/*.functions.ts`)
-- `entsoe.functions.ts`: `fetchDayAheadPrices(zone='10YCS-SERBIA-T', from, to)`, `fetchActualGenerationByType`, `fetchActualLoad`. Uses `process.env.ENTSOE_SECURITY_TOKEN`. Parses ENTSO-E XML, normalizes to hourly rows, upserts into `market_prices_hourly`/`res_generation_profiles`.
-- `pvgis.functions.ts`: `fetchPvHourlyProfile({lat, lon, peakpower, loss, angle, aspect, year})` → calls PVGIS `seriescalc` JSON endpoint, returns hourly MWh/MW.
-- `capture.functions.ts`: computes monthly capture price/rate from joined price × profile.
-- `calculator.functions.ts`: pure financial engine (LCOE, IRR via bisection, NPV, DSCR, payback, sensitivity matrix). Stateless, callable from client.
-- `news.functions.ts`: admin insert/list; optional RSS fetcher for Balkan Green Energy News / SEEPEX / AERS feeds with `await import` for cheerio/xml2js if needed.
-All admin writes load `supabaseAdmin` inside `.handler()` via dynamic import.
+**Goal:** fix the 78.4 vs 74.33 mismatch and make every KPI auditable.
 
-### 5. Tab content (each backed by react-query + recharts)
-- **Overview**: 10 KPI cards (latest baseload/peakload, 7d/30d avg, # negative hrs MTD, share, solar/wind capture est, capture rates) + 5 charts.
-- **Market Prices**: filters (range/year/month/baseload-peakload/neg-only/high-only), hourly line, daily baseload+peakload bars, monthly avg, volatility, price duration curve, hour×month heatmap, weekday vs weekend bar.
-- **RES Capture**: monthly capture vs baseload bars+line, capture-rate trend, hourly avg solar/wind profile vs avg price profile, negative-price exposure, revenue loss.
-- **Solar Calculator**: form (all inputs from spec, location dropdown of 8 Serbia cities + custom coords), Calculate runs server fn (PVGIS + finance), renders Annual gen/CF/LCOE/IRR/NPV/Payback/DSCR/Break-even PPA/Capture/Blended price KPIs, monthly gen+revenue bars, hourly gen-vs-price scatter, lifetime cash-flow waterfall, 2D sensitivity heatmaps (CAPEX×PPA, CAPEX×capture, discount×PPA, curtailment×capture). Save scenario to Supabase or localStorage. CSV+PDF export. Disclaimer footer.
-- **Insights**: 12 insight cards with title / 2-sentence text / supporting metric (pulled from `capture_price_metrics` + computed) / signal pill (Positive/Neutral/Warning/Critical color-coded).
-- **News & Policy**: list of items from `news_items`, filters (source/topic/region/category/date), "AI summary" badge, link out, admin "Add item" sheet (visible if signed-in admin role).
-- **Methodology**: static prose + formula cards (KaTeX-rendered or styled `<code>` blocks).
+1. **Global date range selector** (top of dashboard, persisted in URL search params so it applies across all tabs):
+   - Presets: 7d, 30d, MTD, Previous month, YTD, Custom (From / To).
+   - All KPIs, charts, tables read from a shared `useDateRange()` hook.
+2. **Baseload calculation audit** in `market.functions.ts`:
+   - Confirm Serbia SEEPEX (EIC `10YCS-SERBIATSOV`) vs SEEPEX WB.
+   - Group by **Europe/Belgrade** calendar day (CET/CEST), drop incomplete days, simple average of 24 hourly prices = daily baseload; period baseload = mean of daily baseloads (matches exchange convention; this is likely the source of the 78.4 vs 74.33 gap — currently we average hours, not days).
+   - De-duplicate hours and warn on gaps.
+3. **Methodology tooltip** on every price KPI:
+   source · exact range · method · hours included · last update.
+4. **Data status banner**: last successful ENTSO-E fetch, cache fallback indicator, missing-data warning, market area, timezone.
 
-### 6. Cross-cutting
-- **Demo mode**: if a query returns zero rows, fall back to bundled `src/lib/demoData.ts` (one year of synthetic SEEPEX-shaped hourly prices with negative hours, plus PVGIS-like profiles) and render a "Demo data" badge in the card header.
-- **Tooltips**: `<MetricLabel>` component wraps every KPI with shadcn Tooltip explaining the formula.
-- **Exports**: chart PNG via `recharts` ref → `html-to-image`; CSV via simple `Blob`; calculator PDF via `jspdf`.
-- **Responsive**: 12-col grid → 2-col on tablet → stacked on mobile. Tabs collapse to dropdown on small screens.
+## Phase 2 — Weekly Market Intelligence tab
 
-### 7. Secrets
-- `ENTSOE_SECURITY_TOKEN` — added via secrets tool after Cloud is enabled (you indicated you have one).
-- `LOVABLE_API_KEY` — auto-provisioned (used later if we add AI summarization for news).
+New tab `/dashboard/weekly` with two buttons.
 
-### 8. Delivery order (one build pass)
-1. Enable Cloud, create migration with 5 tables + GRANTs + RLS.
-2. Design tokens + fonts + shared `DashboardShell`, `KpiCard`, `MetricLabel`, `ChartCard`, `DemoBadge`.
-3. Route tree (root + dashboard layout + 7 leaves) with placeholder bodies.
-4. Demo data module + recharts wrappers.
-5. Implement Overview, Market Prices, RES Capture using demo data + react-query.
-6. Solar Project Calculator (form + finance engine + sensitivities + save/export).
-7. Insights + News (with admin add) + Methodology.
-8. Server fns: PVGIS (wire into calculator immediately), ENTSO-E (wire into market/capture queries; fall back to demo if token missing/empty result).
-9. Request `ENTSOE_SECURITY_TOKEN` secret.
+1. **Generate Weekly Market Update** (Lovable AI, `google/gemini-3-flash-preview`, via `createServerFn`):
+   - Inputs: last 7 days of prices, solar capture, wind capture, WoW + YoY deltas, negative/low-price hours, volatility, evening peak, midday cannibalisation.
+   - Output: structured JSON rendered as styled cards (A. price moves, B. RES capture, C. market signals, D. news).
+2. **News section**: pull from existing `news_items` table, filter to last 7 days + SEE/RES keywords, de-dupe via a new `weekly_report_used_news(url, used_at)` table so the same item never repeats.
+3. **Create LinkedIn Post** button: second AI call, 1,200–1,800 chars, structured opening + 3–5 insights + takeaway + hashtags, **Copy to clipboard**.
+4. **Export LinkedIn Visual**: client-side render of a 1200×1200 (and 1200×627) card using `html-to-image` → PNG download. CEA-branded, 3 KPIs + sparkline + takeaway + source.
 
-### Notes / Out of scope for v1
-- No automated RSS scraping of CEA/eKapija (ToS risk) — news supports manual admin entry + optional RSS for the two sources that publish open feeds (Balkan Green Energy News). AI summarization stub uses Lovable AI Gateway only if you confirm.
-- Auth: Supabase email/password optional for saving scenarios + admin news entry; not required to browse.
-- Existing power dashboard codebase: not present here, so this is a clean build — components are written to be portable back if needed.
+## Phase 3 — RES producer tools
+
+1. **Price risk panel**: baseload, solar capture, capture discount %, negative hours, low-price hours, σ.
+2. **Revenue simulation** (extend `/dashboard/calculator`): MW, MWh/yr, tech, merchant %, PPA price, balancing €/MWh, curtailment %. Outputs: merchant revenue, PPA revenue, sensitivity table (±10/20/30% price), negative-price drag, payback if CAPEX given.
+3. **PPA vs merchant comparison**: full merchant / fixed PPA / hybrid / PPA + floor / PPA + upside share — table + bar chart on the same inputs.
+4. **Battery / flexibility signal**: avg daily peak-trough spread, top-10 spread days, evening-vs-midday delta, arbitrage-friendly day count, 1-cycle/day revenue proxy.
+5. **Grid & regulation watch**: filtered slice of `news_items` (grid, auctions, balancing, curtailment).
+
+## Phase 4 — Visual refresh
+
+CEA-aligned light theme: white surfaces, dark slate text, energy blue + green accents, subtle gradients only on hero KPIs, rounded cards, consistent icon set (lucide), tightened spacing scale, tablet-responsive grid. Tokens updated in `src/styles.css`; no hardcoded colors in components.
+
+---
+
+## Technical notes (for reference)
+
+- **Date range state**: Zod `validateSearch` on `/dashboard` route with `from`, `to`, `preset`; `Route.useSearch()` in children. Avoids prop drilling and makes ranges shareable via URL.
+- **AI calls**: `src/lib/weekly.functions.ts` with `createServerFn` + Lovable AI Gateway (`LOVABLE_API_KEY` already set). Structured output via `Output.object(zodSchema)`. Handle 429/402 with UI error states.
+- **News de-dup**: new migration `weekly_report_used_news (url PK, title, used_at, week_iso)` with GRANTs + RLS (`authenticated` read/insert via server fn only).
+- **LinkedIn visual**: `html-to-image` package (Worker-safe; runs in browser), rendered from a hidden DOM node styled with current design tokens.
+- **Baseload fix**: switch from `mean(hourlyPrices)` to `mean(dailyBaseloads where hoursInDay === 24)` in the period aggregation paths in `dashboard.index.tsx`, `dashboard.market.tsx`, and any KPI sharing the same helper — extract into `src/lib/baseload.ts`.
+
+---
+
+**Which phase should I start with?** I recommend Phase 1 first (it unblocks every other number on the dashboard), then 2, then 3, then 4.
