@@ -227,6 +227,27 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_report_used_news: {
+        Row: {
+          title: string | null
+          url: string
+          used_at: string
+          week_iso: string
+        }
+        Insert: {
+          title?: string | null
+          url: string
+          used_at?: string
+          week_iso: string
+        }
+        Update: {
+          title?: string | null
+          url?: string
+          used_at?: string
+          week_iso?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
