@@ -5,7 +5,9 @@ import { z } from "zod";
 // Docs: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
 // Returns demo-marker objects if token missing or response empty so the UI can degrade gracefully.
 
-const SERBIA_BIDDING_ZONE = "10YCS-SERBIA-T";
+// Correct EIC for the Serbia bidding zone on ENTSO-E (the previous "10YCS-SERBIA-T"
+// was not recognised by the Transparency API and returned empty payloads).
+const SERBIA_BIDDING_ZONE = "10YCS-SERBIATSOV";
 
 function fmtUtc(d: Date) {
   // YYYYMMDDHHMM
