@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import type { DateRange } from "react-day-picker";
 import {
   ResponsiveContainer,
   LineChart,
@@ -16,14 +14,10 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-// Live data only: fetched via fetchMarketPrices (ENTSO-E with DB cache fallback).
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,8 +25,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
+import {
+  bucketByBelgradeDay,
+  aggregatePeriod,
+  belgradeDayKey,
+  isBelgradePeakHour,
+  type HourlyPrice,
+} from "@/lib/baseload";
 
 export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
@@ -50,106 +52,63 @@ export const Route = createFileRoute("/dashboard/market")({
 
 function MarketPage() {
   const { t } = useLang();
-  
-  
+
   const live = useQuery({
     queryKey: ["market-prices"],
     queryFn: () => fetchMarketPrices(),
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
-  type Pt = { ts: Date; price: number };
-  const data = useMemo<Pt[]>(
+
+  const data = useMemo<HourlyPrice[]>(
     () => (live.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
     [live.data],
   );
-  const dataMin = useMemo(() => data[0]?.ts ?? new Date(), [data]);
-  const dataMax = useMemo(() => data[data.length - 1]?.ts ?? new Date(), [data]);
 
-  const [range, setRange] = useState<DateRange | undefined>(() => {
-    const to = dataMax;
-    const from = new Date(to);
-    from.setDate(from.getDate() - 29);
-    return { from, to };
-  });
+  const buckets = useMemo(() => bucketByBelgradeDay(data), [data]);
+  const completeDays = useMemo(() => buckets.filter((b) => b.complete), [buckets]);
+  const firstAvailable = completeDays[0]?.date;
+  const latestAvailable = completeDays[completeDays.length - 1]?.date;
+  const lastTs = data[data.length - 1]?.ts;
+
+  const { fromKey, toKey, range } = useDashboardRange({ firstAvailable, latestAvailable });
+
   const [view, setView] = useState<"hourly" | "baseload" | "peakload">("hourly");
   const [negOnly, setNegOnly] = useState(false);
   const [highOnly, setHighOnly] = useState(false);
 
-  const from = range?.from ?? dataMin;
-  const to = range?.to ?? range?.from ?? dataMax;
-  const rangeLabel =
-    range?.from && range?.to
-      ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
-      : range?.from
-      ? format(range.from, "d MMM yyyy")
-      : t("Pick a date range", "Izaberi opseg datuma");
-
-  const filtered = useMemo(() => {
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
-    let pts = data.filter((p) => p.ts >= start && p.ts <= end);
+  const inRangePoints = useMemo(() => {
+    let pts = data.filter((p) => {
+      const k = belgradeDayKey(p.ts);
+      return (!fromKey || k >= fromKey) && (!toKey || k <= toKey);
+    });
     if (negOnly) pts = pts.filter((p) => p.price < 0);
     if (highOnly) pts = pts.filter((p) => p.price > 150);
     return pts;
-  }, [data, from, to, negOnly, highOnly]);
+  }, [data, fromKey, toKey, negOnly, highOnly]);
 
-  const setPreset = (days: number) => {
-    const end = new Date(dataMax);
-    const start = new Date(end);
-    start.setDate(start.getDate() - (days - 1));
-    setRange({ from: start, to: end });
-  };
+  const period = useMemo(() => aggregatePeriod(buckets, fromKey, toKey), [buckets, fromKey, toKey]);
 
-  const stats = useMemo(() => {
-    const prices = filtered.map((p) => p.price);
-    if (!prices.length) return null;
-    const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const variance = prices.reduce((a, b) => a + (b - mean) ** 2, 0) / prices.length;
-    const sd = Math.sqrt(variance);
-    const peakHours = filtered.filter((p) => {
-      const h = p.ts.getHours();
-      const dow = p.ts.getDay();
-      return dow >= 1 && dow <= 5 && h >= 8 && h < 20;
-    });
-    const peak = peakHours.length
-      ? peakHours.reduce((a, b) => a + b.price, 0) / peakHours.length
-      : 0;
-    return {
-      mean,
-      min,
-      max,
-      sd,
-      peak,
-      neg: prices.filter((p) => p < 0).length,
-      low30: prices.filter((p) => p < 30).length,
-      high150: prices.filter((p) => p > 150).length,
-    };
-  }, [filtered]);
+  const rangeLabel = range
+    ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
+    : "—";
 
-  // Choose hourly vs daily series based on range length
-  const rangeDays = Math.max(1, Math.round((+to - +from) / 86400000) + 1);
+  const rangeDays = range
+    ? Math.max(1, Math.round((+range.to - +range.from) / 86400000) + 1)
+    : 1;
   const useDaily = view === "baseload" || view === "peakload" || rangeDays > 14;
 
   const series = useMemo(() => {
     if (!useDaily) {
-      return filtered.map((p) => ({
+      return inRangePoints.map((p) => ({
         t: format(p.ts, "dd MMM HH:00"),
         price: +p.price.toFixed(1),
       }));
     }
     const byDay = new Map<string, { sum: number; n: number }>();
-    for (const p of filtered) {
-      if (view === "peakload") {
-        const h = p.ts.getHours();
-        const dow = p.ts.getDay();
-        if (!(dow >= 1 && dow <= 5 && h >= 8 && h < 20)) continue;
-      }
-      const key = p.ts.toISOString().slice(0, 10);
+    for (const p of inRangePoints) {
+      if (view === "peakload" && !isBelgradePeakHour(p.ts)) continue;
+      const key = belgradeDayKey(p.ts);
       const e = byDay.get(key) ?? { sum: 0, n: 0 };
       e.sum += p.price;
       e.n += 1;
@@ -161,35 +120,35 @@ function MarketPage() {
         t: format(new Date(k + "T00:00:00"), "dd MMM"),
         price: +(v.sum / Math.max(1, v.n)).toFixed(1),
       }));
-  }, [filtered, useDaily, view]);
+  }, [inRangePoints, useDaily, view]);
 
-  // price duration curve
-  const sortedDesc = [...filtered].sort((a, b) => b.price - a.price);
+  const sortedDesc = [...inRangePoints].sort((a, b) => b.price - a.price);
   const pdc = sortedDesc.map((p, i) => ({
     pct: +((i / Math.max(1, sortedDesc.length)) * 100).toFixed(1),
     price: +p.price.toFixed(1),
   }));
 
-  // weekday vs weekend
-  const wd = filtered.filter((p) => p.ts.getDay() >= 1 && p.ts.getDay() <= 5);
-  const we = filtered.filter((p) => p.ts.getDay() === 0 || p.ts.getDay() === 6);
+  const wd = inRangePoints.filter((p) => {
+    const d = p.ts.getUTCDay();
+    return d >= 1 && d <= 5;
+  });
+  const we = inRangePoints.filter((p) => {
+    const d = p.ts.getUTCDay();
+    return d === 0 || d === 6;
+  });
   const wdAvg = wd.length ? wd.reduce((a, b) => a + b.price, 0) / wd.length : 0;
   const weAvg = we.length ? we.reduce((a, b) => a + b.price, 0) / we.length : 0;
 
-  // heatmap: hour x day (within range)
   const heat = useMemo(() => {
     const m: Record<number, Record<string, number[]>> = {};
-    for (const p of filtered) {
+    const dayOrder: string[] = [];
+    const seen = new Set<string>();
+    for (const p of inRangePoints) {
       const day = format(p.ts, "dd MMM");
       const h = p.ts.getHours();
       m[h] = m[h] || {};
       m[h][day] = m[h][day] || [];
       m[h][day].push(p.price);
-    }
-    const dayOrder: string[] = [];
-    const seen = new Set<string>();
-    for (const p of filtered) {
-      const day = format(p.ts, "dd MMM");
       if (!seen.has(day)) {
         seen.add(day);
         dayOrder.push(day);
@@ -208,7 +167,7 @@ function MarketPage() {
       }
     }
     return { cells, dayOrder };
-  }, [filtered]);
+  }, [inRangePoints]);
 
   if (live.isLoading) {
     return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
@@ -224,54 +183,19 @@ function MarketPage() {
 
   return (
     <div className="space-y-6">
+      <DataStatusBanner
+        source={(live.data?.source as "entsoe" | "cache" | "none") ?? "none"}
+        lastUpdate={lastTs}
+        hours={data.length}
+        completeDays={completeDays.length}
+        incompleteDays={buckets.length - completeDays.length}
+      />
+
+      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
 
       <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
         <div className="grid gap-4 md:grid-cols-12 items-end">
-          <div className="md:col-span-5">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {t("Period (day to day)", "Period (od dana do dana)")}
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "mt-1.5 w-full justify-start text-left font-normal",
-                    !range?.from && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {rangeLabel}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={range}
-                  onSelect={setRange}
-                  numberOfMonths={2}
-                  defaultMonth={range?.from ?? dataMax}
-                  disabled={{ before: dataMin, after: dataMax }}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setPreset(7)}>7d</Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setPreset(30)}>30d</Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setPreset(90)}>90d</Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs"
-                onClick={() => setRange({ from: dataMin, to: dataMax })}
-              >
-                {t("Full year", "Cela godina")}
-              </Button>
-            </div>
-          </div>
-          <div className="md:col-span-3">
+          <div className="md:col-span-4">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("View", "Prikaz")}</Label>
             <Select value={view} onValueChange={(v) => setView(v as typeof view)}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
@@ -282,31 +206,29 @@ function MarketPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-2 flex items-center gap-2">
+          <div className="md:col-span-4 flex items-center gap-2">
             <Switch checked={negOnly} onCheckedChange={setNegOnly} id="neg" />
             <Label htmlFor="neg" className="text-sm">{t("Negative only", "Samo negativne")}</Label>
           </div>
-          <div className="md:col-span-2 flex items-center gap-2">
+          <div className="md:col-span-4 flex items-center gap-2">
             <Switch checked={highOnly} onCheckedChange={setHighOnly} id="high" />
             <Label htmlFor="high" className="text-sm">{t("High (>150) only", "Samo visoke (>150)")}</Label>
           </div>
         </div>
       </div>
 
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label={t("Period average", "Prosek perioda")} value={stats.mean.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label={t("Peakload", "Peakload")} value={stats.peak.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label={t("Volatility (σ)", "Volatilnost (σ)")} value={stats.sd.toFixed(1)} unit="EUR/MWh" demo />
-          <KpiCard label={t("Min / Max", "Min / Max")} value={`${stats.min.toFixed(0)} / ${stats.max.toFixed(0)}`} unit="EUR/MWh" demo />
-          <KpiCard label={t("Hours < 0 EUR", "Sati < 0 EUR")} value={stats.neg} demo />
-          <KpiCard label={t("Hours < 30 EUR", "Sati < 30 EUR")} value={stats.low30} demo />
-          <KpiCard label={t("Hours > 150 EUR", "Sati > 150 EUR")} value={stats.high150} demo />
-          <KpiCard label={t("Weekday / Weekend", "Radni dan / Vikend")} value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`} unit="EUR/MWh" demo />
-        </div>
-      )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label={t("Baseload (period)", "Baseload (period)")} value={isFinite(period.baseload) ? period.baseload.toFixed(1) : "—"} unit="EUR/MWh" />
+        <KpiCard label={t("Peakload (period)", "Peakload (period)")} value={period.peakload != null ? period.peakload.toFixed(1) : "—"} unit="EUR/MWh" />
+        <KpiCard label={t("Volatility (σ)", "Volatilnost (σ)")} value={isFinite(period.sd) ? period.sd.toFixed(1) : "—"} unit="EUR/MWh" />
+        <KpiCard label={t("Min / Max", "Min / Max")} value={`${isFinite(period.minHour) ? period.minHour.toFixed(0) : "—"} / ${isFinite(period.maxHour) ? period.maxHour.toFixed(0) : "—"}`} unit="EUR/MWh" />
+        <KpiCard label={t("Hours < 0 EUR", "Sati < 0 EUR")} value={period.negHours} />
+        <KpiCard label={t("Hours < 10 EUR", "Sati < 10 EUR")} value={period.lowHours} />
+        <KpiCard label={t("Hours > 150 EUR", "Sati > 150 EUR")} value={period.highHours} />
+        <KpiCard label={t("Weekday / Weekend", "Radni dan / Vikend")} value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`} unit="EUR/MWh" />
+      </div>
 
-      <ChartCard title={`${t("Day-ahead price", "Day-ahead cena")} — ${rangeLabel}${useDaily ? t(" (daily avg)", " (dnevni prosek)") : ""}`} demo>
+      <ChartCard title={`${t("Day-ahead price", "Day-ahead cena")} — ${rangeLabel}${useDaily ? t(" (daily avg)", " (dnevni prosek)") : ""}`}>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={series}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -330,7 +252,6 @@ function MarketPage() {
             "Hours sorted from highest to lowest price. Steep tails indicate scarcity and surplus events.",
             "Sati sortirani od najviše do najniže cene. Strmi krajevi ukazuju na oskudicu i viškove.",
           )}
-          demo
         >
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={pdc}>
@@ -344,7 +265,7 @@ function MarketPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Weekday vs weekend average", "Prosek radni dan vs vikend")} demo>
+        <ChartCard title={t("Weekday vs weekend average", "Prosek radni dan vs vikend")}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={[{ name: t("Weekday", "Radni dan"), value: +wdAvg.toFixed(1) }, { name: t("Weekend", "Vikend"), value: +weAvg.toFixed(1) }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -360,7 +281,6 @@ function MarketPage() {
       <ChartCard
         title={t("Heatmap — hour of day × day", "Mapa toplote — sat dana × dan")}
         description={t("Average hourly price per cell across the selected period.", "Prosečna satna cena po ćeliji za izabrani period.")}
-        demo
       >
         <Heatmap cells={heat.cells} days={heat.dayOrder} />
       </ChartCard>
