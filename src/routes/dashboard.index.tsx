@@ -95,24 +95,29 @@ function OverviewPage() {
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length : NaN;
 
-  // Monthly series (full history) for charts
+  // Monthly series — show all 12 months of the latest year present in the data
   const monthly = useMemo(() => {
-    const m = new Map<string, { sum: number; n: number; neg: number }>();
+    if (completeDays.length === 0) return [];
+    const year = completeDays[completeDays.length - 1].key.slice(0, 4);
+    const agg = new Map<string, { sum: number; n: number; neg: number }>();
     for (const b of completeDays) {
-      const k = b.key.slice(0, 7);
-      const cur = m.get(k) ?? { sum: 0, n: 0, neg: 0 };
+      if (b.key.slice(0, 4) !== year) continue;
+      const k = b.key.slice(5, 7);
+      const cur = agg.get(k) ?? { sum: 0, n: 0, neg: 0 };
       cur.sum += b.baseload;
       cur.n += 1;
       cur.neg += b.hours.filter((h) => h.price < 0).length;
-      m.set(k, cur);
+      agg.set(k, cur);
     }
-    return Array.from(m.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => ({
-        month: k.slice(5),
-        baseload: +(v.sum / v.n).toFixed(1),
-        negHours: v.neg,
-      }));
+    return Array.from({ length: 12 }, (_, i) => {
+      const mm = String(i + 1).padStart(2, "0");
+      const v = agg.get(mm);
+      return {
+        month: mm,
+        baseload: v && v.n ? +(v.sum / v.n).toFixed(1) : null,
+        negHours: v ? v.neg : 0,
+      };
+    });
   }, [completeDays]);
 
   // Daily chart (in-range)
