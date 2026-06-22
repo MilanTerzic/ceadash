@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLang } from "@/lib/i18n";
-import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import {
   bucketByBelgradeDay,
@@ -53,9 +53,10 @@ export const Route = createFileRoute("/dashboard/market")({
 function MarketPage() {
   const { t } = useLang();
 
+  const requestedFrom = useRequestedFromKey();
   const live = useQuery({
-    queryKey: ["market-prices"],
-    queryFn: () => fetchMarketPrices(),
+    queryKey: ["market-prices", requestedFrom],
+    queryFn: () => fetchMarketPrices({ data: { from: requestedFrom } }),
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
