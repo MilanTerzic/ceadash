@@ -153,6 +153,10 @@ function hourlyProfile(points: CapturePoint[]) {
   }));
 }
 
+function fmtValue(v: number | null | undefined, digits = 1) {
+  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(digits);
+}
+
 function CapturePage() {
   const { t } = useLang();
   const requestedFrom = useRequestedFromKey();
@@ -190,15 +194,25 @@ function CapturePage() {
   const hourly = useMemo(() => hourlyProfile(inRange), [inRange]);
   const solarHoursInRange = useMemo(() => inRange.filter((p) => p.solar > 0).length, [inRange]);
   const windHoursInRange = useMemo(() => inRange.filter((p) => p.wind > 0).length, [inRange]);
+  const matchedHoursInRange = useMemo(() => inRange.filter((p) => p.solar > 0 || p.wind > 0).length, [inRange]);
 
   const rangeLabel = range
     ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : "—";
 
+  const coverageRatio = inRange.length ? matchedHoursInRange / inRange.length : 0;
+  const lowCoverage = coverageRatio < 0.6;
+  const veryLowCoverage = coverageRatio < 0.25;
+
   const warning =
     live.data && live.data.totalHours > 0
-      ? `${t("Generation coverage", "Pokrivenost proizvodnje")}: ${live.data.matchedHours}/${live.data.totalHours} ${t("hours matched to price series", "sati uparenih sa cenama")}`
+      ? `${t("Generation coverage", "Pokrivenost proizvodnje")}: ${(coverageRatio * 100).toFixed(0)}% (${matchedHoursInRange}/${inRange.length} ${t("hours matched to price series", "sati uparenih sa cenama")})`
       : undefined;
+
+  const methodologyHint = t(
+    "Capture price = Σ(hourly price × hourly generation) ÷ Σ(hourly generation), using Serbia day-ahead prices and ENTSO-E generation by technology.",
+    "Capture price = Σ(hourly cena × hourly proizvodnja) ÷ Σ(hourly proizvodnja), koristeći Serbia day-ahead cene i ENTSO-E proizvodnju po tehnologiji.",
+  );
 
   if (live.isLoading) {
     return <p className="text-sm text-muted-foreground">{t("Fetching Serbia capture-price inputs…", "Učitavanje ulaznih podataka za capture price Srbije…")}</p>;
@@ -231,43 +245,90 @@ function CapturePage() {
 
       <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
 
+      <ChartCard
+        title={t("Methodology", "Metodologija")}
+        description={methodologyHint}
+      >
+        <div className="grid gap-3 md:grid-cols-3 text-sm">
+          <div className="rounded-xl border border-border/60 p-4">
+            <div className="text-muted-foreground">{t("Price reference", "Referentna cena")}</div>
+            <div className="mt-1 font-medium">{t("Serbia day-ahead hourly market", "Hourly Serbia day-ahead tržište")}</div>
+          </div>
+          <div className="rounded-xl border border-border/60 p-4">
+            <div className="text-muted-foreground">{t("Generation weighting", "Ponderisanje proizvodnjom")}</div>
+            <div className="mt-1 font-medium">{t("ENTSO-E solar (B16) and wind (B18+B19)", "ENTSO-E solar (B16) i wind (B18+B19)")}</div>
+          </div>
+          <div className="rounded-xl border border-border/60 p-4">
+            <div className="text-muted-foreground">{t("Coverage in selected range", "Pokrivenost u izabranom opsegu")}</div>
+            <div className="mt-1 font-medium">{(coverageRatio * 100).toFixed(0)}%</div>
+          </div>
+        </div>
+      </ChartCard>
+
+      {lowCoverage && (
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+          <div className="font-medium">
+            {veryLowCoverage
+              ? t("Very low generation coverage", "Veoma niska pokrivenost proizvodnje")
+              : t("Partial generation coverage", "Delimična pokrivenost proizvodnje")}
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            {veryLowCoverage
+              ? t(
+                  "Selected-period capture metrics are hidden until more Serbia solar/wind generation hours are available, to avoid misleading conclusions.",
+                  "Metrike capture price za izabrani period su skrivene dok ne bude više sati sa dostupnom srpskom solar/wind proizvodnjom, da ne bismo prikazivali pogrešne zaključke.",
+                )
+              : t(
+                  "Interpret capture metrics with caution: prices are complete, but generation weighting is only partially available in the selected range.",
+                  "Tumači capture metrike oprezno: cene su kompletne, ali ponderisanje proizvodnjom je samo delimično dostupno u izabranom opsegu.",
+                )}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label={t("Solar capture price", "Solar capture price")}
-          hint={t("Volume-weighted hourly Serbia day-ahead price using actual solar generation in the selected period.", "Volumenski ponderisana hourly cena Srbije korišćenjem stvarne solarne proizvodnje u izabranom periodu.")}
-          value={period.solarCapture.toFixed(1)}
+          label={t("Solar capture price", "Solar capture cena")}
+          hint={methodologyHint}
+          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
-          label={t("Wind capture price", "Wind capture price")}
-          value={period.windCapture.toFixed(1)}
+          label={t("Wind capture price", "Wind capture cena")}
+          hint={methodologyHint}
+          value={veryLowCoverage ? "—" : fmtValue(period.windCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Solar capture rate", "Solar capture rate")}
-          value={`${(period.solarRate * 100).toFixed(1)}%`}
+          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
+          value={veryLowCoverage ? "—" : `${fmtValue(period.solarRate * 100)}%`}
         />
         <KpiCard
           label={t("Wind capture rate", "Wind capture rate")}
-          value={`${(period.windRate * 100).toFixed(1)}%`}
+          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
+          value={veryLowCoverage ? "—" : `${fmtValue(period.windRate * 100)}%`}
         />
         <KpiCard
-          label={t("Solar in negative hours", "Solar u negativnim satima")}
+          label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
           hint={t("Share of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo solarne proizvodnje u satima kada je cena < 0 EUR/MWh.")}
-          value={`${(period.solarNegShare * 100).toFixed(2)}%`}
+          value={veryLowCoverage ? "—" : `${fmtValue(period.solarNegShare * 100, 2)}%`}
         />
         <KpiCard
-          label={t("Wind in negative hours", "Wind u negativnim satima")}
-          value={`${(period.windNegShare * 100).toFixed(2)}%`}
+          label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
+          hint={t("Share of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo vetro proizvodnje u satima kada je cena < 0 EUR/MWh.")}
+          value={veryLowCoverage ? "—" : `${fmtValue(period.windNegShare * 100, 2)}%`}
         />
         <KpiCard
-          label={t("Solar vs baseload", "Solar vs baseload")}
-          value={`${(period.solarCapture - period.baseload).toFixed(1)}`}
+          label={t("Solar premium / discount vs baseload", "Solar premija / diskont vs baseload")}
+          hint={t("Positive means solar capture is above baseload; negative means below baseload.", "Pozitivno znači da je solar capture iznad baseload-a; negativno znači ispod baseload-a.")}
+          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture - period.baseload)}
           unit="EUR/MWh"
         />
         <KpiCard
-          label={t("Wind vs baseload", "Wind vs baseload")}
-          value={`${(period.windCapture - period.baseload).toFixed(1)}`}
+          label={t("Wind premium / discount vs baseload", "Wind premija / diskont vs baseload")}
+          hint={t("Positive means wind capture is above baseload; negative means below baseload.", "Pozitivno znači da je wind capture iznad baseload-a; negativno znači ispod baseload-a.")}
+          value={veryLowCoverage ? "—" : fmtValue(period.windCapture - period.baseload)}
           unit="EUR/MWh"
         />
       </div>
@@ -322,7 +383,7 @@ function CapturePage() {
         </ChartCard>
 
         <ChartCard
-          title={t("Generation share in negative hours", "Udeo proizvodnje u negativnim satima")}
+          title={t("Generation share in negative-price hours", "Udeo proizvodnje u negativnim satima")}
           description={t(
             "Higher bars mean greater merchant downside exposure during negative-price hours.",
             "Više kolone znače veću downside izloženost u negativnim satima.",
@@ -394,18 +455,15 @@ function CapturePage() {
 
       <ChartCard
         title={t("Selected period summary", "Rezime izabranog perioda")}
-        description={t(
-          "Selected range: ",
-          "Izabrani opseg: ",
-        ) + rangeLabel}
+        description={t("Selected range: ", "Izabrani opseg: ") + rangeLabel}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div className="rounded-xl border border-border/60 p-4">
             <div className="text-muted-foreground">{t("Baseload", "Baseload")}</div>
-            <div className="mt-1 text-2xl font-display">{period.baseload.toFixed(1)} <span className="text-xs">EUR/MWh</span></div>
+            <div className="mt-1 text-2xl font-display">{fmtValue(period.baseload)} <span className="text-xs">EUR/MWh</span></div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Negative hours", "Negativni sati")}</div>
+            <div className="text-muted-foreground">{t("Negative-price hours", "Negativni sati")}</div>
             <div className="mt-1 text-2xl font-display">{period.negHours}</div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
