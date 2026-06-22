@@ -6,7 +6,7 @@ import { toPng } from "html-to-image";
 import { Copy, Download, Loader2, Sparkles, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import {
   generateWeeklyReport,
