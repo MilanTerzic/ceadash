@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLang } from "@/lib/i18n";
-import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import {
   bucketByBelgradeDay,
