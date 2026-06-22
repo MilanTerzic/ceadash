@@ -171,15 +171,18 @@ async function entsoeRaw(params: Record<string, string>): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Per-day fetch (Belgrade-aligned window, returns exactly that day's hours)
+// Range fetch (Belgrade-aligned window, returns hours inside the window)
 // ---------------------------------------------------------------------------
 
-async function fetchDayPrices(
-  dayISO: string,
+async function fetchRangePrices(
+  fromISO: string,
+  toISO: string,
 ): Promise<{ ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> }> {
-  const offsetH = cetOffsetHours(dayISO);
-  const start = new Date(Date.parse(dayISO + "T00:00:00Z") - offsetH * 3600_000);
-  const end = new Date(start.getTime() + 24 * 3600_000);
+  const offsetFrom = cetOffsetHours(fromISO);
+  const offsetTo = cetOffsetHours(toISO);
+  const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
+  // toISO is INCLUSIVE delivery day → end of that Belgrade day = next 00:00.
+  const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
   const r = await entsoeRaw({
     documentType: "A44",
     in_Domain: SERBIA_ZONE,
@@ -199,58 +202,105 @@ async function fetchDayPrices(
   return { ok: true, points };
 }
 
+/** Belgrade YYYY-MM-DD of an ISO timestamp. */
+function belgradeDayOf(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** Enumerate Belgrade YYYY-MM keys spanning [fromISO, toISO] inclusive. */
+function monthsBetween(fromISO: string, toISO: string): string[] {
+  const out: string[] = [];
+  const [fy, fm] = fromISO.split("-").map(Number);
+  const [ty, tm] = toISO.split("-").map(Number);
+  let y = fy, m = fm;
+  while (y < ty || (y === ty && m <= tm)) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+
+function monthBounds(ym: string, clampFrom: string, clampTo: string) {
+  const [y, m] = ym.split("-").map(Number);
+  const first = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return {
+    from: first < clampFrom ? clampFrom : first,
+    to: last > clampTo ? clampTo : last,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Public server function
 // ---------------------------------------------------------------------------
 
-export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async () => {
+export const fetchMarketPrices = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({ from: z.string().optional() })
+      .parse(data ?? {}),
+  )
+  .handler(async ({ data }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  // Load existing cache (latest first, capped) and group by Belgrade day.
+  const today = todayBelgradeISO();
+  const tomorrow = addDaysISO(today, 1);
+  // Window we will guarantee in cache.
+  const windowFrom = data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
+    ? (data.from < addDaysISO(today, -365 * 5) ? addDaysISO(today, -365 * 5) : data.from)
+    : addDaysISO(today, -30);
+  const windowTo = tomorrow;
+
+  // Load cache restricted to the window (+ a small read buffer) for coverage check.
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
     .eq("market", MARKET)
-    .order("datetime", { ascending: false })
-    .limit(20000);
+    .gte("datetime", `${windowFrom}T00:00:00Z`)
+    .lte("datetime", `${addDaysISO(windowTo, 1)}T00:00:00Z`)
+    .order("datetime", { ascending: true })
+    .limit(200000);
 
-  const cachedPoints = (cached.data ?? [])
-    .map((r) => ({
-      ts: new Date(r.datetime as string).toISOString(),
-      price: Number(r.price_eur_mwh),
-    }))
-    .reverse();
-
-  // Determine which Belgrade days we need to (re)fetch.
-  const today = todayBelgradeISO();
-  const tomorrow = addDaysISO(today, 1);
-
-  // Count cached hours per Belgrade day to detect gaps (a complete day has 23/24/25 hours, DST aware).
   const dayCounts = new Map<string, number>();
-  for (const p of cachedPoints) {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Belgrade",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(p.ts));
-    dayCounts.set(fmt, (dayCounts.get(fmt) ?? 0) + 1);
+  for (const r of cached.data ?? []) {
+    const day = belgradeDayOf(r.datetime as string);
+    dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
   }
 
-  // Always refresh today & tomorrow; fill gaps in the past 14 days.
-  const toFetch: string[] = [tomorrow, today];
-  for (let i = 1; i <= 14; i++) {
-    const day = addDaysISO(today, -i);
-    if ((dayCounts.get(day) ?? 0) < 23) toFetch.push(day);
+  // For each month in the window, decide whether to refetch.
+  // A month is "complete enough" if every past day inside the window has ≥ 23 hours.
+  const monthsToFetch: { from: string; to: string }[] = [];
+  for (const ym of monthsBetween(windowFrom, windowTo)) {
+    const { from: mFrom, to: mTo } = monthBounds(ym, windowFrom, windowTo);
+    // Always refetch the month containing today (live data + tomorrow).
+    const containsLive = today >= mFrom && today <= mTo;
+    let needs = containsLive;
+    if (!needs) {
+      // Past month: refetch if any day < 23 hours.
+      const start = new Date(mFrom + "T00:00:00Z");
+      const end = new Date(mTo + "T00:00:00Z");
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        if ((dayCounts.get(key) ?? 0) < 23) { needs = true; break; }
+      }
+    }
+    if (needs) monthsToFetch.push({ from: mFrom, to: mTo });
   }
 
   let fetchedTotal = 0;
   const reasons: string[] = [];
 
-  for (const day of toFetch) {
-    const r = await fetchDayPrices(day);
+  for (const win of monthsToFetch) {
+    const r = await fetchRangePrices(win.from, win.to);
     if (!r.ok) {
-      reasons.push(`${day}:${r.reason ?? "err"}`);
+      reasons.push(`${win.from}..${win.to}:${r.reason ?? "err"}`);
       continue;
     }
     if (r.points.length === 0) continue;
@@ -268,30 +318,36 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
       .eq("market", MARKET)
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
-    await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    // Chunk inserts (Supabase soft-limit ~1000 rows per insert).
+    for (let i = 0; i < rows.length; i += 1000) {
+      await supabaseAdmin.from("market_prices_hourly").insert(rows.slice(i, i + 1000));
+    }
     fetchedTotal += rows.length;
   }
 
-  // Re-read after writes so the client sees the freshest set.
+  // Re-read the window after writes.
   const after = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
     .eq("market", MARKET)
-    .order("datetime", { ascending: false })
-    .limit(20000);
+    .gte("datetime", `${windowFrom}T00:00:00Z`)
+    .lte("datetime", `${addDaysISO(windowTo, 1)}T00:00:00Z`)
+    .order("datetime", { ascending: true })
+    .limit(200000);
 
-  const points = (after.data ?? [])
-    .map((r) => ({
-      ts: new Date(r.datetime as string).toISOString(),
-      price: Number(r.price_eur_mwh),
-    }))
-    .reverse();
+  const points = (after.data ?? []).map((r) => ({
+    ts: new Date(r.datetime as string).toISOString(),
+    price: Number(r.price_eur_mwh),
+  }));
 
   return {
     ok: points.length > 0,
     source: fetchedTotal > 0 ? ("entsoe" as const) : ("cache" as const),
     fetched: fetchedTotal,
+    windowFrom,
+    windowTo,
     reasons: reasons.length ? reasons : undefined,
     points,
   };
 });
+
