@@ -36,9 +36,10 @@ export const Route = createFileRoute("/dashboard/weekly")({
 
 function WeeklyPage() {
   const { t } = useLang();
+  const requestedFrom = useRequestedFromKey();
   const live = useQuery({
-    queryKey: ["market-prices"],
-    queryFn: () => fetchMarketPrices(),
+    queryKey: ["market-prices", requestedFrom],
+    queryFn: () => fetchMarketPrices({ data: { from: requestedFrom } }),
     staleTime: 60 * 60_000,
   });
 
