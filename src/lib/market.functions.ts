@@ -3,24 +3,27 @@ import { createServerFn } from "@tanstack/react-start";
 /**
  * SEEPEX Serbia day-ahead price fetcher (ENTSO-E Transparency Platform).
  *
- * Improvements over the previous version:
- *  - Fetch window is aligned to Belgrade midnight and extended to D+2 23:00 UTC
- *    so we capture tomorrow's prices once SDAC publishes (~13:00 CET).
- *  - Cache query orders DESC + LIMIT so we always have the most recent rows
- *    (the 10k cap could previously drop today's data if history grew large).
- *  - Staleness check: refresh when latest cached hour < expected latest
- *    available hour (tomorrow 23:00 Belgrade once published, otherwise today's
- *    last published hour).
- *  - Robust XML parsing: ENTSO-E uses A03 (SequentialFixedSizeBlock) curves
- *    where missing positions inherit the last known value. We expand the curve
- *    over the full Period span using the declared resolution and forward-fill.
- *  - Range upsert covers the actual fetched span (not a fixed 30-day delete).
+ * Structure mirrors the proven Power Pulse Serbia implementation:
+ *  - One request PER DELIVERY DAY, with the periodStart/periodEnd window aligned
+ *    to the Belgrade local-day boundary (CET = UTC+1, CEST = UTC+2).
+ *  - XML is parsed via TimeSeries → Period → Point, with timestamps derived from
+ *    the Period <start> + (position-1) * resolution. Forward-fill is applied so
+ *    A03 SequentialFixedSizeBlock curves keep the last-known value across gaps.
+ *  - Returned points are filtered to the exact 24-hour Belgrade delivery day.
+ *  - Cache table `market_prices_hourly` is upserted day-by-day.
+ *
+ * Range strategy: refresh today + tomorrow always (so we pick up SDAC at ~13:00
+ * CET), plus any missing past days back ~14 days.
  */
 
 const SERBIA_ZONE = "10YCS-SERBIATSOV";
 const MARKET = "DA_RS";
 
-function fmtUtc(d: Date) {
+// ---------------------------------------------------------------------------
+// Time helpers
+// ---------------------------------------------------------------------------
+
+function ymdh(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
     d.getUTCFullYear().toString() +
@@ -31,112 +34,178 @@ function fmtUtc(d: Date) {
   );
 }
 
-/** ISO UTC at 22:00 of the given calendar day (Belgrade midnight in CET, 23:00 in CEST).
- * We use 22:00 as a safe lower bound that always covers the Belgrade day boundary;
- * ENTSO-E returns Period blocks aligned to local market time, our parser uses the
- * declared <start> so this is just for the request envelope. */
-function utcDayStart(d: Date): Date {
-  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 22, 0, 0));
-  // back up one day so we span the full Belgrade day even in CET (UTC+1)
-  x.setUTCDate(x.getUTCDate() - 1);
-  return x;
+function todayBelgradeISO(): string {
+  // YYYY-MM-DD in Europe/Belgrade
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date());
 }
 
-type ParsedPoint = { ts: Date; value: number };
+function addDaysISO(dayISO: string, n: number): string {
+  const d = new Date(dayISO + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
-function parsePoints(xml: string): ParsedPoint[] {
-  const out: ParsedPoint[] = [];
-  const periodRegex = /<Period>([\s\S]*?)<\/Period>/g;
+/** Europe/Belgrade UTC offset (hours) for the given ISO day. 1 in winter, 2 in DST. */
+function cetOffsetHours(dayISO: string): number {
+  const noonUtc = new Date(dayISO + "T12:00:00Z");
+  const part = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Belgrade",
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(noonUtc)
+    .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const m = /([+-]?\d+)/.exec(part);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+// ---------------------------------------------------------------------------
+// XML parsing (TimeSeries → Period → Point with forward-fill)
+// ---------------------------------------------------------------------------
+
+function stripNs(xml: string): string {
+  return xml.replace(/<\/?[\w:-]+:/g, (m) => m.replace(/[\w-]+:/, ""));
+}
+function tagAll(xml: string, tag: string): string[] {
+  const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "g");
+  const out: string[] = [];
   let m: RegExpExecArray | null;
-  while ((m = periodRegex.exec(xml))) {
-    const block = m[1];
-    const startMatch = /<start>([^<]+)<\/start>/.exec(block);
-    const endMatch = /<end>([^<]+)<\/end>/.exec(block);
-    const resMatch = /<resolution>([^<]+)<\/resolution>/.exec(block);
-    if (!startMatch || !resMatch) continue;
-    const start = new Date(startMatch[1]);
-    const end = endMatch ? new Date(endMatch[1]) : null;
-    const minMatch = /PT(\d+)M/.exec(resMatch[1]);
-    const stepMs = minMatch ? Number(minMatch[1]) * 60_000 : 3_600_000;
-    const expected = end ? Math.max(0, Math.round((+end - +start) / stepMs)) : 0;
-
-    // Collect raw positions first.
-    const raw: { position: number; value: number }[] = [];
-    const pointRegex =
-      /<Point>\s*<position>(\d+)<\/position>\s*<(?:price\.amount|quantity)>([\d.\-eE+]+)<\/(?:price\.amount|quantity)>\s*<\/Point>/g;
-    let p: RegExpExecArray | null;
-    while ((p = pointRegex.exec(block))) {
-      raw.push({ position: Number(p[1]), value: Number(p[2]) });
-    }
-    if (!raw.length) continue;
-    raw.sort((a, b) => a.position - b.position);
-
-    // Forward-fill A03-curve gaps: position k that's missing inherits position k-1's value.
-    const total = expected || raw[raw.length - 1].position;
-    let cursor = 0;
-    let lastValue = raw[0].value;
-    for (let k = 1; k <= total; k++) {
-      while (cursor < raw.length && raw[cursor].position < k) cursor++;
-      if (cursor < raw.length && raw[cursor].position === k) {
-        lastValue = raw[cursor].value;
-      }
-      out.push({
-        ts: new Date(start.getTime() + (k - 1) * stepMs),
-        value: lastValue,
-      });
-    }
-  }
+  while ((m = re.exec(xml))) out.push(m[1]);
   return out;
 }
+function tagOne(xml: string, tag: string): string | null {
+  const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`);
+  const m = re.exec(xml);
+  return m ? m[1].trim() : null;
+}
 
-async function callEntsoe(params: Record<string, string>) {
+function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }> {
+  const clean = stripNs(xml);
+  const out: Array<{ ts: string; value: number }> = [];
+  for (const ts of tagAll(clean, "TimeSeries")) {
+    for (const period of tagAll(ts, "Period")) {
+      const start = tagOne(period, "start");
+      if (!start) continue;
+      const startMs = Date.parse(start);
+      const endStr = tagOne(period, "end");
+      const resolution = tagOne(period, "resolution") ?? "PT60M";
+      const stepMin = /PT(\d+)M/.exec(resolution)
+        ? parseInt(/PT(\d+)M/.exec(resolution)![1], 10)
+        : 60;
+      const stepMs = stepMin * 60_000;
+
+      // Raw positions
+      const raw: { position: number; value: number }[] = [];
+      for (const pt of tagAll(period, "Point")) {
+        const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
+        const valS =
+          tagOne(pt, "price.amount") ??
+          tagOne(pt, "quantity") ??
+          tagOne(pt, "value");
+        if (valS == null) continue;
+        const value = parseFloat(valS);
+        if (!Number.isFinite(value)) continue;
+        raw.push({ position: pos, value });
+      }
+      if (!raw.length) continue;
+      raw.sort((a, b) => a.position - b.position);
+
+      // Forward-fill A03 curves over the declared period length.
+      const expected = endStr
+        ? Math.max(0, Math.round((Date.parse(endStr) - startMs) / stepMs))
+        : raw[raw.length - 1].position;
+      let cursor = 0;
+      let lastValue = raw[0].value;
+      for (let k = 1; k <= expected; k++) {
+        while (cursor < raw.length && raw[cursor].position < k) cursor++;
+        if (cursor < raw.length && raw[cursor].position === k) {
+          lastValue = raw[cursor].value;
+        }
+        out.push({
+          ts: new Date(startMs + (k - 1) * stepMs).toISOString(),
+          value: lastValue,
+        });
+      }
+    }
+  }
+  // Dedupe by ts (keep last) and sort.
+  const byTs = new Map<string, number>();
+  for (const r of out) byTs.set(r.ts, r.value);
+  return [...byTs.entries()]
+    .map(([ts, value]) => ({ ts, value }))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
+// ---------------------------------------------------------------------------
+// HTTP
+// ---------------------------------------------------------------------------
+
+async function entsoeRaw(params: Record<string, string>): Promise<
+  { ok: true; xml: string } | { ok: false; reason: string }
+> {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
-  if (!token) return { ok: false as const, reason: "missing_token", xml: "" };
+  if (!token) return { ok: false, reason: "missing_token" };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  // One transparent retry on transient 5xx / network errors.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(url.toString());
-      if (res.ok) return { ok: true as const, xml: await res.text() };
-      if (res.status < 500 || attempt === 1) {
-        return { ok: false as const, reason: `http_${res.status}`, xml: "" };
-      }
+      const res = await fetch(url.toString(), { headers: { Accept: "application/xml" } });
+      if (res.status === 200) return { ok: true, xml: await res.text() };
+      if (res.status === 400) return { ok: false, reason: "no_data" };
+      if (res.status === 401) return { ok: false, reason: "unauthorized" };
+      if (res.status === 429) return { ok: false, reason: "rate_limited" };
+      if (res.status < 500 || attempt === 1) return { ok: false, reason: `http_${res.status}` };
     } catch (e) {
-      if (attempt === 1) {
-        return { ok: false as const, reason: `network_${(e as Error).message}`, xml: "" };
-      }
+      if (attempt === 1) return { ok: false, reason: `network_${(e as Error).message}` };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  return { ok: false as const, reason: "exhausted", xml: "" };
+  return { ok: false, reason: "exhausted" };
 }
 
-/** Compute the latest DA hour we *expect* to be published right now.
- * SDAC publishes D+1 around 13:00 CET. Before that, latest is today's 23:00 Belgrade. */
-function expectedLatestHourMs(now: Date): number {
-  const utcHour = now.getUTCHours();
-  const cetIsDst = (() => {
-    // Rough DST check: Mar last Sun → Oct last Sun. ENTSO-E publication time
-    // is 13:00 LOCAL CET/CEST = 12:00 UTC (CEST) or 12:00 UTC (CET).
-    const m = now.getUTCMonth();
-    return m >= 3 && m <= 9;
-  })();
-  const publishedUtcHour = cetIsDst ? 11 : 12; // 13:00 local
-  const beyondPublication = utcHour >= publishedUtcHour;
-  // Latest available hour: end of tomorrow (Belgrade) if published, else end of today.
-  const base = new Date(now);
-  base.setUTCDate(base.getUTCDate() + (beyondPublication ? 1 : 0));
-  // 23:00 Belgrade ≈ 22:00 UTC (CEST) or 22:00 UTC (CET) — both give 22 UTC.
-  base.setUTCHours(22, 0, 0, 0);
-  return base.getTime();
+// ---------------------------------------------------------------------------
+// Per-day fetch (Belgrade-aligned window, returns exactly that day's hours)
+// ---------------------------------------------------------------------------
+
+async function fetchDayPrices(
+  dayISO: string,
+): Promise<{ ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> }> {
+  const offsetH = cetOffsetHours(dayISO);
+  const start = new Date(Date.parse(dayISO + "T00:00:00Z") - offsetH * 3600_000);
+  const end = new Date(start.getTime() + 24 * 3600_000);
+  const r = await entsoeRaw({
+    documentType: "A44",
+    in_Domain: SERBIA_ZONE,
+    out_Domain: SERBIA_ZONE,
+    periodStart: ymdh(start),
+    periodEnd: ymdh(end),
+  });
+  if (!r.ok) return { ok: false, reason: r.reason, points: [] };
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const points = parseTimeSeriesHourly(r.xml)
+    .filter((p) => {
+      const t = Date.parse(p.ts);
+      return t >= startMs && t < endMs;
+    })
+    .map((p) => ({ ts: p.ts, price: p.value }));
+  return { ok: true, points };
 }
+
+// ---------------------------------------------------------------------------
+// Public server function
+// ---------------------------------------------------------------------------
 
 export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  // Pull most recent cached rows (desc + limit) and reverse for ascending order.
+  // Load existing cache (latest first, capped) and group by Belgrade day.
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
@@ -144,60 +213,54 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
     .order("datetime", { ascending: false })
     .limit(20000);
 
-  const cachedPoints =
-    (cached.data ?? [])
-      .map((r) => ({
-        ts: new Date(r.datetime as string).toISOString(),
-        price: Number(r.price_eur_mwh),
-      }))
-      .reverse();
+  const cachedPoints = (cached.data ?? [])
+    .map((r) => ({
+      ts: new Date(r.datetime as string).toISOString(),
+      price: Number(r.price_eur_mwh),
+    }))
+    .reverse();
 
-  const now = new Date();
-  const expectedLatest = expectedLatestHourMs(now);
-  const latestCachedMs = cachedPoints.length
-    ? new Date(cachedPoints[cachedPoints.length - 1].ts).getTime()
-    : 0;
-  const stale = latestCachedMs < expectedLatest;
+  // Determine which Belgrade days we need to (re)fetch.
+  const today = todayBelgradeISO();
+  const tomorrow = addDaysISO(today, 1);
 
-  if (!stale && cachedPoints.length > 0) {
-    return { ok: true, source: "cache" as const, points: cachedPoints };
+  // Count cached hours per Belgrade day to detect gaps (a complete day has 23/24/25 hours, DST aware).
+  const dayCounts = new Map<string, number>();
+  for (const p of cachedPoints) {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Belgrade",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(p.ts));
+    dayCounts.set(fmt, (dayCounts.get(fmt) ?? 0) + 1);
   }
 
-  // Refresh window: last 14 days through end of tomorrow Belgrade.
-  // Fetching tomorrow lets us pick up SDAC results as soon as they're published.
-  const to = new Date(now);
-  to.setUTCDate(to.getUTCDate() + 2);
-  to.setUTCHours(0, 0, 0, 0); // safe upper bound that covers Belgrade D+1 23:00
-  const from = utcDayStart(new Date(now.getTime() - 14 * 86400_000));
-
-  const r = await callEntsoe({
-    documentType: "A44",
-    in_Domain: SERBIA_ZONE,
-    out_Domain: SERBIA_ZONE,
-    periodStart: fmtUtc(from),
-    periodEnd: fmtUtc(to),
-  });
-
-  if (!r.ok) {
-    return {
-      ok: cachedPoints.length > 0,
-      source: cachedPoints.length ? ("cache" as const) : ("none" as const),
-      reason: r.reason,
-      points: cachedPoints,
-    };
+  // Always refresh today & tomorrow; fill gaps in the past 14 days.
+  const toFetch: string[] = [tomorrow, today];
+  for (let i = 1; i <= 14; i++) {
+    const day = addDaysISO(today, -i);
+    if ((dayCounts.get(day) ?? 0) < 23) toFetch.push(day);
   }
 
-  const fresh = parsePoints(r.xml);
-  if (fresh.length > 0) {
-    const rows = fresh.map((p) => ({
-      datetime: p.ts.toISOString(),
+  let fetchedTotal = 0;
+  const reasons: string[] = [];
+
+  for (const day of toFetch) {
+    const r = await fetchDayPrices(day);
+    if (!r.ok) {
+      reasons.push(`${day}:${r.reason ?? "err"}`);
+      continue;
+    }
+    if (r.points.length === 0) continue;
+    const rows = r.points.map((p) => ({
+      datetime: p.ts,
       market: MARKET,
-      price_eur_mwh: p.value,
+      price_eur_mwh: p.price,
       source: "ENTSO-E",
     }));
-    const minTs = fresh[0].ts.toISOString();
-    const maxTs = fresh[fresh.length - 1].ts.toISOString();
-    // Replace overlapping window then insert fresh rows.
+    const minTs = r.points[0].ts;
+    const maxTs = r.points[r.points.length - 1].ts;
     await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
@@ -205,19 +268,29 @@ export const fetchMarketPrices = createServerFn({ method: "GET" }).handler(async
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
     await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    fetchedTotal += rows.length;
   }
 
-  // Merge cached + fresh (fresh wins on collision).
-  const map = new Map<string, number>();
-  for (const c of cachedPoints) map.set(c.ts, c.price);
-  for (const f of fresh) map.set(f.ts.toISOString(), f.value);
-  const points = Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([ts, price]) => ({ ts, price }));
+  // Re-read after writes so the client sees the freshest set.
+  const after = await supabaseAdmin
+    .from("market_prices_hourly")
+    .select("datetime, price_eur_mwh")
+    .eq("market", MARKET)
+    .order("datetime", { ascending: false })
+    .limit(20000);
+
+  const points = (after.data ?? [])
+    .map((r) => ({
+      ts: new Date(r.datetime as string).toISOString(),
+      price: Number(r.price_eur_mwh),
+    }))
+    .reverse();
 
   return {
-    ok: true,
-    source: fresh.length > 0 ? ("entsoe" as const) : ("cache" as const),
+    ok: points.length > 0,
+    source: fetchedTotal > 0 ? ("entsoe" as const) : ("cache" as const),
+    fetched: fetchedTotal,
+    reasons: reasons.length ? reasons : undefined,
     points,
   };
 });
