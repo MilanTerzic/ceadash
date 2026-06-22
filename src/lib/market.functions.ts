@@ -35,8 +35,13 @@ function ymdh(d: Date): string {
   );
 }
 
+function normalizeHourIso(input: string | Date): string {
+  const d = typeof input === "string" ? new Date(input) : new Date(input);
+  d.setUTCMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
 function todayBelgradeISO(): string {
-  // YYYY-MM-DD in Europe/Belgrade
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Belgrade",
     year: "numeric",
@@ -100,7 +105,6 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
         : 60;
       const stepMs = stepMin * 60_000;
 
-      // Raw positions
       const raw: { position: number; value: number }[] = [];
       for (const pt of tagAll(period, "Point")) {
         const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
@@ -116,7 +120,6 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
       if (!raw.length) continue;
       raw.sort((a, b) => a.position - b.position);
 
-      // Forward-fill A03 curves over the declared period length.
       const expected = endStr
         ? Math.max(0, Math.round((Date.parse(endStr) - startMs) / stepMs))
         : raw[raw.length - 1].position;
@@ -128,13 +131,12 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
           lastValue = raw[cursor].value;
         }
         out.push({
-          ts: new Date(startMs + (k - 1) * stepMs).toISOString(),
+          ts: normalizeHourIso(new Date(startMs + (k - 1) * stepMs)),
           value: lastValue,
         });
       }
     }
   }
-  // Dedupe by ts (keep last) and sort.
   const byTs = new Map<string, number>();
   for (const r of out) byTs.set(r.ts, r.value);
   return [...byTs.entries()]
@@ -181,7 +183,6 @@ async function fetchRangePrices(
   const offsetFrom = cetOffsetHours(fromISO);
   const offsetTo = cetOffsetHours(toISO);
   const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
-  // toISO is INCLUSIVE delivery day → end of that Belgrade day = next 00:00.
   const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
   const r = await entsoeRaw({
     documentType: "A44",
@@ -198,11 +199,17 @@ async function fetchRangePrices(
       const t = Date.parse(p.ts);
       return t >= startMs && t < endMs;
     })
-    .map((p) => ({ ts: p.ts, price: p.value }));
-  return { ok: true, points };
+    .map((p) => ({ ts: normalizeHourIso(p.ts), price: p.value }));
+  const dedup = new Map<string, number>();
+  for (const p of points) dedup.set(p.ts, p.price);
+  return {
+    ok: true,
+    points: [...dedup.entries()]
+      .map(([ts, price]) => ({ ts, price }))
+      .sort((a, b) => a.ts.localeCompare(b.ts)),
+  };
 }
 
-/** Belgrade YYYY-MM-DD of an ISO timestamp. */
 function belgradeDayOf(iso: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Belgrade",
@@ -212,7 +219,6 @@ function belgradeDayOf(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Enumerate Belgrade YYYY-MM keys spanning [fromISO, toISO] inclusive. */
 function monthsBetween(fromISO: string, toISO: string): string[] {
   const out: string[] = [];
   const [fy, fm] = fromISO.split("-").map(Number);
@@ -237,9 +243,18 @@ function monthBounds(ym: string, clampFrom: string, clampTo: string) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Public server function
-// ---------------------------------------------------------------------------
+function normalizeCachedRows(rows: Array<{ datetime: string; price_eur_mwh: number | string | null }>) {
+  const byTs = new Map<string, number>();
+  for (const row of rows) {
+    const ts = normalizeHourIso(row.datetime);
+    const price = Number(row.price_eur_mwh);
+    if (!Number.isFinite(price)) continue;
+    byTs.set(ts, price);
+  }
+  return [...byTs.entries()]
+    .map(([ts, price]) => ({ ts, price }))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+}
 
 export const fetchMarketPrices = createServerFn({ method: "POST" })
   .inputValidator((data) =>
@@ -252,13 +267,11 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
 
   const today = todayBelgradeISO();
   const tomorrow = addDaysISO(today, 1);
-  // Window we will guarantee in cache.
   const windowFrom = data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
     ? (data.from < addDaysISO(today, -365 * 5) ? addDaysISO(today, -365 * 5) : data.from)
     : addDaysISO(today, -30);
   const windowTo = tomorrow;
 
-  // Load cache restricted to the window (+ a small read buffer) for coverage check.
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
@@ -268,27 +281,26 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     .order("datetime", { ascending: true })
     .limit(200000);
 
-  const dayCounts = new Map<string, number>();
-  for (const r of cached.data ?? []) {
-    const day = belgradeDayOf(r.datetime as string);
-    dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
+  const normalizedCached = normalizeCachedRows((cached.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>);
+  const dayHours = new Map<string, Set<string>>();
+  for (const r of normalizedCached) {
+    const day = belgradeDayOf(r.ts);
+    const set = dayHours.get(day) ?? new Set<string>();
+    set.add(r.ts);
+    dayHours.set(day, set);
   }
 
-  // For each month in the window, decide whether to refetch.
-  // A month is "complete enough" if every past day inside the window has ≥ 23 hours.
   const monthsToFetch: { from: string; to: string }[] = [];
   for (const ym of monthsBetween(windowFrom, windowTo)) {
     const { from: mFrom, to: mTo } = monthBounds(ym, windowFrom, windowTo);
-    // Always refetch the month containing today (live data + tomorrow).
     const containsLive = today >= mFrom && today <= mTo;
     let needs = containsLive;
     if (!needs) {
-      // Past month: refetch if any day < 23 hours.
       const start = new Date(mFrom + "T00:00:00Z");
       const end = new Date(mTo + "T00:00:00Z");
       for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
         const key = d.toISOString().slice(0, 10);
-        if ((dayCounts.get(key) ?? 0) < 23) { needs = true; break; }
+        if ((dayHours.get(key)?.size ?? 0) < 23) { needs = true; break; }
       }
     }
     if (needs) monthsToFetch.push({ from: mFrom, to: mTo });
@@ -305,27 +317,25 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     }
     if (r.points.length === 0) continue;
     const rows = r.points.map((p) => ({
-      datetime: p.ts,
+      datetime: normalizeHourIso(p.ts),
       market: MARKET,
       price_eur_mwh: p.price,
       source: "ENTSO-E",
     }));
-    const minTs = r.points[0].ts;
-    const maxTs = r.points[r.points.length - 1].ts;
+    const minTs = rows[0].datetime;
+    const maxTs = rows[rows.length - 1].datetime;
     await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
       .eq("market", MARKET)
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
-    // Chunk inserts (Supabase soft-limit ~1000 rows per insert).
     for (let i = 0; i < rows.length; i += 1000) {
       await supabaseAdmin.from("market_prices_hourly").insert(rows.slice(i, i + 1000));
     }
     fetchedTotal += rows.length;
   }
 
-  // Re-read the window after writes.
   const after = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
@@ -335,10 +345,7 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     .order("datetime", { ascending: true })
     .limit(200000);
 
-  const points = (after.data ?? []).map((r) => ({
-    ts: new Date(r.datetime as string).toISOString(),
-    price: Number(r.price_eur_mwh),
-  }));
+  const points = normalizeCachedRows((after.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>);
 
   return {
     ok: points.length > 0,
@@ -350,4 +357,3 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     points,
   };
 });
-
