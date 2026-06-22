@@ -15,7 +15,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
