@@ -50,11 +50,7 @@ type CapturePeriodMetrics = {
 };
 
 function monthKey(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Belgrade",
-    year: "numeric",
-    month: "2-digit",
-  }).format(d);
+  return belgradeDayKey(d).slice(0, 7);
 }
 
 function localHour(d: Date): number {
@@ -192,6 +188,8 @@ function CapturePage() {
   const period = useMemo(() => computeMetrics(inRange), [inRange]);
   const monthly = useMemo(() => captureMetricsByMonth(inRange), [inRange]);
   const hourly = useMemo(() => hourlyProfile(inRange), [inRange]);
+  const solarHoursInRange = useMemo(() => inRange.filter((p) => p.solar > 0).length, [inRange]);
+  const windHoursInRange = useMemo(() => inRange.filter((p) => p.wind > 0).length, [inRange]);
 
   const rangeLabel = range
     ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
@@ -412,11 +410,11 @@ function CapturePage() {
           </div>
           <div className="rounded-xl border border-border/60 p-4">
             <div className="text-muted-foreground">{t("Hours with solar output", "Sati sa solarnom proizvodnjom")}</div>
-            <div className="mt-1 text-2xl font-display">{live.data.solarHours}</div>
+            <div className="mt-1 text-2xl font-display">{solarHoursInRange}</div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
             <div className="text-muted-foreground">{t("Hours with wind output", "Sati sa vetro proizvodnjom")}</div>
-            <div className="mt-1 text-2xl font-display">{live.data.windHours}</div>
+            <div className="mt-1 text-2xl font-display">{windHoursInRange}</div>
           </div>
         </div>
       </ChartCard>
