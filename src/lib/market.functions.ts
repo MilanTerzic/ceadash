@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 /**
  * SEEPEX Serbia day-ahead price fetcher (ENTSO-E Transparency Platform).
