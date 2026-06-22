@@ -66,9 +66,10 @@ function methodology(opts: {
 
 function OverviewPage() {
   const { t } = useLang();
+  const requestedFrom = useRequestedFromKey();
   const live = useQuery({
-    queryKey: ["market-prices"],
-    queryFn: () => fetchMarketPrices(),
+    queryKey: ["market-prices", requestedFrom],
+    queryFn: () => fetchMarketPrices({ data: { from: requestedFrom } }),
     staleTime: 60 * 60_000,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
