@@ -95,30 +95,38 @@ function OverviewPage() {
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
   const baseload30 = last30.length ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length : NaN;
 
-  // Monthly series — show all 12 months of the latest year present in the data
+  // Monthly series — every month spanned by the selected analysis range
   const monthly = useMemo(() => {
-    if (completeDays.length === 0) return [];
-    const year = completeDays[completeDays.length - 1].key.slice(0, 4);
+    if (completeDays.length === 0 || !fromKey || !toKey) return [];
     const agg = new Map<string, { sum: number; n: number; neg: number }>();
     for (const b of completeDays) {
-      if (b.key.slice(0, 4) !== year) continue;
-      const k = b.key.slice(5, 7);
+      if (b.key < fromKey || b.key > toKey) continue;
+      const k = b.key.slice(0, 7); // YYYY-MM
       const cur = agg.get(k) ?? { sum: 0, n: 0, neg: 0 };
       cur.sum += b.baseload;
       cur.n += 1;
       cur.neg += b.hours.filter((h) => h.price < 0).length;
       agg.set(k, cur);
     }
-    return Array.from({ length: 12 }, (_, i) => {
-      const mm = String(i + 1).padStart(2, "0");
-      const v = agg.get(mm);
+    const months: string[] = [];
+    const [fy, fm] = fromKey.split("-").map(Number);
+    const [ty, tm] = toKey.split("-").map(Number);
+    let y = fy, m = fm;
+    while (y < ty || (y === ty && m <= tm)) {
+      months.push(`${y}-${String(m).padStart(2, "0")}`);
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
+    const sameYear = fy === ty;
+    return months.map((ym) => {
+      const v = agg.get(ym);
       return {
-        month: mm,
+        month: sameYear ? ym.slice(5) : ym,
         baseload: v && v.n ? +(v.sum / v.n).toFixed(1) : null,
         negHours: v ? v.neg : 0,
       };
     });
-  }, [completeDays]);
+  }, [completeDays, fromKey, toKey]);
 
   // Daily chart (in-range)
   const inRangeDaily = useMemo(
