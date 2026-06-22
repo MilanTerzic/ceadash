@@ -190,6 +190,14 @@ function MarketPage() {
         hours={data.length}
         completeDays={completeDays.length}
         incompleteDays={buckets.length - completeDays.length}
+        warning={
+          buckets.length - completeDays.length > 0
+            ? t(
+                "Incomplete days are excluded from baseload when they have fewer than 24 unique hourly observations (for example today-so-far or DST-affected days).",
+                "Nekompletni dani se isključuju iz baseload-a kada imaju manje od 24 jedinstvene satne opservacije (na primer današnji dan u toku ili DST dani).",
+              )
+            : undefined
+        }
       />
 
       <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
