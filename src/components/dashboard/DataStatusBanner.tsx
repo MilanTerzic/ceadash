@@ -1,6 +1,18 @@
 import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
+function formatHourStamp(d: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
 export function DataStatusBanner({
   source,
   lastUpdate,
@@ -50,11 +62,11 @@ export function DataStatusBanner({
       {lastUpdate && (
         <span className="text-muted-foreground">
           {t("Latest hour: ", "Najnoviji sat: ")}
-          <span className="text-foreground">{lastUpdate.toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}</span>
+          <span className="text-foreground">{formatHourStamp(lastUpdate)}</span>
         </span>
       )}
       <span className="text-muted-foreground">
-        {hours.toLocaleString()} {t("hours", "sati")} · {completeDays}{" "}
+        {hours.toLocaleString()} {t("hourly observations", "satnih opservacija")} · {completeDays}{" "}
         {t("complete day(s)", "kompletnih dana")}
         {incompleteDays > 0 && (
           <span className="text-warning"> · {incompleteDays} {t("incomplete", "nepotpunih")}</span>
