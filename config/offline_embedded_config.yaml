@@ -1,0 +1,47 @@
+app:
+  title: "Serbian Gas Dashboard - Offline Embedded Mode"
+  timezone: "Europe/Belgrade"
+  workbook_path: "data/raw/Serbian natural gas balance v8 + Kalotina 22.xlsx"
+  storage_backend: "parquet"
+  processed_data_dir: "data/processed"
+  exports_dir: "data/exports"
+  embedded_only: true
+
+assumptions:
+  domestic_production_mcm_day: 0.5
+  mcm_to_gwh: 10.55
+  hdd_base_temperature_c: 18.0
+  bosnia_default_share: 0.09
+  bosnia_reference_points:
+    - "Kiskundorozsma-2 (HU) / Horgos (RS)"
+  serbia_weather_weights:
+    Serbia: 1.0
+  price_unit: "EUR/MWh"
+  currency: "EUR"
+  revenue_cost_split:
+    cost_ratio_of_revenue: 0.9
+
+connectors:
+  entsog:
+    enabled: false
+    timeout_seconds: 20
+    base_url: "https://transparency.entsog.eu/api/v1"
+  open_meteo:
+    enabled: false
+    timeout_seconds: 20
+    base_url: "https://archive-api.open-meteo.com/v1/archive"
+    cities: {}
+  srbijagas_temperature:
+    enabled: false
+    url: "https://www.srbijagas.com/?page_id=3047"
+    timeout_seconds: 20
+  entsoe:
+    enabled: false
+    api_key: ""
+    area_code: "10YCS-SERBIATSOV"
+    timeout_seconds: 30
+
+paths:
+  default_price_seed: "data/raw/default_srbijagas_prices.csv"
+  domestic_production_seed: "data/raw/serbian_domestic_production.csv"
+  manual_upload_template_dir: "data/templates"
