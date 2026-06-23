@@ -102,15 +102,16 @@ export function DateRangeControl({
   latestAvailable?: Date;
 }) {
   const { t } = useLang();
-  const { preset, range, setPreset, setCustom } = useDashboardRange({ firstAvailable, latestAvailable });
+  const navigate = useNavigate();
+  const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
 
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<DateRange | undefined>(
-    range ? { from: range.from, to: range.to } : undefined,
-  );
+  const [draftFrom, setDraftFrom] = useState<Date | undefined>(range?.from);
+  const [draftTo, setDraftTo] = useState<Date | undefined>(range?.to);
 
   useEffect(() => {
-    setDraft(range ? { from: range.from, to: range.to } : undefined);
+    setDraftFrom(range?.from);
+    setDraftTo(range?.to);
   }, [range]);
 
   const presets: { key: PresetKey; label: string }[] = [
@@ -127,31 +128,51 @@ export function DateRangeControl({
       : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : t("Pick a range", "Izaberi opseg");
 
-  const handleSelect = (value: DateRange | undefined) => {
-    if (!value?.from) {
-      setDraft(undefined);
-      return;
-    }
-    if (value.to) {
-      setCustom(value);
-      setOpen(false);
+  const disabledMatcher = useMemo(() => {
+    const today = new Date();
+    const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+    return { before: minDate, after: today };
+  }, []);
+
+  const applyRange = (from: Date, to: Date) => {
+    navigate({
+      to: ".",
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        preset: "custom",
+        from: belgradeDayKey(from),
+        to: belgradeDayKey(to),
+      }),
+      replace: true,
+    });
+  };
+
+  const handleFrom = (d: Date | undefined) => {
+    if (!d) return;
+    setDraftFrom(d);
+    const to = draftTo ?? range?.to ?? d;
+    applyRange(d, d > to ? d : to);
+  };
+
+  const handleTo = (d: Date | undefined) => {
+    if (!d) return;
+    setDraftTo(d);
+    const from = draftFrom ?? range?.from ?? d;
+    if (d < from) {
+      applyRange(d, d);
+      setDraftFrom(d);
     } else {
-      setDraft({ from: value.from, to: undefined });
+      applyRange(from, d);
     }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setDraft(range ? { from: range.from, to: range.to } : undefined);
+      setDraftFrom(range?.from);
+      setDraftTo(range?.to);
     }
   };
-
-  const disabledMatcher = useMemo(() => {
-    const today = new Date();
-    const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
-    return { before: minDate, after: today };
-  }, []);
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
@@ -174,16 +195,35 @@ export function DateRangeControl({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={draft}
-                onSelect={handleSelect}
-                numberOfMonths={2}
-                defaultMonth={draft?.from ?? range?.from}
-                disabled={disabledMatcher}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
+              <div className={cn("p-3 pointer-events-auto flex flex-col gap-4")}>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t("From", "Od")}
+                  </Label>
+                  <Calendar
+                    mode="single"
+                    selected={draftFrom}
+                    onSelect={handleFrom}
+                    defaultMonth={draftFrom}
+                    disabled={disabledMatcher}
+                    initialFocus
+                    className="p-0"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t("To", "Do")}
+                  </Label>
+                  <Calendar
+                    mode="single"
+                    selected={draftTo}
+                    onSelect={handleTo}
+                    defaultMonth={draftTo}
+                    disabled={disabledMatcher}
+                    className="p-0"
+                  />
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
         </div>
