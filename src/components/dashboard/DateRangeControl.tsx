@@ -83,29 +83,12 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
     });
   };
 
-  const setCustom = (r: DateRange | undefined) => {
-    const from = r?.from;
-    const to = r?.to;
-    if (!from || !to) return;
-    navigate({
-      to: ".",
-      search: (prev: Record<string, unknown>) => ({
-        ...prev,
-        preset: "custom",
-        from: belgradeDayKey(from),
-        to: belgradeDayKey(to),
-      }),
-      replace: true,
-    });
-  };
-
   return {
     preset,
     range,
     fromKey: range ? belgradeDayKey(range.from) : undefined,
     toKey: range ? belgradeDayKey(range.to) : undefined,
     setPreset,
-    setCustom,
     firstAvailable: opts.firstAvailable,
     latestAvailable: opts.latestAvailable,
   };
