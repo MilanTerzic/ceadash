@@ -150,8 +150,12 @@ export function DateRangeControl({
   const handleFrom = (d: Date | undefined) => {
     if (!d) return;
     setDraftFrom(d);
-    const to = draftTo ?? range?.to ?? d;
-    applyRange(d, d > to ? d : to);
+    // If the current end date is before the new start, clamp it to the start
+    // so the user can pick the end next without creating an invalid range.
+    const currentTo = draftTo ?? range?.to;
+    if (currentTo && d > currentTo) {
+      setDraftTo(d);
+    }
   };
 
   const handleTo = (d: Date | undefined) => {
