@@ -1,7 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import type { DateRange } from "react-day-picker";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -9,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
-import { belgradeDayKey, dateFromBelgradeKey } from "@/lib/baseload";
+import { belgradeDayKey } from "@/lib/baseload";
 
 export type PresetKey = "7d" | "30d" | "mtd" | "prev_month" | "ytd" | "custom";
 
@@ -84,28 +83,12 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
     });
   };
 
-  const setCustom = (r: DateRange | undefined) => {
-    if (!r?.from) return;
-    const to = r.to ?? r.from;
-    navigate({
-      to: ".",
-      search: (prev: Record<string, unknown>) => ({
-        ...prev,
-        preset: "custom",
-        from: r.from!.toISOString().slice(0, 10),
-        to: to.toISOString().slice(0, 10),
-      }),
-      replace: true,
-    });
-  };
-
   return {
     preset,
     range,
     fromKey: range ? belgradeDayKey(range.from) : undefined,
     toKey: range ? belgradeDayKey(range.to) : undefined,
     setPreset,
-    setCustom,
     firstAvailable: opts.firstAvailable,
     latestAvailable: opts.latestAvailable,
   };
@@ -119,7 +102,17 @@ export function DateRangeControl({
   latestAvailable?: Date;
 }) {
   const { t } = useLang();
-  const { preset, range, setPreset, setCustom } = useDashboardRange({ firstAvailable, latestAvailable });
+  const navigate = useNavigate();
+  const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
+
+  const [open, setOpen] = useState(false);
+  const [draftFrom, setDraftFrom] = useState<Date | undefined>(range?.from);
+  const [draftTo, setDraftTo] = useState<Date | undefined>(range?.to);
+
+  useEffect(() => {
+    setDraftFrom(range?.from);
+    setDraftTo(range?.to);
+  }, [range]);
 
   const presets: { key: PresetKey; label: string }[] = [
     { key: "7d", label: t("Last 7d", "7 dana") },
@@ -135,6 +128,56 @@ export function DateRangeControl({
       : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : t("Pick a range", "Izaberi opseg");
 
+  const disabledMatcher = useMemo(() => {
+    const today = new Date();
+    const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+    return { before: minDate, after: today };
+  }, []);
+
+  const applyRange = (from: Date, to: Date) => {
+    navigate({
+      to: ".",
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        preset: "custom",
+        from: belgradeDayKey(from),
+        to: belgradeDayKey(to),
+      }),
+      replace: true,
+    });
+  };
+
+  const handleFrom = (d: Date | undefined) => {
+    if (!d) return;
+    setDraftFrom(d);
+    // If the current end date is before the new start, clamp it to the start
+    // so the user can pick the end next without creating an invalid range.
+    const currentTo = draftTo ?? range?.to;
+    if (currentTo && d > currentTo) {
+      setDraftTo(d);
+    }
+  };
+
+  const handleTo = (d: Date | undefined) => {
+    if (!d) return;
+    setDraftTo(d);
+    const from = draftFrom ?? range?.from ?? d;
+    if (d < from) {
+      applyRange(d, d);
+      setDraftFrom(d);
+    } else {
+      applyRange(from, d);
+    }
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setDraftFrom(range?.from);
+      setDraftTo(range?.to);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-end gap-4">
@@ -142,7 +185,7 @@ export function DateRangeControl({
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             {t("Analysis period", "Period analize")}
           </Label>
-          <Popover>
+          <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -156,20 +199,35 @@ export function DateRangeControl({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={range ? { from: range.from, to: range.to } : undefined}
-                onSelect={setCustom}
-                numberOfMonths={2}
-                defaultMonth={range?.from}
-                disabled={(() => {
-                  const today = new Date();
-                  const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
-                  return { before: minDate, after: today };
-                })()}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
+              <div className={cn("p-3 pointer-events-auto flex flex-col gap-4")}>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t("From", "Od")}
+                  </Label>
+                  <Calendar
+                    mode="single"
+                    selected={draftFrom}
+                    onSelect={handleFrom}
+                    defaultMonth={draftFrom}
+                    disabled={disabledMatcher}
+                    initialFocus
+                    className="p-0"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t("To", "Do")}
+                  </Label>
+                  <Calendar
+                    mode="single"
+                    selected={draftTo}
+                    onSelect={handleTo}
+                    defaultMonth={draftTo}
+                    disabled={disabledMatcher}
+                    className="p-0"
+                  />
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -189,7 +247,10 @@ export function DateRangeControl({
             size="sm"
             variant={preset === "custom" ? "default" : "outline"}
             className="h-8 px-3 text-xs"
-            onClick={() => setPreset("custom")}
+            onClick={() => {
+              setPreset("custom");
+              setOpen(true);
+            }}
           >
             {t("Custom", "Prilagođeno")}
           </Button>
