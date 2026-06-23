@@ -122,6 +122,15 @@ export function DateRangeControl({
   const { t } = useLang();
   const { preset, range, setPreset, setCustom } = useDashboardRange({ firstAvailable, latestAvailable });
 
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    range ? { from: range.from, to: range.to } : undefined,
+  );
+
+  useEffect(() => {
+    setDraft(range ? { from: range.from, to: range.to } : undefined);
+  }, [range]);
+
   const presets: { key: PresetKey; label: string }[] = [
     { key: "7d", label: t("Last 7d", "7 dana") },
     { key: "30d", label: t("Last 30d", "30 dana") },
@@ -136,6 +145,32 @@ export function DateRangeControl({
       : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : t("Pick a range", "Izaberi opseg");
 
+  const handleSelect = (value: DateRange | undefined) => {
+    if (!value?.from) {
+      setDraft(undefined);
+      return;
+    }
+    if (value.to) {
+      setCustom(value);
+      setOpen(false);
+    } else {
+      setDraft({ from: value.from, to: undefined });
+    }
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setDraft(range ? { from: range.from, to: range.to } : undefined);
+    }
+  };
+
+  const disabledMatcher = useMemo(() => {
+    const today = new Date();
+    const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+    return { before: minDate, after: today };
+  }, []);
+
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-end gap-4">
@@ -143,7 +178,7 @@ export function DateRangeControl({
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             {t("Analysis period", "Period analize")}
           </Label>
-          <Popover>
+          <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -159,15 +194,11 @@ export function DateRangeControl({
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="range"
-                selected={range ? { from: range.from, to: range.to } : undefined}
-                onSelect={setCustom}
+                selected={draft}
+                onSelect={handleSelect}
                 numberOfMonths={2}
-                defaultMonth={range?.from}
-                disabled={(() => {
-                  const today = new Date();
-                  const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
-                  return { before: minDate, after: today };
-                })()}
+                defaultMonth={draft?.from ?? range?.from}
+                disabled={disabledMatcher}
                 initialFocus
                 className={cn("p-3 pointer-events-auto")}
               />
@@ -190,7 +221,10 @@ export function DateRangeControl({
             size="sm"
             variant={preset === "custom" ? "default" : "outline"}
             className="h-8 px-3 text-xs"
-            onClick={() => setPreset("custom")}
+            onClick={() => {
+              setPreset("custom");
+              setOpen(true);
+            }}
           >
             {t("Custom", "Prilagođeno")}
           </Button>
