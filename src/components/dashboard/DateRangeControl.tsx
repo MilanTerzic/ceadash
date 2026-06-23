@@ -162,11 +162,11 @@ export function DateRangeControl({
                 onSelect={setCustom}
                 numberOfMonths={2}
                 defaultMonth={range?.from}
-                disabled={
-                  firstAvailable && latestAvailable
-                    ? { before: firstAvailable, after: latestAvailable }
-                    : undefined
-                }
+                disabled={(() => {
+                  const today = new Date();
+                  const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+                  return { before: minDate, after: today };
+                })()}
                 initialFocus
                 className={cn("p-3 pointer-events-auto")}
               />

@@ -205,7 +205,7 @@ function CapturePage() {
   const veryLowCoverage = coverageRatio < 0.25;
 
   const warning =
-    live.data && live.data.totalHours > 0
+    live.data && (live.data.totalHours ?? 0) > 0
       ? `${t("Generation coverage", "Pokrivenost proizvodnje")}: ${(coverageRatio * 100).toFixed(0)}% (${matchedHoursInRange}/${inRange.length} ${t("hours matched to price series", "sati uparenih sa cenama")})`
       : undefined;
 
