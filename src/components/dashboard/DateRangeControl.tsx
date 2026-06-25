@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -94,6 +94,11 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
   };
 }
 
+function parseDayKey(key: string): Date {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function DateRangeControl({
   firstAvailable,
   latestAvailable,
@@ -106,12 +111,12 @@ export function DateRangeControl({
   const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
 
   const [open, setOpen] = useState(false);
-  const [draftFrom, setDraftFrom] = useState<Date | undefined>(range?.from);
-  const [draftTo, setDraftTo] = useState<Date | undefined>(range?.to);
+  const [draftFromKey, setDraftFromKey] = useState(range ? belgradeDayKey(range.from) : "");
+  const [draftToKey, setDraftToKey] = useState(range ? belgradeDayKey(range.to) : "");
 
   useEffect(() => {
-    setDraftFrom(range?.from);
-    setDraftTo(range?.to);
+    setDraftFromKey(range ? belgradeDayKey(range.from) : "");
+    setDraftToKey(range ? belgradeDayKey(range.to) : "");
   }, [range]);
 
   const presets: { key: PresetKey; label: string }[] = [
@@ -128,10 +133,10 @@ export function DateRangeControl({
       : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : t("Pick a range", "Izaberi opseg");
 
-  const disabledMatcher = useMemo(() => {
+  const selectableBounds = useMemo(() => {
     const today = new Date();
     const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
-    return { before: minDate, after: today };
+    return { min: belgradeDayKey(minDate), max: belgradeDayKey(today) };
   }, []);
 
   const applyRange = (from: Date, to: Date) => {
@@ -147,34 +152,19 @@ export function DateRangeControl({
     });
   };
 
-  const handleFrom = (d: Date | undefined) => {
-    if (!d) return;
-    setDraftFrom(d);
-    // If the current end date is before the new start, clamp it to the start
-    // so the user can pick the end next without creating an invalid range.
-    const currentTo = draftTo ?? range?.to;
-    if (currentTo && d > currentTo) {
-      setDraftTo(d);
-    }
-  };
+  const canApply = Boolean(draftFromKey && draftToKey && draftFromKey <= draftToKey);
 
-  const handleTo = (d: Date | undefined) => {
-    if (!d) return;
-    setDraftTo(d);
-    const from = draftFrom ?? range?.from ?? d;
-    if (d < from) {
-      applyRange(d, d);
-      setDraftFrom(d);
-    } else {
-      applyRange(from, d);
-    }
+  const handleApply = () => {
+    if (!canApply) return;
+    applyRange(parseDayKey(draftFromKey), parseDayKey(draftToKey));
+    setOpen(false);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setDraftFrom(range?.from);
-      setDraftTo(range?.to);
+      setDraftFromKey(range ? belgradeDayKey(range.from) : "");
+      setDraftToKey(range ? belgradeDayKey(range.to) : "");
     }
   };
 
@@ -198,34 +188,45 @@ export function DateRangeControl({
                 {label}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className={cn("p-3 pointer-events-auto flex flex-col gap-4")}>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("From", "Od")}
-                  </Label>
-                  <Calendar
-                    mode="single"
-                    selected={draftFrom}
-                    onSelect={handleFrom}
-                    defaultMonth={draftFrom}
-                    disabled={disabledMatcher}
-                    initialFocus
-                    className="p-0"
-                  />
+            <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-0" align="start">
+              <div className="pointer-events-auto space-y-4 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="analysis-from" className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t("From", "Od")}
+                    </Label>
+                    <Input
+                      id="analysis-from"
+                      type="date"
+                      value={draftFromKey}
+                      min={selectableBounds.min}
+                      max={selectableBounds.max}
+                      onChange={(e) => setDraftFromKey(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="analysis-to" className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t("To", "Do")}
+                    </Label>
+                    <Input
+                      id="analysis-to"
+                      type="date"
+                      value={draftToKey}
+                      min={draftFromKey || selectableBounds.min}
+                      max={selectableBounds.max}
+                      onChange={(e) => setDraftToKey(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("To", "Do")}
-                  </Label>
-                  <Calendar
-                    mode="single"
-                    selected={draftTo}
-                    onSelect={handleTo}
-                    defaultMonth={draftTo}
-                    disabled={disabledMatcher}
-                    className="p-0"
-                  />
+                <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
+                  <span className="text-xs text-muted-foreground">
+                    {!canApply && draftFromKey && draftToKey
+                      ? t("End date must be after start date", "Krajnji datum mora biti posle početnog")
+                      : t("Choose both dates, then apply", "Izaberite oba datuma, zatim primenite")}
+                  </span>
+                  <Button size="sm" className="h-8 px-3 text-xs" disabled={!canApply} onClick={handleApply}>
+                    {t("Apply", "Primeni")}
+                  </Button>
                 </div>
               </div>
             </PopoverContent>
