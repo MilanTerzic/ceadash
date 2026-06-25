@@ -165,6 +165,10 @@ export function DateRangeControl({
     applyRange(next.from, next.to);
   };
 
+  const handleRangeSelect = (_next: DateRange | undefined, triggerDate: Date) => {
+    handleDayClick(triggerDate);
+  };
+
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
@@ -202,7 +206,7 @@ export function DateRangeControl({
                 <Calendar
                   mode="range"
                   selected={draftRange}
-                  onDayClick={handleDayClick}
+                  onSelect={handleRangeSelect}
                   defaultMonth={draftRange?.from ?? range?.from}
                   disabled={disabledMatcher}
                   numberOfMonths={2}
