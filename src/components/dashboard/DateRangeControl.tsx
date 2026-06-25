@@ -108,6 +108,7 @@ export function DateRangeControl({
 
   const [open, setOpen] = useState(false);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(range);
+  const [selectingEnd, setSelectingEnd] = useState(false);
 
   useEffect(() => {
     setDraftRange(range);
@@ -146,17 +147,33 @@ export function DateRangeControl({
     });
   };
 
-  const handleRangeSelect = (next: DateRange | undefined) => {
-    setDraftRange(next);
-    if (next?.from && next.to) {
-      applyRange(next.from, next.to);
+  const handleDayClick = (day: Date) => {
+    if (!selectingEnd || !draftRange?.from || draftRange.to) {
+      setDraftRange({ from: day, to: undefined });
+      setSelectingEnd(true);
+      return;
     }
+
+    if (day < draftRange.from) {
+      setDraftRange({ from: day, to: undefined });
+      return;
+    }
+
+    const next = { from: draftRange.from, to: day };
+    setDraftRange(next);
+    setSelectingEnd(false);
+    applyRange(next.from, next.to);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
+    if (isOpen) {
+      setSelectingEnd(false);
+      return;
+    }
     if (!isOpen) {
       setDraftRange(range);
+      setSelectingEnd(false);
     }
   };
 
@@ -185,7 +202,7 @@ export function DateRangeControl({
                 <Calendar
                   mode="range"
                   selected={draftRange}
-                  onSelect={handleRangeSelect}
+                  onDayClick={handleDayClick}
                   defaultMonth={draftRange?.from ?? range?.from}
                   disabled={disabledMatcher}
                   numberOfMonths={2}
@@ -194,10 +211,12 @@ export function DateRangeControl({
                 />
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
                   <span>
-                    {draftRange?.from
-                      ? draftRange.to
-                        ? `${format(draftRange.from, "d MMM yyyy")} – ${format(draftRange.to, "d MMM yyyy")}`
-                        : t("Select end date", "Izaberite krajnji datum")
+                    {selectingEnd && draftRange?.from
+                      ? `${format(draftRange.from, "d MMM yyyy")} – ${t("select end date", "izaberite krajnji datum")}`
+                      : draftRange?.from
+                        ? draftRange.to
+                          ? `${format(draftRange.from, "d MMM yyyy")} – ${format(draftRange.to, "d MMM yyyy")}`
+                          : t("Select end date", "Izaberite krajnji datum")
                       : t("Select start date", "Izaberite početni datum")}
                   </span>
                   <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setOpen(false)}>
