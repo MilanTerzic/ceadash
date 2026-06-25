@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -106,12 +107,10 @@ export function DateRangeControl({
   const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
 
   const [open, setOpen] = useState(false);
-  const [draftFrom, setDraftFrom] = useState<Date | undefined>(range?.from);
-  const [draftTo, setDraftTo] = useState<Date | undefined>(range?.to);
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(range);
 
   useEffect(() => {
-    setDraftFrom(range?.from);
-    setDraftTo(range?.to);
+    setDraftRange(range);
   }, [range]);
 
   const presets: { key: PresetKey; label: string }[] = [
@@ -147,34 +146,17 @@ export function DateRangeControl({
     });
   };
 
-  const handleFrom = (d: Date | undefined) => {
-    if (!d) return;
-    setDraftFrom(d);
-    // If the current end date is before the new start, clamp it to the start
-    // so the user can pick the end next without creating an invalid range.
-    const currentTo = draftTo ?? range?.to;
-    if (currentTo && d > currentTo) {
-      setDraftTo(d);
-    }
-  };
-
-  const handleTo = (d: Date | undefined) => {
-    if (!d) return;
-    setDraftTo(d);
-    const from = draftFrom ?? range?.from ?? d;
-    if (d < from) {
-      applyRange(d, d);
-      setDraftFrom(d);
-    } else {
-      applyRange(from, d);
+  const handleRangeSelect = (next: DateRange | undefined) => {
+    setDraftRange(next);
+    if (next?.from && next.to) {
+      applyRange(next.from, next.to);
     }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setDraftFrom(range?.from);
-      setDraftTo(range?.to);
+      setDraftRange(range);
     }
   };
 
@@ -198,34 +180,29 @@ export function DateRangeControl({
                 {label}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className={cn("p-3 pointer-events-auto flex flex-col gap-4")}>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("From", "Od")}
-                  </Label>
-                  <Calendar
-                    mode="single"
-                    selected={draftFrom}
-                    onSelect={handleFrom}
-                    defaultMonth={draftFrom}
-                    disabled={disabledMatcher}
-                    initialFocus
-                    className="p-0"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("To", "Do")}
-                  </Label>
-                  <Calendar
-                    mode="single"
-                    selected={draftTo}
-                    onSelect={handleTo}
-                    defaultMonth={draftTo}
-                    disabled={disabledMatcher}
-                    className="p-0"
-                  />
+            <PopoverContent className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
+              <div className={cn("pointer-events-auto max-h-[calc(100vh-7rem)] overflow-auto p-3")}>
+                <Calendar
+                  mode="range"
+                  selected={draftRange}
+                  onSelect={handleRangeSelect}
+                  defaultMonth={draftRange?.from ?? range?.from}
+                  disabled={disabledMatcher}
+                  numberOfMonths={2}
+                  initialFocus
+                  className="p-0"
+                />
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+                  <span>
+                    {draftRange?.from
+                      ? draftRange.to
+                        ? `${format(draftRange.from, "d MMM yyyy")} – ${format(draftRange.to, "d MMM yyyy")}`
+                        : t("Select end date", "Izaberite krajnji datum")
+                      : t("Select start date", "Izaberite početni datum")}
+                  </span>
+                  <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => setOpen(false)}>
+                    {t("Done", "Gotovo")}
+                  </Button>
                 </div>
               </div>
             </PopoverContent>
