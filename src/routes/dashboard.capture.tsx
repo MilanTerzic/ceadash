@@ -318,6 +318,25 @@ function CapturePage() {
         </div>
       )}
 
+      {(period.solarCapture == null || period.windCapture == null) && (
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+          <div className="font-medium">
+            {t("Missing ENTSO-E generation data", "Nedostaju ENTSO-E podaci o proizvodnji")}
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            {period.solarCapture == null
+              ? t(
+                  "No Serbia solar generation (psrType B16) was returned by ENTSO-E for hours overlapping the SEEPEX prices in the selected period. Solar capture price, rate and premium are shown as N/A instead of 0.",
+                  "ENTSO-E nije vratio podatke o solarnoj proizvodnji Srbije (psrType B16) za sate koji se preklapaju sa SEEPEX cenama u izabranom periodu. Solar capture price, rate i premija prikazani su kao N/A umesto 0.",
+                )
+              : t(
+                  "No Serbia wind generation (psrType B18+B19) was returned by ENTSO-E for hours overlapping the SEEPEX prices in the selected period. Wind capture metrics are shown as N/A.",
+                  "ENTSO-E nije vratio podatke o vetro proizvodnji Srbije (psrType B18+B19) za sate koji se preklapaju sa SEEPEX cenama u izabranom periodu. Wind capture metrike prikazane su kao N/A.",
+                )}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("Solar capture price", "Solar capture cena")}
