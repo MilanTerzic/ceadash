@@ -266,7 +266,7 @@ function CapturePage() {
   return (
     <div className="space-y-6">
       <DataStatusBanner
-        source={(live.data.source as "entsoe" | "cache" | "none") ?? "none"}
+        source={(live.data?.source as "entsoe" | "cache" | "none") ?? "none"}
         lastUpdate={lastTs}
         hours={rawPoints.length}
         completeDays={completeDays.length}
