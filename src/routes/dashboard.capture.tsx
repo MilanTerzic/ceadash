@@ -399,8 +399,8 @@ function CapturePage() {
             <LineChart
               data={monthly.map((m) => ({
                 month: m.month.slice(5),
-                solar: +(m.solarRate * 100).toFixed(1),
-                wind: +(m.windRate * 100).toFixed(1),
+                solar: m.solarRate != null ? +(m.solarRate * 100).toFixed(1) : null,
+                wind: m.windRate != null ? +(m.windRate * 100).toFixed(1) : null,
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
