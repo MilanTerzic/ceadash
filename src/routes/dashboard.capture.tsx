@@ -39,14 +39,17 @@ export const Route = createFileRoute("/dashboard/capture")({
 });
 
 type CapturePeriodMetrics = {
-  baseload: number;
-  solarCapture: number;
-  windCapture: number;
-  solarRate: number;
-  windRate: number;
-  solarNegShare: number;
-  windNegShare: number;
+  baseload: number | null;
+  solarCapture: number | null;
+  windCapture: number | null;
+  solarRate: number | null;
+  windRate: number | null;
+  solarNegShare: number | null;
+  windNegShare: number | null;
   negHours: number;
+  solarHours: number;
+  windHours: number;
+  priceHours: number;
 };
 
 function monthKey(d: Date): string {
@@ -66,54 +69,70 @@ function localHour(d: Date): number {
 }
 
 function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
-  if (!points.length) {
-    return {
-      baseload: 0,
-      solarCapture: 0,
-      windCapture: 0,
-      solarRate: 0,
-      windRate: 0,
-      solarNegShare: 0,
-      windNegShare: 0,
-      negHours: 0,
-    };
-  }
+  const empty: CapturePeriodMetrics = {
+    baseload: null,
+    solarCapture: null,
+    windCapture: null,
+    solarRate: null,
+    windRate: null,
+    solarNegShare: null,
+    windNegShare: null,
+    negHours: 0,
+    solarHours: 0,
+    windHours: 0,
+    priceHours: 0,
+  };
+  if (!points.length) return empty;
 
   let sumP = 0;
+  let priceHours = 0;
   let sumPS = 0;
-  let sumPW = 0;
   let sumS = 0;
-  let sumW = 0;
+  let solarHours = 0;
   let sumSneg = 0;
+  let sumPW = 0;
+  let sumW = 0;
+  let windHours = 0;
   let sumWneg = 0;
   let negHours = 0;
 
   for (const p of points) {
+    if (!Number.isFinite(p.price)) continue;
     sumP += p.price;
-    sumPS += p.price * p.solar;
-    sumPW += p.price * p.wind;
-    sumS += p.solar;
-    sumW += p.wind;
-    if (p.price < 0) {
-      negHours += 1;
-      sumSneg += p.solar;
-      sumWneg += p.wind;
+    priceHours += 1;
+    if (p.price < 0) negHours += 1;
+    if (Number.isFinite(p.solar) && p.solar > 0) {
+      sumPS += p.price * p.solar;
+      sumS += p.solar;
+      solarHours += 1;
+      if (p.price < 0) sumSneg += p.solar;
+    }
+    if (Number.isFinite(p.wind) && p.wind > 0) {
+      sumPW += p.price * p.wind;
+      sumW += p.wind;
+      windHours += 1;
+      if (p.price < 0) sumWneg += p.wind;
     }
   }
 
-  const baseload = sumP / points.length;
-  const solarCapture = sumS > 0 ? sumPS / sumS : 0;
-  const windCapture = sumW > 0 ? sumPW / sumW : 0;
+  const baseload = priceHours > 0 ? sumP / priceHours : null;
+  const solarCapture = sumS > 0 ? sumPS / sumS : null;
+  const windCapture = sumW > 0 ? sumPW / sumW : null;
 
   return {
     baseload,
     solarCapture,
     windCapture,
-    solarRate: baseload !== 0 ? solarCapture / baseload : 0,
-    windRate: baseload !== 0 ? windCapture / baseload : 0,
-    solarNegShare: sumS > 0 ? sumSneg / sumS : 0,
-    windNegShare: sumW > 0 ? sumWneg / sumW : 0,
+    solarRate:
+      baseload != null && baseload !== 0 && solarCapture != null ? solarCapture / baseload : null,
+    windRate:
+      baseload != null && baseload !== 0 && windCapture != null ? windCapture / baseload : null,
+    solarNegShare: sumS > 0 ? sumSneg / sumS : null,
+    windNegShare: sumW > 0 ? sumWneg / sumW : null,
     negHours,
+    solarHours,
+    windHours,
+    priceHours,
   };
 }
 
@@ -154,7 +173,20 @@ function hourlyProfile(points: CapturePoint[]) {
 }
 
 function fmtValue(v: number | null | undefined, digits = 1) {
-  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(digits);
+  return v == null || !Number.isFinite(v) ? "N/A" : v.toFixed(digits);
+}
+
+function fmtPct(v: number | null | undefined, digits = 1) {
+  return v == null || !Number.isFinite(v) ? "N/A" : `${(v * 100).toFixed(digits)}%`;
+}
+
+function fmtDiff(a: number | null | undefined, b: number | null | undefined, digits = 1) {
+  if (a == null || b == null || !Number.isFinite(a) || !Number.isFinite(b)) return "N/A";
+  return (a - b).toFixed(digits);
+}
+
+function nz(v: number | null | undefined) {
+  return v == null || !Number.isFinite(v) ? 0 : v;
 }
 
 function CapturePage() {
@@ -286,49 +318,68 @@ function CapturePage() {
         </div>
       )}
 
+      {(period.solarCapture == null || period.windCapture == null) && (
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+          <div className="font-medium">
+            {t("Missing ENTSO-E generation data", "Nedostaju ENTSO-E podaci o proizvodnji")}
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            {period.solarCapture == null
+              ? t(
+                  "No Serbia solar generation (psrType B16) was returned by ENTSO-E for hours overlapping the SEEPEX prices in the selected period. Solar capture price, rate and premium are shown as N/A instead of 0.",
+                  "ENTSO-E nije vratio podatke o solarnoj proizvodnji Srbije (psrType B16) za sate koji se preklapaju sa SEEPEX cenama u izabranom periodu. Solar capture price, rate i premija prikazani su kao N/A umesto 0.",
+                )
+              : t(
+                  "No Serbia wind generation (psrType B18+B19) was returned by ENTSO-E for hours overlapping the SEEPEX prices in the selected period. Wind capture metrics are shown as N/A.",
+                  "ENTSO-E nije vratio podatke o vetro proizvodnji Srbije (psrType B18+B19) za sate koji se preklapaju sa SEEPEX cenama u izabranom periodu. Wind capture metrike prikazane su kao N/A.",
+                )}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("Solar capture price", "Solar capture cena")}
           hint={methodologyHint}
-          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture)}
+          value={veryLowCoverage ? "N/A" : fmtValue(period.solarCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Wind capture price", "Wind capture cena")}
           hint={methodologyHint}
-          value={veryLowCoverage ? "—" : fmtValue(period.windCapture)}
+          value={veryLowCoverage ? "N/A" : fmtValue(period.windCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Solar capture rate", "Solar capture rate")}
           hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.solarRate * 100)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.solarRate)}
         />
         <KpiCard
           label={t("Wind capture rate", "Wind capture rate")}
           hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.windRate * 100)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.windRate)}
         />
         <KpiCard
           label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
           hint={t("Share of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo solarne proizvodnje u satima kada je cena < 0 EUR/MWh.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.solarNegShare * 100, 2)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.solarNegShare, 2)}
         />
         <KpiCard
           label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
           hint={t("Share of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo vetro proizvodnje u satima kada je cena < 0 EUR/MWh.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.windNegShare * 100, 2)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.windNegShare, 2)}
         />
         <KpiCard
           label={t("Solar premium / discount vs baseload", "Solar premija / diskont vs baseload")}
           hint={t("Positive means solar capture is above baseload; negative means below baseload.", "Pozitivno znači da je solar capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture - period.baseload)}
+          value={veryLowCoverage ? "N/A" : fmtDiff(period.solarCapture, period.baseload)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Wind premium / discount vs baseload", "Wind premija / diskont vs baseload")}
           hint={t("Positive means wind capture is above baseload; negative means below baseload.", "Pozitivno znači da je wind capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "—" : fmtValue(period.windCapture - period.baseload)}
+          value={veryLowCoverage ? "N/A" : fmtDiff(period.windCapture, period.baseload)}
           unit="EUR/MWh"
         />
       </div>
@@ -344,9 +395,9 @@ function CapturePage() {
           <ComposedChart
             data={monthly.map((m) => ({
               month: m.month.slice(5),
-              baseload: +m.baseload.toFixed(1),
-              solar: +m.solarCapture.toFixed(1),
-              wind: +m.windCapture.toFixed(1),
+              baseload: m.baseload != null ? +m.baseload.toFixed(1) : null,
+              solar: m.solarCapture != null ? +m.solarCapture.toFixed(1) : null,
+              wind: m.windCapture != null ? +m.windCapture.toFixed(1) : null,
             }))}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -367,8 +418,8 @@ function CapturePage() {
             <LineChart
               data={monthly.map((m) => ({
                 month: m.month.slice(5),
-                solar: +(m.solarRate * 100).toFixed(1),
-                wind: +(m.windRate * 100).toFixed(1),
+                solar: m.solarRate != null ? +(m.solarRate * 100).toFixed(1) : null,
+                wind: m.windRate != null ? +(m.windRate * 100).toFixed(1) : null,
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -393,8 +444,8 @@ function CapturePage() {
             <BarChart
               data={monthly.map((m) => ({
                 month: m.month.slice(5),
-                solar: +(m.solarNegShare * 100).toFixed(2),
-                wind: +(m.windNegShare * 100).toFixed(2),
+                solar: m.solarNegShare != null ? +(m.solarNegShare * 100).toFixed(2) : null,
+                wind: m.windNegShare != null ? +(m.windNegShare * 100).toFixed(2) : null,
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
