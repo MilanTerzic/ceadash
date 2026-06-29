@@ -250,7 +250,7 @@ function CapturePage() {
     return <p className="text-sm text-muted-foreground">{t("Fetching Serbia capture-price inputs…", "Učitavanje ulaznih podataka za capture price Srbije…")}</p>;
   }
 
-  if (!live.data?.ok || !inRange.length) {
+  if (!inRange.length) {
     return (
       <p className="text-sm text-muted-foreground">
         {t(
