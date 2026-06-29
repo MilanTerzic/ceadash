@@ -425,8 +425,8 @@ function CapturePage() {
             <BarChart
               data={monthly.map((m) => ({
                 month: m.month.slice(5),
-                solar: +(m.solarNegShare * 100).toFixed(2),
-                wind: +(m.windNegShare * 100).toFixed(2),
+                solar: m.solarNegShare != null ? +(m.solarNegShare * 100).toFixed(2) : null,
+                wind: m.windNegShare != null ? +(m.windNegShare * 100).toFixed(2) : null,
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
