@@ -173,7 +173,20 @@ function hourlyProfile(points: CapturePoint[]) {
 }
 
 function fmtValue(v: number | null | undefined, digits = 1) {
-  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(digits);
+  return v == null || !Number.isFinite(v) ? "N/A" : v.toFixed(digits);
+}
+
+function fmtPct(v: number | null | undefined, digits = 1) {
+  return v == null || !Number.isFinite(v) ? "N/A" : `${(v * 100).toFixed(digits)}%`;
+}
+
+function fmtDiff(a: number | null | undefined, b: number | null | undefined, digits = 1) {
+  if (a == null || b == null || !Number.isFinite(a) || !Number.isFinite(b)) return "N/A";
+  return (a - b).toFixed(digits);
+}
+
+function nz(v: number | null | undefined) {
+  return v == null || !Number.isFinite(v) ? 0 : v;
 }
 
 function CapturePage() {
