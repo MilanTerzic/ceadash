@@ -376,9 +376,9 @@ function CapturePage() {
           <ComposedChart
             data={monthly.map((m) => ({
               month: m.month.slice(5),
-              baseload: +m.baseload.toFixed(1),
-              solar: +m.solarCapture.toFixed(1),
-              wind: +m.windCapture.toFixed(1),
+              baseload: m.baseload != null ? +m.baseload.toFixed(1) : null,
+              solar: m.solarCapture != null ? +m.solarCapture.toFixed(1) : null,
+              wind: m.windCapture != null ? +m.windCapture.toFixed(1) : null,
             }))}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
