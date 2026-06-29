@@ -39,14 +39,17 @@ export const Route = createFileRoute("/dashboard/capture")({
 });
 
 type CapturePeriodMetrics = {
-  baseload: number;
-  solarCapture: number;
-  windCapture: number;
-  solarRate: number;
-  windRate: number;
-  solarNegShare: number;
-  windNegShare: number;
+  baseload: number | null;
+  solarCapture: number | null;
+  windCapture: number | null;
+  solarRate: number | null;
+  windRate: number | null;
+  solarNegShare: number | null;
+  windNegShare: number | null;
   negHours: number;
+  solarHours: number;
+  windHours: number;
+  priceHours: number;
 };
 
 function monthKey(d: Date): string {
@@ -66,54 +69,70 @@ function localHour(d: Date): number {
 }
 
 function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
-  if (!points.length) {
-    return {
-      baseload: 0,
-      solarCapture: 0,
-      windCapture: 0,
-      solarRate: 0,
-      windRate: 0,
-      solarNegShare: 0,
-      windNegShare: 0,
-      negHours: 0,
-    };
-  }
+  const empty: CapturePeriodMetrics = {
+    baseload: null,
+    solarCapture: null,
+    windCapture: null,
+    solarRate: null,
+    windRate: null,
+    solarNegShare: null,
+    windNegShare: null,
+    negHours: 0,
+    solarHours: 0,
+    windHours: 0,
+    priceHours: 0,
+  };
+  if (!points.length) return empty;
 
   let sumP = 0;
+  let priceHours = 0;
   let sumPS = 0;
-  let sumPW = 0;
   let sumS = 0;
-  let sumW = 0;
+  let solarHours = 0;
   let sumSneg = 0;
+  let sumPW = 0;
+  let sumW = 0;
+  let windHours = 0;
   let sumWneg = 0;
   let negHours = 0;
 
   for (const p of points) {
+    if (!Number.isFinite(p.price)) continue;
     sumP += p.price;
-    sumPS += p.price * p.solar;
-    sumPW += p.price * p.wind;
-    sumS += p.solar;
-    sumW += p.wind;
-    if (p.price < 0) {
-      negHours += 1;
-      sumSneg += p.solar;
-      sumWneg += p.wind;
+    priceHours += 1;
+    if (p.price < 0) negHours += 1;
+    if (Number.isFinite(p.solar) && p.solar > 0) {
+      sumPS += p.price * p.solar;
+      sumS += p.solar;
+      solarHours += 1;
+      if (p.price < 0) sumSneg += p.solar;
+    }
+    if (Number.isFinite(p.wind) && p.wind > 0) {
+      sumPW += p.price * p.wind;
+      sumW += p.wind;
+      windHours += 1;
+      if (p.price < 0) sumWneg += p.wind;
     }
   }
 
-  const baseload = sumP / points.length;
-  const solarCapture = sumS > 0 ? sumPS / sumS : 0;
-  const windCapture = sumW > 0 ? sumPW / sumW : 0;
+  const baseload = priceHours > 0 ? sumP / priceHours : null;
+  const solarCapture = sumS > 0 ? sumPS / sumS : null;
+  const windCapture = sumW > 0 ? sumPW / sumW : null;
 
   return {
     baseload,
     solarCapture,
     windCapture,
-    solarRate: baseload !== 0 ? solarCapture / baseload : 0,
-    windRate: baseload !== 0 ? windCapture / baseload : 0,
-    solarNegShare: sumS > 0 ? sumSneg / sumS : 0,
-    windNegShare: sumW > 0 ? sumWneg / sumW : 0,
+    solarRate:
+      baseload != null && baseload !== 0 && solarCapture != null ? solarCapture / baseload : null,
+    windRate:
+      baseload != null && baseload !== 0 && windCapture != null ? windCapture / baseload : null,
+    solarNegShare: sumS > 0 ? sumSneg / sumS : null,
+    windNegShare: sumW > 0 ? sumWneg / sumW : null,
     negHours,
+    solarHours,
+    windHours,
+    priceHours,
   };
 }
 
