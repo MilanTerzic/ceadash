@@ -322,45 +322,45 @@ function CapturePage() {
         <KpiCard
           label={t("Solar capture price", "Solar capture cena")}
           hint={methodologyHint}
-          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture)}
+          value={veryLowCoverage ? "N/A" : fmtValue(period.solarCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Wind capture price", "Wind capture cena")}
           hint={methodologyHint}
-          value={veryLowCoverage ? "—" : fmtValue(period.windCapture)}
+          value={veryLowCoverage ? "N/A" : fmtValue(period.windCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Solar capture rate", "Solar capture rate")}
           hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.solarRate * 100)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.solarRate)}
         />
         <KpiCard
           label={t("Wind capture rate", "Wind capture rate")}
           hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.windRate * 100)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.windRate)}
         />
         <KpiCard
           label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
           hint={t("Share of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo solarne proizvodnje u satima kada je cena < 0 EUR/MWh.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.solarNegShare * 100, 2)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.solarNegShare, 2)}
         />
         <KpiCard
           label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
           hint={t("Share of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo vetro proizvodnje u satima kada je cena < 0 EUR/MWh.")}
-          value={veryLowCoverage ? "—" : `${fmtValue(period.windNegShare * 100, 2)}%`}
+          value={veryLowCoverage ? "N/A" : fmtPct(period.windNegShare, 2)}
         />
         <KpiCard
           label={t("Solar premium / discount vs baseload", "Solar premija / diskont vs baseload")}
           hint={t("Positive means solar capture is above baseload; negative means below baseload.", "Pozitivno znači da je solar capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "—" : fmtValue(period.solarCapture - period.baseload)}
+          value={veryLowCoverage ? "N/A" : fmtDiff(period.solarCapture, period.baseload)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Wind premium / discount vs baseload", "Wind premija / diskont vs baseload")}
           hint={t("Positive means wind capture is above baseload; negative means below baseload.", "Pozitivno znači da je wind capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "—" : fmtValue(period.windCapture - period.baseload)}
+          value={veryLowCoverage ? "N/A" : fmtDiff(period.windCapture, period.baseload)}
           unit="EUR/MWh"
         />
       </div>
