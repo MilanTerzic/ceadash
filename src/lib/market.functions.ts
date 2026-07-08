@@ -148,11 +148,42 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
 // HTTP
 // ---------------------------------------------------------------------------
 
+type EntsoeError = {
+  ok: false;
+  reason: string;
+  status?: number;
+  message?: string;
+  params?: Record<string, string>;
+};
+
+function sanitizeMessage(s: string): string {
+  return s
+    .replace(/securityToken=[^&\s"'<>]+/gi, "securityToken=***")
+    .replace(/token=[^&\s"'<>]+/gi, "token=***")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 400);
+}
+
+function classifyEntsoeBody(status: number, body: string): { reason: string; message: string } {
+  const b = body.toLowerCase();
+  const msgMatch = /<text>([\s\S]*?)<\/text>/i.exec(body);
+  const message = sanitizeMessage(msgMatch ? msgMatch[1] : body);
+  if (status === 401 || b.includes("unauthorized") || b.includes("invalid token")) return { reason: "unauthorized", message };
+  if (status === 429 || b.includes("too many requests")) return { reason: "rate_limited", message };
+  if (b.includes("no matching data") || b.includes("no data available") || b.includes("matching data not found")) return { reason: "no_data", message };
+  if (b.includes("invalid_domain") || b.includes("area domain") || b.includes("indomain") || b.includes("outdomain")) return { reason: "invalid_domain", message };
+  if (b.includes("period") && (b.includes("invalid") || b.includes("not allowed") || b.includes("exceeds"))) return { reason: "invalid_period", message };
+  if (status === 400) return { reason: "bad_request", message };
+  if (status >= 500) return { reason: `server_error_${status}`, message };
+  return { reason: `api_error_${status}`, message };
+}
+
 async function entsoeRaw(params: Record<string, string>): Promise<
-  { ok: true; xml: string } | { ok: false; reason: string }
+  { ok: true; xml: string } | EntsoeError
 > {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
-  if (!token) return { ok: false, reason: "missing_token" };
+  if (!token) return { ok: false, reason: "missing_token", params };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -160,16 +191,20 @@ async function entsoeRaw(params: Record<string, string>): Promise<
     try {
       const res = await fetch(url.toString(), { headers: { Accept: "application/xml" } });
       if (res.status === 200) return { ok: true, xml: await res.text() };
-      if (res.status === 400) return { ok: false, reason: "no_data" };
-      if (res.status === 401) return { ok: false, reason: "unauthorized" };
-      if (res.status === 429) return { ok: false, reason: "rate_limited" };
-      if (res.status < 500 || attempt === 1) return { ok: false, reason: `http_${res.status}` };
+      let body = "";
+      try { body = await res.text(); } catch { /* ignore */ }
+      const { reason, message } = classifyEntsoeBody(res.status, body);
+      if (res.status >= 500 && attempt === 0) {
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
+      }
+      return { ok: false, reason, status: res.status, message, params };
     } catch (e) {
-      if (attempt === 1) return { ok: false, reason: `network_${(e as Error).message}` };
+      if (attempt === 1) return { ok: false, reason: "network_error", message: sanitizeMessage((e as Error).message), params };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  return { ok: false, reason: "exhausted" };
+  return { ok: false, reason: "exhausted", params };
 }
 
 // ---------------------------------------------------------------------------
