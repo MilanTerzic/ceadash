@@ -320,6 +320,8 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     ]);
 
     const solarH = toHourly(solarR.points);
+    const windOnH = toHourly(windOnR.points);
+    const windOffH = toHourly(windOffR.points);
     const windH = toHourly([...windOnR.points, ...windOffR.points]);
 
     const points: CapturePoint[] = marketPoints.map((p) => ({
@@ -329,9 +331,17 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       wind: windH.get(p.ts) ?? 0,
     }));
 
+    const priceTsSet = new Set(marketPoints.map((p) => p.ts));
+    const matchedSolarHours = [...solarH.keys()].filter((k) => priceTsSet.has(k)).length;
+    const matchedWindOnHours = [...windOnH.keys()].filter((k) => priceTsSet.has(k)).length;
+    const matchedWindOffHours = [...windOffH.keys()].filter((k) => priceTsSet.has(k)).length;
+
     const solarHours = points.filter((p) => p.solar > 0).length;
     const windHours = points.filter((p) => p.wind > 0).length;
     const matchedHours = points.filter((p) => p.solar > 0 || p.wind > 0).length;
+
+    const firstPriceTs = marketPoints[0]?.ts ?? null;
+    const lastPriceTs = marketPoints[marketPoints.length - 1]?.ts ?? null;
 
     return {
       ok: matchedHours > 0,
@@ -348,5 +358,17 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       matchedHours,
       totalHours: points.length,
       generationSource: "ENTSO-E A75" as const,
+      priceHours: marketPoints.length,
+      firstPriceTs,
+      lastPriceTs,
+      diagnostics: {
+        solar: { ...solarR.diagnostics, matchedHours: matchedSolarHours },
+        windOnshore: { ...windOnR.diagnostics, matchedHours: matchedWindOnHours },
+        windOffshore: { ...windOffR.diagnostics, matchedHours: matchedWindOffHours },
+        priceHours: marketPoints.length,
+        firstPriceTs,
+        lastPriceTs,
+      },
     };
   });
+
