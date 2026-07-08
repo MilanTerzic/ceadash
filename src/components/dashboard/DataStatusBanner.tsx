@@ -126,12 +126,35 @@ export function DataStatusBanner({
           )}
         </span>
       )}
-      {warning && (
+      {incompleteDayList && incompleteDayList.length > 0 && (
+        <span className="basis-full text-warning text-xs">
+          {t("Incomplete days excluded: ", "Nepotpuni dani izuzeti: ")}
+          {incompleteDayList.slice(0, 8).join(", ")}
+          {incompleteDayList.length > 8 ? ` (+${incompleteDayList.length - 8})` : ""}
+        </span>
+      )}
+      {warning && !incompleteDayList?.length && (
         <span className="basis-full text-warning text-xs">{warning}</span>
       )}
-      {reasons && reasons.length > 0 && (
+      {failedFetches && failedFetches.length > 0 && (
+        <details className="basis-full text-warning/90 text-[11px]">
+          <summary className="cursor-pointer">
+            {t(
+              `ENTSO-E fetch failures (${failedFetches.length})`,
+              `ENTSO-E greške preuzimanja (${failedFetches.length})`,
+            )}
+          </summary>
+          <div className="mt-1 max-h-40 overflow-auto font-mono">
+            {failedFetches.slice(0, 60).map((f) => (
+              <div key={f.day}>ENTSO-E fetch failed for {f.day}: {f.reason}</div>
+            ))}
+            {failedFetches.length > 60 && <div>… +{failedFetches.length - 60} more</div>}
+          </div>
+        </details>
+      )}
+      {reasons && reasons.length > 0 && !failedFetches?.length && (
         <span className="basis-full text-warning/90 text-[11px]">
-          {t("Fetch issues: ", "Problemi pri preuzimanju: ")}{reasons.join(" · ")}
+          {t("Fetch issues: ", "Problemi pri preuzimanju: ")}{reasons.slice(0, 10).join(" · ")}
         </span>
       )}
     </div>
