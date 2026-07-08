@@ -38,6 +38,31 @@ export const Route = createFileRoute("/dashboard/capture")({
   component: CapturePage,
 });
 
+const ROUND_TRIP_EFF = 0.85;
+
+type BessDayMetrics = {
+  charge2: number;
+  discharge2: number;
+  gross2: number;
+  net2: number;
+  charge4: number;
+  discharge4: number;
+  gross4: number;
+  net4: number;
+};
+
+type BessAggregate = {
+  days: number;
+  avgCharge2: number | null;
+  avgDischarge2: number | null;
+  avgGross2: number | null;
+  avgNet2: number | null;
+  avgCharge4: number | null;
+  avgDischarge4: number | null;
+  avgGross4: number | null;
+  avgNet4: number | null;
+};
+
 type CapturePeriodMetrics = {
   baseload: number | null;
   solarCapture: number | null;
@@ -46,10 +71,15 @@ type CapturePeriodMetrics = {
   windRate: number | null;
   solarNegShare: number | null;
   windNegShare: number | null;
+  solarNegMwh: number;
+  windNegMwh: number;
+  solarTotalMwh: number;
+  windTotalMwh: number;
   negHours: number;
   solarHours: number;
   windHours: number;
   priceHours: number;
+  bess: BessAggregate;
 };
 
 function monthKey(d: Date): string {
@@ -68,7 +98,82 @@ function localHour(d: Date): number {
   );
 }
 
+/** Compute BESS 2h/4h daily arbitrage spreads and average across all complete
+ *  days in the input. Rules:
+ *   - group hourly prices by Belgrade calendar day (only rows with finite prices)
+ *   - a day contributes to 2h metrics if it has >= 4 hours (2 charge + 2 discharge)
+ *     and to 4h metrics if it has >= 8 hours (4 charge + 4 discharge)
+ *   - charge = mean of N cheapest hours; discharge = mean of N most expensive hours
+ *   - gross = discharge - charge; net = discharge * 0.85 - charge
+ */
+function bessDaily(points: CapturePoint[]): BessDayMetrics[] {
+  const byDay = new Map<string, number[]>();
+  for (const p of points) {
+    if (!Number.isFinite(p.price)) continue;
+    const k = belgradeDayKey(new Date(p.ts));
+    const arr = byDay.get(k) ?? [];
+    arr.push(p.price);
+    byDay.set(k, arr);
+  }
+  const out: BessDayMetrics[] = [];
+  for (const prices of byDay.values()) {
+    if (prices.length < 4) continue;
+    const sorted = [...prices].sort((a, b) => a - b);
+    const low2 = sorted.slice(0, 2);
+    const high2 = sorted.slice(-2);
+    const charge2 = low2.reduce((a, b) => a + b, 0) / low2.length;
+    const discharge2 = high2.reduce((a, b) => a + b, 0) / high2.length;
+    let charge4 = NaN;
+    let discharge4 = NaN;
+    if (prices.length >= 8) {
+      const low4 = sorted.slice(0, 4);
+      const high4 = sorted.slice(-4);
+      charge4 = low4.reduce((a, b) => a + b, 0) / low4.length;
+      discharge4 = high4.reduce((a, b) => a + b, 0) / high4.length;
+    }
+    out.push({
+      charge2,
+      discharge2,
+      gross2: discharge2 - charge2,
+      net2: discharge2 * ROUND_TRIP_EFF - charge2,
+      charge4,
+      discharge4,
+      gross4: Number.isFinite(charge4) ? discharge4 - charge4 : NaN,
+      net4: Number.isFinite(charge4) ? discharge4 * ROUND_TRIP_EFF - charge4 : NaN,
+    });
+  }
+  return out;
+}
+
+function aggregateBess(days: BessDayMetrics[]): BessAggregate {
+  const mean = (xs: number[]) =>
+    xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  const has4 = days.filter((d) => Number.isFinite(d.gross4));
+  return {
+    days: days.length,
+    avgCharge2: mean(days.map((d) => d.charge2)),
+    avgDischarge2: mean(days.map((d) => d.discharge2)),
+    avgGross2: mean(days.map((d) => d.gross2)),
+    avgNet2: mean(days.map((d) => d.net2)),
+    avgCharge4: mean(has4.map((d) => d.charge4)),
+    avgDischarge4: mean(has4.map((d) => d.discharge4)),
+    avgGross4: mean(has4.map((d) => d.gross4)),
+    avgNet4: mean(has4.map((d) => d.net4)),
+  };
+}
+
 function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
+  const emptyBess: BessAggregate = {
+    days: 0,
+    avgCharge2: null,
+    avgDischarge2: null,
+    avgGross2: null,
+    avgNet2: null,
+    avgCharge4: null,
+    avgDischarge4: null,
+    avgGross4: null,
+    avgNet4: null,
+  };
   const empty: CapturePeriodMetrics = {
     baseload: null,
     solarCapture: null,
@@ -77,10 +182,15 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
     windRate: null,
     solarNegShare: null,
     windNegShare: null,
+    solarNegMwh: 0,
+    windNegMwh: 0,
+    solarTotalMwh: 0,
+    windTotalMwh: 0,
     negHours: 0,
     solarHours: 0,
     windHours: 0,
     priceHours: 0,
+    bess: emptyBess,
   };
   if (!points.length) return empty;
 
@@ -101,17 +211,20 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
     sumP += p.price;
     priceHours += 1;
     if (p.price < 0) negHours += 1;
-    if (Number.isFinite(p.solar) && p.solar > 0) {
-      sumPS += p.price * p.solar;
-      sumS += p.solar;
+    // Treat negative generation as zero per spec.
+    const solar = Number.isFinite(p.solar) && p.solar > 0 ? p.solar : 0;
+    const wind = Number.isFinite(p.wind) && p.wind > 0 ? p.wind : 0;
+    if (solar > 0) {
+      sumPS += p.price * solar;
+      sumS += solar;
       solarHours += 1;
-      if (p.price < 0) sumSneg += p.solar;
+      if (p.price < 0) sumSneg += solar;
     }
-    if (Number.isFinite(p.wind) && p.wind > 0) {
-      sumPW += p.price * p.wind;
-      sumW += p.wind;
+    if (wind > 0) {
+      sumPW += p.price * wind;
+      sumW += wind;
       windHours += 1;
-      if (p.price < 0) sumWneg += p.wind;
+      if (p.price < 0) sumWneg += wind;
     }
   }
 
@@ -129,28 +242,33 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
       baseload != null && baseload !== 0 && windCapture != null ? windCapture / baseload : null,
     solarNegShare: sumS > 0 ? sumSneg / sumS : null,
     windNegShare: sumW > 0 ? sumWneg / sumW : null,
+    solarNegMwh: sumSneg,
+    windNegMwh: sumWneg,
+    solarTotalMwh: sumS,
+    windTotalMwh: sumW,
     negHours,
     solarHours,
     windHours,
     priceHours,
+    bess: aggregateBess(bessDaily(points)),
   };
 }
 
-function captureMetricsByMonth(points: CapturePoint[]) {
+export type MonthlyCaptureRow = { month: string } & CapturePeriodMetrics;
+
+function captureMetricsByMonth(points: CapturePoint[]): MonthlyCaptureRow[] {
   const map = new Map<string, CapturePoint[]>();
   for (const p of points) {
     const key = monthKey(new Date(p.ts));
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(p);
   }
-
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, pts]) => ({
-      month,
-      ...computeMetrics(pts),
-    }));
+    .map(([month, pts]) => ({ month, ...computeMetrics(pts) }));
 }
+
+
 
 function hourlyProfile(points: CapturePoint[]) {
   const buckets: { p: number[]; s: number[]; w: number[] }[] = Array.from({ length: 24 }, () => ({
@@ -339,50 +457,70 @@ function CapturePage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
+          label={t("Baseload average price", "Baseload prosečna cena")}
+          hint={t("Simple mean of hourly Serbia day-ahead prices in the selected period.", "Prosek satnih day-ahead cena za Srbiju u izabranom periodu.")}
+          value={fmtValue(period.baseload)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Negative-price hours", "Negativni sati")}
+          hint={t("Number of hours in the selected period with day-ahead price < 0 EUR/MWh.", "Broj sati u izabranom periodu sa day-ahead cenom < 0 EUR/MWh.")}
+          value={period.negHours}
+        />
+        <KpiCard
           label={t("Solar capture price", "Solar capture cena")}
           hint={methodologyHint}
           value={veryLowCoverage ? "N/A" : fmtValue(period.solarCapture)}
-          unit="EUR/MWh"
+          unit={
+            veryLowCoverage || period.solarRate == null
+              ? "EUR/MWh"
+              : `EUR/MWh · ${fmtPct(period.solarRate)}`
+          }
         />
         <KpiCard
           label={t("Wind capture price", "Wind capture cena")}
           hint={methodologyHint}
           value={veryLowCoverage ? "N/A" : fmtValue(period.windCapture)}
-          unit="EUR/MWh"
+          unit={
+            veryLowCoverage || period.windRate == null
+              ? "EUR/MWh"
+              : `EUR/MWh · ${fmtPct(period.windRate)}`
+          }
         />
         <KpiCard
-          label={t("Solar capture rate", "Solar capture rate")}
-          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "N/A" : fmtPct(period.solarRate)}
+          label={t("BESS 2h net spread", "BESS 2h neto spread")}
+          hint={t(
+            "Daily 2-hour BESS arbitrage spread net of 85% round-trip efficiency, averaged over days in the selected period. Formula: mean(2 highest daily prices) × 0.85 − mean(2 lowest daily prices). One cycle/day, no degradation/fees/imbalance.",
+            "Dnevni 2-časovni BESS arbitražni spread nakon 85% round-trip efikasnosti, prosečno po danima u izabranom periodu. Formula: prosek(2 najviše dnevne cene) × 0.85 − prosek(2 najniže dnevne cene). Jedan ciklus/dan, bez degradacije/naknada.",
+          )}
+          value={fmtValue(period.bess.avgNet2)}
+          unit="EUR/MWh · net"
         />
         <KpiCard
-          label={t("Wind capture rate", "Wind capture rate")}
-          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "N/A" : fmtPct(period.windRate)}
+          label={t("BESS 4h net spread", "BESS 4h neto spread")}
+          hint={t(
+            "Daily 4-hour BESS arbitrage spread net of 85% round-trip efficiency, averaged over days. Formula: mean(4 highest daily prices) × 0.85 − mean(4 lowest daily prices). One cycle/day, no degradation/fees/imbalance.",
+            "Dnevni 4-časovni BESS arbitražni spread nakon 85% round-trip efikasnosti, prosečno po danima. Formula: prosek(4 najviše dnevne cene) × 0.85 − prosek(4 najniže dnevne cene). Jedan ciklus/dan, bez degradacije/naknada.",
+          )}
+          value={fmtValue(period.bess.avgNet4)}
+          unit="EUR/MWh · net"
         />
         <KpiCard
           label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
-          hint={t("Share of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo solarne proizvodnje u satima kada je cena < 0 EUR/MWh.")}
+          hint={t("Share and absolute MWh of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh solarne proizvodnje u satima sa cenom < 0 EUR/MWh.")}
           value={veryLowCoverage ? "N/A" : fmtPct(period.solarNegShare, 2)}
+          unit={veryLowCoverage ? undefined : `${period.solarNegMwh.toFixed(0)} MWh`}
         />
         <KpiCard
           label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
-          hint={t("Share of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo vetro proizvodnje u satima kada je cena < 0 EUR/MWh.")}
+          hint={t("Share and absolute MWh of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh vetro proizvodnje u satima sa cenom < 0 EUR/MWh.")}
           value={veryLowCoverage ? "N/A" : fmtPct(period.windNegShare, 2)}
-        />
-        <KpiCard
-          label={t("Solar premium / discount vs baseload", "Solar premija / diskont vs baseload")}
-          hint={t("Positive means solar capture is above baseload; negative means below baseload.", "Pozitivno znači da je solar capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "N/A" : fmtDiff(period.solarCapture, period.baseload)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          label={t("Wind premium / discount vs baseload", "Wind premija / diskont vs baseload")}
-          hint={t("Positive means wind capture is above baseload; negative means below baseload.", "Pozitivno znači da je wind capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "N/A" : fmtDiff(period.windCapture, period.baseload)}
-          unit="EUR/MWh"
+          unit={veryLowCoverage ? undefined : `${period.windNegMwh.toFixed(0)} MWh`}
         />
       </div>
+
+      <MonthlyCaptureTable rows={monthly} rangeLabel={rangeLabel} />
+
 
       <ChartCard
         title={t("Monthly capture price vs baseload", "Mesečni capture price vs baseload")}
@@ -531,5 +669,82 @@ function CapturePage() {
   );
 }
 
+function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; rangeLabel: string }) {
+  const { t } = useLang();
+  const todayMonth = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date()).replace("-", "-");
+  if (!rows.length) return null;
+  return (
+    <ChartCard
+      title={t("Monthly capture, negative-price exposure and BESS spreads", "Mesečni capture, izloženost negativnim cenama i BESS spread-ovi")}
+      description={t(
+        `Selected range: ${rangeLabel}. Volume-weighted capture prices, negative-price exposure and daily BESS arbitrage spreads (2h and 4h, 85% round-trip efficiency, one cycle per day).`,
+        `Izabrani opseg: ${rangeLabel}. Volumenski ponderisane capture cene, izloženost negativnim cenama i dnevni BESS arbitražni spread-ovi (2h i 4h, 85% round-trip efikasnost, jedan ciklus dnevno).`,
+      )}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-muted-foreground border-b border-border/60">
+              <th className="py-2 pr-3 font-medium">{t("Month", "Mesec")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Baseload", "Baseload")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar capture", "Solar capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar rate", "Solar rate")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind capture", "Wind capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind rate", "Wind rate")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Neg. hours", "Neg. sati")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar neg. %", "Solar neg. %")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind neg. %", "Wind neg. %")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h gross", "BESS 2h bruto")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h net (85%)", "BESS 2h neto (85%)")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h gross", "BESS 4h bruto")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h net (85%)", "BESS 4h neto (85%)")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const partial = r.month === todayMonth;
+              return (
+                <tr key={r.month} className="border-b border-border/40 hover:bg-muted/20">
+                  <td className="py-1.5 pr-3">
+                    {r.month}
+                    {partial && (
+                      <span className="ml-1.5 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] text-warning">
+                        {t("partial", "delimičan")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.baseload)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.solarCapture)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarRate)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.windCapture)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windRate)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{r.negHours}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarNegShare, 2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windNegShare, 2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross4)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet4)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          {t(
+            "All prices in EUR/MWh. Capture prices are volume-weighted: Σ(price×gen) / Σ(gen). BESS spreads are daily top-N minus bottom-N averaged across days; net = discharge × 0.85 − charge.",
+            "Sve cene u EUR/MWh. Capture cene su volumenski ponderisane: Σ(cena×prod) / Σ(prod). BESS spread-ovi su dnevni top-N minus bottom-N prosečno po danima; neto = discharge × 0.85 − charge.",
+          )}
+        </p>
+      </div>
+    </ChartCard>
+  );
+}
+
 const _u = AreaChart;
 void _u;
+
