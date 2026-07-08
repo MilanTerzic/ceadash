@@ -269,7 +269,7 @@ async function snapshotFromCache(
     generatedAt: new Date().toISOString(),
     windowFrom: windowFrom.toISOString(),
     windowTo: windowTo.toISOString(),
-    prices: prices.sort((a, b) => (b.avg24h ?? -1) - (a.avg24h ?? -1)),
+    prices: prices.sort((a, b) => (b.baseload ?? b.avg24h ?? -1) - (a.baseload ?? a.avg24h ?? -1)),
     flows: flows.sort((a, b) => b.absMw - a.absMw),
     source: hasAnyPrice ? "cache" : "none",
   };
