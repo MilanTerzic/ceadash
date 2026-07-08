@@ -212,7 +212,7 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     const fromISO = data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from) ? data.from : addDaysISO(today, -30);
     const toISO = data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to) ? data.to : addDaysISO(today, 1);
 
-    const market = await fetchMarketPrices({ data: { from: fromISO } });
+    const market = await fetchMarketPrices({ data: { from: fromISO, to: toISO } });
     const marketPoints = (market.points ?? []).filter((p) => {
       const day = belgradeDayOf(p.ts);
       return day >= fromISO && day <= toISO;
