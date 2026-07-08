@@ -131,9 +131,16 @@ export function aggregatePeriod(buckets: DayBucket[], fromKey?: string, toKey?: 
   const allHours = inRange.flatMap((b) => b.hours);
   const prices = allHours.map((p) => p.price);
   const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
-  const baseload = mean(completeOnly.map((d) => d.baseload));
-  const peakloadDays = completeOnly.map((d) => d.peakload).filter((v): v is number => v != null);
-  const peakload = peakloadDays.length ? mean(peakloadDays) : null;
+  // Baseload = simple mean of all hourly prices in range (hour-weighted).
+  // This matches exchange-published period averages and avoids over-weighting
+  // partial days when the completeness threshold is low.
+  const completeHours = completeOnly.flatMap((d) => d.hours).map((p) => p.price);
+  const baseload = mean(completeHours);
+  const peakHours = completeOnly
+    .flatMap((d) => d.hours)
+    .filter((p) => isBelgradePeakHour(p.ts))
+    .map((p) => p.price);
+  const peakload = peakHours.length ? mean(peakHours) : null;
   const variance = prices.length
     ? prices.reduce((a, b) => a + (b - mean(prices)) ** 2, 0) / prices.length
     : 0;
