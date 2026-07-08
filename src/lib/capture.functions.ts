@@ -11,6 +11,33 @@ export type CapturePoint = {
   wind: number;
 };
 
+// Belgrade representative location for clear-sky PV proxy.
+const SERBIA_LAT = 44.8;
+const SERBIA_LON = 20.5;
+
+/** Modelled clear-sky PV proxy for Serbia (Belgrade coordinates).
+ *  Returns a non-negative shape (0..~1) per hour; used ONLY as a weighting
+ *  profile for capture-price when ENTSO-E does not publish B16 solar for
+ *  Serbia. Absolute scale cancels out of the Σ(price·gen)/Σ(gen) formula.
+ *  This is a modelled proxy, not measured generation. */
+function modelledSolarWeight(tsISO: string): number {
+  const d = new Date(tsISO);
+  if (Number.isNaN(d.getTime())) return 0;
+  const startYear = Date.UTC(d.getUTCFullYear(), 0, 0);
+  const N = Math.floor((d.getTime() - startYear) / 86_400_000);
+  const decl = (23.45 * Math.PI) / 180 * Math.sin((2 * Math.PI * (N - 81)) / 365);
+  const utcHours = d.getUTCHours() + d.getUTCMinutes() / 60;
+  // Equation-of-time skipped; solar time ≈ UTC + lon/15.
+  const solarTime = utcHours + SERBIA_LON / 15;
+  const H = ((solarTime - 12) * 15 * Math.PI) / 180;
+  const latR = (SERBIA_LAT * Math.PI) / 180;
+  const cosZ = Math.sin(latR) * Math.sin(decl) + Math.cos(latR) * Math.cos(decl) * Math.cos(H);
+  if (cosZ <= 0) return 0;
+  // Simple atmospheric attenuation ~ air-mass exponent.
+  return Math.pow(cosZ, 1.15);
+}
+
+
 function ymdh(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
