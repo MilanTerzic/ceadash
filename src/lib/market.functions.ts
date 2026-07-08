@@ -354,36 +354,56 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
 
   let fetchedTotal = 0;
   let fetchedDaysCount = 0;
-  const failedFetches: { day: string; reason: string }[] = [];
+  type FailedFetch = {
+    day: string;
+    reason: string;
+    status?: number;
+    message?: string;
+    attempts: number;
+    params?: Record<string, string>;
+  };
+  const failedFetches: FailedFetch[] = [];
   const reasons: string[] = [];
 
   const CONCURRENCY = 4;
   async function fetchOneDay(day: string): Promise<void> {
     let attempts = 0;
-    let last: { ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> } | null = null;
+    let last: RangeFetchResult | null = null;
     while (attempts < 3) {
+      attempts++;
       last = await fetchRangePrices(day, day);
       if (last.ok) break;
       if (last.reason === "rate_limited") {
         await new Promise((r) => setTimeout(r, 500 + attempts * 500));
-        attempts++;
         continue;
       }
-      if (last.reason?.startsWith("network_") || last.reason?.startsWith("http_5")) {
+      if (last.reason === "network_error" || last.reason?.startsWith("server_error_")) {
         await new Promise((r) => setTimeout(r, 300));
-        attempts++;
         continue;
       }
       break;
     }
     if (!last || !last.ok) {
       const reason = last?.reason ?? "unknown";
-      failedFetches.push({ day, reason });
-      reasons.push(`${day}: ${reason}`);
+      failedFetches.push({
+        day,
+        reason,
+        status: last?.status,
+        message: last?.message,
+        attempts,
+        params: last?.params,
+      });
+      reasons.push(`${day}: ${reason}${last?.status ? ` (http_${last.status})` : ""}`);
       return;
     }
     if (last.points.length === 0) {
-      failedFetches.push({ day, reason: "no_data" });
+      failedFetches.push({
+        day,
+        reason: "no_data",
+        attempts,
+        params: last.params,
+        message: "ENTSO-E returned 200 with no matching TimeSeries for this day.",
+      });
       reasons.push(`${day}: no_data`);
       return;
     }
@@ -395,13 +415,23 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     }));
     const minTs = rows[0].datetime;
     const maxTs = rows[rows.length - 1].datetime;
-    await supabaseAdmin
+    const del = await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
       .eq("market", MARKET)
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
-    await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    if (del.error) {
+      failedFetches.push({ day, reason: "supabase_delete_error", attempts, message: sanitizeMessage(del.error.message) });
+      reasons.push(`${day}: supabase_delete_error`);
+      return;
+    }
+    const ins = await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    if (ins.error) {
+      failedFetches.push({ day, reason: "supabase_insert_error", attempts, message: sanitizeMessage(ins.error.message) });
+      reasons.push(`${day}: supabase_insert_error`);
+      return;
+    }
     fetchedTotal += rows.length;
     fetchedDaysCount += 1;
   }
@@ -440,6 +470,21 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
   const loadedFrom = completeDays[0];
   const loadedTo = completeDays[completeDays.length - 1];
 
+  // Failure reason breakdown
+  const failureCounts: Record<string, number> = {};
+  for (const f of failedFetches) failureCounts[f.reason] = (failureCounts[f.reason] ?? 0) + 1;
+  const topFailure = Object.entries(failureCounts).sort((a, b) => b[1] - a[1])[0];
+  const firstFailed = failedFetches[0];
+  const capReached = daysToFetch.length > capped.length;
+
+  const debugSummary =
+    `ENTSO-E debug: selected ${windowFrom} → ${windowTo}; ` +
+    `total ${allDays.length} d; complete ${completeDays.length}; incomplete ${incompleteDays.length}; ` +
+    `missing ${missingDays.length}; attempted ${capped.length}${capReached ? ` (cap ${MAX_FETCH_PER_CALL}, +${daysToFetch.length - capped.length} deferred)` : ""}; ` +
+    `fetched ${fetchedDaysCount}; failed ${failedFetches.length}` +
+    (topFailure ? `; top reason: ${topFailure[0]} (${topFailure[1]})` : "") +
+    (firstFailed ? `; first failed: ${firstFailed.day}${firstFailed.status ? ` http_${firstFailed.status}` : ""}${firstFailed.message ? ` — ${firstFailed.message}` : ""}` : "");
+
   return {
     ok: points.length > 0,
     source: fetchedTotal > 0 ? ("entsoe" as const) : ("cache" as const),
@@ -455,7 +500,13 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     missingDays,
     incompleteDays,
     failedFetches,
-    truncated: daysToFetch.length > capped.length,
+    failureCounts,
+    attemptedDaysCount: capped.length,
+    totalSelectedDays: allDays.length,
+    capReached,
+    maxFetchPerCall: MAX_FETCH_PER_CALL,
+    debugSummary,
+    truncated: capReached,
     reasons: reasons.length ? reasons : undefined,
     points,
   };
