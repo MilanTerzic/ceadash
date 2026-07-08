@@ -286,33 +286,62 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     dayHours.set(day, set);
   }
 
-  const monthsToFetch: { from: string; to: string }[] = [];
-  for (const ym of monthsBetween(windowFrom, windowTo)) {
-    const { from: mFrom, to: mTo } = monthBounds(ym, windowFrom, windowTo);
-    const containsLive = today >= mFrom && today <= mTo;
-    let needs = containsLive;
-    if (!needs) {
-      const start = new Date(mFrom + "T00:00:00Z");
-      const end = new Date(mTo + "T00:00:00Z");
-      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-        const key = d.toISOString().slice(0, 10);
-        if ((dayHours.get(key)?.size ?? 0) < 23) { needs = true; break; }
-      }
-    }
-    if (needs) monthsToFetch.push({ from: mFrom, to: mTo });
+  // Build list of Belgrade delivery days to (re)fetch:
+  //  - always refetch today + tomorrow (SDAC publication)
+  //  - refetch any day with fewer than 23 unique hours in cache (DST-safe)
+  const allDays = daysBetween(windowFrom, windowTo);
+  const missingBefore: string[] = [];
+  const daysToFetch: string[] = [];
+  for (const day of allDays) {
+    const have = dayHours.get(day)?.size ?? 0;
+    const isLiveWindow = day === today || day === tomorrow;
+    if (have < 23) missingBefore.push(day);
+    if (isLiveWindow || have < 23) daysToFetch.push(day);
   }
+  // Also include tomorrow if it falls outside windowFrom..windowTo bounds
+  // (already handled: windowTo is >= tomorrow by construction).
+
+  // Cap per-invocation to keep server-fn wall time bounded; remaining days
+  // will be picked up on the next query invalidation.
+  const MAX_FETCH_PER_CALL = 120;
+  const capped = daysToFetch.slice(0, MAX_FETCH_PER_CALL);
 
   let fetchedTotal = 0;
+  let fetchedDaysCount = 0;
+  const failedFetches: { day: string; reason: string }[] = [];
   const reasons: string[] = [];
 
-  for (const win of monthsToFetch) {
-    const r = await fetchRangePrices(win.from, win.to);
-    if (!r.ok) {
-      reasons.push(`${win.from}..${win.to}:${r.reason ?? "err"}`);
-      continue;
+  const CONCURRENCY = 4;
+  async function fetchOneDay(day: string): Promise<void> {
+    let attempts = 0;
+    let last: { ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> } | null = null;
+    while (attempts < 3) {
+      last = await fetchRangePrices(day, day);
+      if (last.ok) break;
+      if (last.reason === "rate_limited") {
+        await new Promise((r) => setTimeout(r, 500 + attempts * 500));
+        attempts++;
+        continue;
+      }
+      if (last.reason?.startsWith("network_") || last.reason?.startsWith("http_5")) {
+        await new Promise((r) => setTimeout(r, 300));
+        attempts++;
+        continue;
+      }
+      break;
     }
-    if (r.points.length === 0) continue;
-    const rows = r.points.map((p) => ({
+    if (!last || !last.ok) {
+      const reason = last?.reason ?? "unknown";
+      failedFetches.push({ day, reason });
+      reasons.push(`${day}: ${reason}`);
+      return;
+    }
+    if (last.points.length === 0) {
+      failedFetches.push({ day, reason: "no_data" });
+      reasons.push(`${day}: no_data`);
+      return;
+    }
+    const rows = last.points.map((p) => ({
       datetime: normalizeHourIso(p.ts),
       market: MARKET,
       price_eur_mwh: p.price,
@@ -326,10 +355,14 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
       .eq("market", MARKET)
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
-    for (let i = 0; i < rows.length; i += 1000) {
-      await supabaseAdmin.from("market_prices_hourly").insert(rows.slice(i, i + 1000));
-    }
+    await supabaseAdmin.from("market_prices_hourly").insert(rows);
     fetchedTotal += rows.length;
+    fetchedDaysCount += 1;
+  }
+
+  // Simple concurrency-limited scheduler
+  for (let i = 0; i < capped.length; i += CONCURRENCY) {
+    await Promise.all(capped.slice(i, i + CONCURRENCY).map(fetchOneDay));
   }
 
   const after = await supabaseAdmin
@@ -343,13 +376,42 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
 
   const points = normalizeCachedRows((after.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>);
 
+  // Diagnostics: recompute per-day hour counts after fetch
+  const finalDayHours = new Map<string, number>();
+  for (const p of points) {
+    const d = belgradeDayOf(p.ts);
+    finalDayHours.set(d, (finalDayHours.get(d) ?? 0) + 1);
+  }
+  const completeDays: string[] = [];
+  const incompleteDays: string[] = [];
+  const missingDays: string[] = [];
+  for (const day of allDays) {
+    const n = finalDayHours.get(day) ?? 0;
+    if (n === 0) missingDays.push(day);
+    else if (n < 23) incompleteDays.push(day);
+    else completeDays.push(day);
+  }
+  const loadedFrom = completeDays[0];
+  const loadedTo = completeDays[completeDays.length - 1];
+
   return {
     ok: points.length > 0,
     source: fetchedTotal > 0 ? ("entsoe" as const) : ("cache" as const),
     fetched: fetchedTotal,
+    fetchedDaysCount,
+    fetchedHoursCount: fetchedTotal,
     windowFrom,
     windowTo,
+    requestedFrom: windowFrom,
+    requestedTo: windowTo,
+    loadedFrom,
+    loadedTo,
+    missingDays,
+    incompleteDays,
+    failedFetches,
+    truncated: daysToFetch.length > capped.length,
     reasons: reasons.length ? reasons : undefined,
     points,
   };
 });
+
