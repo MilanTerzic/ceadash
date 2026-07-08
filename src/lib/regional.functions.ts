@@ -157,8 +157,11 @@ export type ZonePrice = {
   solarCaptureRatio: number | null;
   latest: number | null;
   latestTs: string | null;
+  priceHours: number;
+  negHours: number;
   points: { ts: string; price: number }[];
 };
+
 
 export type FlowSummary = {
   from: ZoneCode;
