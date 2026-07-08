@@ -457,50 +457,70 @@ function CapturePage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
+          label={t("Baseload average price", "Baseload prosečna cena")}
+          hint={t("Simple mean of hourly Serbia day-ahead prices in the selected period.", "Prosek satnih day-ahead cena za Srbiju u izabranom periodu.")}
+          value={fmtValue(period.baseload)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Negative-price hours", "Negativni sati")}
+          hint={t("Number of hours in the selected period with day-ahead price < 0 EUR/MWh.", "Broj sati u izabranom periodu sa day-ahead cenom < 0 EUR/MWh.")}
+          value={period.negHours}
+        />
+        <KpiCard
           label={t("Solar capture price", "Solar capture cena")}
           hint={methodologyHint}
           value={veryLowCoverage ? "N/A" : fmtValue(period.solarCapture)}
-          unit="EUR/MWh"
+          unit={
+            veryLowCoverage || period.solarRate == null
+              ? "EUR/MWh"
+              : `EUR/MWh · ${fmtPct(period.solarRate)}`
+          }
         />
         <KpiCard
           label={t("Wind capture price", "Wind capture cena")}
           hint={methodologyHint}
           value={veryLowCoverage ? "N/A" : fmtValue(period.windCapture)}
-          unit="EUR/MWh"
+          unit={
+            veryLowCoverage || period.windRate == null
+              ? "EUR/MWh"
+              : `EUR/MWh · ${fmtPct(period.windRate)}`
+          }
         />
         <KpiCard
-          label={t("Solar capture rate", "Solar capture rate")}
-          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "N/A" : fmtPct(period.solarRate)}
+          label={t("BESS 2h net spread", "BESS 2h neto spread")}
+          hint={t(
+            "Daily 2-hour BESS arbitrage spread net of 85% round-trip efficiency, averaged over days in the selected period. Formula: mean(2 highest daily prices) × 0.85 − mean(2 lowest daily prices). One cycle/day, no degradation/fees/imbalance.",
+            "Dnevni 2-časovni BESS arbitražni spread nakon 85% round-trip efikasnosti, prosečno po danima u izabranom periodu. Formula: prosek(2 najviše dnevne cene) × 0.85 − prosek(2 najniže dnevne cene). Jedan ciklus/dan, bez degradacije/naknada.",
+          )}
+          value={fmtValue(period.bess.avgNet2)}
+          unit="EUR/MWh · net"
         />
         <KpiCard
-          label={t("Wind capture rate", "Wind capture rate")}
-          hint={t("Capture price divided by baseload over the same selected period.", "Capture price podeljen sa baseload cenom za isti izabrani period.")}
-          value={veryLowCoverage ? "N/A" : fmtPct(period.windRate)}
+          label={t("BESS 4h net spread", "BESS 4h neto spread")}
+          hint={t(
+            "Daily 4-hour BESS arbitrage spread net of 85% round-trip efficiency, averaged over days. Formula: mean(4 highest daily prices) × 0.85 − mean(4 lowest daily prices). One cycle/day, no degradation/fees/imbalance.",
+            "Dnevni 4-časovni BESS arbitražni spread nakon 85% round-trip efikasnosti, prosečno po danima. Formula: prosek(4 najviše dnevne cene) × 0.85 − prosek(4 najniže dnevne cene). Jedan ciklus/dan, bez degradacije/naknada.",
+          )}
+          value={fmtValue(period.bess.avgNet4)}
+          unit="EUR/MWh · net"
         />
         <KpiCard
           label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
-          hint={t("Share of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo solarne proizvodnje u satima kada je cena < 0 EUR/MWh.")}
+          hint={t("Share and absolute MWh of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh solarne proizvodnje u satima sa cenom < 0 EUR/MWh.")}
           value={veryLowCoverage ? "N/A" : fmtPct(period.solarNegShare, 2)}
+          unit={veryLowCoverage ? undefined : `${period.solarNegMwh.toFixed(0)} MWh`}
         />
         <KpiCard
           label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
-          hint={t("Share of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo vetro proizvodnje u satima kada je cena < 0 EUR/MWh.")}
+          hint={t("Share and absolute MWh of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh vetro proizvodnje u satima sa cenom < 0 EUR/MWh.")}
           value={veryLowCoverage ? "N/A" : fmtPct(period.windNegShare, 2)}
-        />
-        <KpiCard
-          label={t("Solar premium / discount vs baseload", "Solar premija / diskont vs baseload")}
-          hint={t("Positive means solar capture is above baseload; negative means below baseload.", "Pozitivno znači da je solar capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "N/A" : fmtDiff(period.solarCapture, period.baseload)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          label={t("Wind premium / discount vs baseload", "Wind premija / diskont vs baseload")}
-          hint={t("Positive means wind capture is above baseload; negative means below baseload.", "Pozitivno znači da je wind capture iznad baseload-a; negativno znači ispod baseload-a.")}
-          value={veryLowCoverage ? "N/A" : fmtDiff(period.windCapture, period.baseload)}
-          unit="EUR/MWh"
+          unit={veryLowCoverage ? undefined : `${period.windNegMwh.toFixed(0)} MWh`}
         />
       </div>
+
+      <MonthlyCaptureTable rows={monthly} rangeLabel={rangeLabel} />
+
 
       <ChartCard
         title={t("Monthly capture price vs baseload", "Mesečni capture price vs baseload")}
