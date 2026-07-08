@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { DEFAULT_MIN_COMPLETE_HOURS } from "@/lib/baseload";
 
 /**
  * SEEPEX Serbia day-ahead price fetcher (ENTSO-E Transparency Platform).
