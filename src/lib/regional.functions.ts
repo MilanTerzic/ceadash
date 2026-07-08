@@ -214,22 +214,28 @@ async function snapshotFromCache(
   const prices: ZonePrice[] = zoneList.map((z) => {
     const pts = byZone.get(z)!;
     const last24 = pts.filter((p) => p.ts.getTime() >= cutoff);
-    const avg = last24.length ? last24.reduce((s, p) => s + p.value, 0) / last24.length : null;
+    const avg24 = last24.length ? last24.reduce((s, p) => s + p.value, 0) / last24.length : null;
+    // Baseload = simple arithmetic mean of ALL hourly prices in the window.
+    const baseload = pts.length ? pts.reduce((s, p) => s + p.value, 0) / pts.length : null;
+    const negHours = pts.reduce((n, p) => (p.value < 0 ? n + 1 : n), 0);
     const latest = pts.length ? pts[pts.length - 1] : null;
     return {
       zone: z,
       name: ZONES[z].name,
-      avg24h: avg,
-      baseload: avg,
+      avg24h: avg24,
+      baseload,
       windCapture: null,
       solarCapture: null,
       windCaptureRatio: null,
       solarCaptureRatio: null,
       latest: latest ? latest.value : null,
       latestTs: latest ? latest.ts.toISOString() : null,
+      priceHours: pts.length,
+      negHours,
       points: pts.map((p) => ({ ts: p.ts.toISOString(), price: p.value })),
     };
   });
+
 
   // Flows: pull last 24h, average per neighbour (signed RS -> n)
   const flowFrom = new Date(windowTo.getTime() - 24 * 3600_000);
