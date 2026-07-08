@@ -38,6 +38,31 @@ export const Route = createFileRoute("/dashboard/capture")({
   component: CapturePage,
 });
 
+const ROUND_TRIP_EFF = 0.85;
+
+type BessDayMetrics = {
+  charge2: number;
+  discharge2: number;
+  gross2: number;
+  net2: number;
+  charge4: number;
+  discharge4: number;
+  gross4: number;
+  net4: number;
+};
+
+type BessAggregate = {
+  days: number;
+  avgCharge2: number | null;
+  avgDischarge2: number | null;
+  avgGross2: number | null;
+  avgNet2: number | null;
+  avgCharge4: number | null;
+  avgDischarge4: number | null;
+  avgGross4: number | null;
+  avgNet4: number | null;
+};
+
 type CapturePeriodMetrics = {
   baseload: number | null;
   solarCapture: number | null;
@@ -46,10 +71,15 @@ type CapturePeriodMetrics = {
   windRate: number | null;
   solarNegShare: number | null;
   windNegShare: number | null;
+  solarNegMwh: number;
+  windNegMwh: number;
+  solarTotalMwh: number;
+  windTotalMwh: number;
   negHours: number;
   solarHours: number;
   windHours: number;
   priceHours: number;
+  bess: BessAggregate;
 };
 
 function monthKey(d: Date): string {
@@ -68,7 +98,82 @@ function localHour(d: Date): number {
   );
 }
 
+/** Compute BESS 2h/4h daily arbitrage spreads and average across all complete
+ *  days in the input. Rules:
+ *   - group hourly prices by Belgrade calendar day (only rows with finite prices)
+ *   - a day contributes to 2h metrics if it has >= 4 hours (2 charge + 2 discharge)
+ *     and to 4h metrics if it has >= 8 hours (4 charge + 4 discharge)
+ *   - charge = mean of N cheapest hours; discharge = mean of N most expensive hours
+ *   - gross = discharge - charge; net = discharge * 0.85 - charge
+ */
+function bessDaily(points: CapturePoint[]): BessDayMetrics[] {
+  const byDay = new Map<string, number[]>();
+  for (const p of points) {
+    if (!Number.isFinite(p.price)) continue;
+    const k = belgradeDayKey(new Date(p.ts));
+    const arr = byDay.get(k) ?? [];
+    arr.push(p.price);
+    byDay.set(k, arr);
+  }
+  const out: BessDayMetrics[] = [];
+  for (const prices of byDay.values()) {
+    if (prices.length < 4) continue;
+    const sorted = [...prices].sort((a, b) => a - b);
+    const low2 = sorted.slice(0, 2);
+    const high2 = sorted.slice(-2);
+    const charge2 = low2.reduce((a, b) => a + b, 0) / low2.length;
+    const discharge2 = high2.reduce((a, b) => a + b, 0) / high2.length;
+    let charge4 = NaN;
+    let discharge4 = NaN;
+    if (prices.length >= 8) {
+      const low4 = sorted.slice(0, 4);
+      const high4 = sorted.slice(-4);
+      charge4 = low4.reduce((a, b) => a + b, 0) / low4.length;
+      discharge4 = high4.reduce((a, b) => a + b, 0) / high4.length;
+    }
+    out.push({
+      charge2,
+      discharge2,
+      gross2: discharge2 - charge2,
+      net2: discharge2 * ROUND_TRIP_EFF - charge2,
+      charge4,
+      discharge4,
+      gross4: Number.isFinite(charge4) ? discharge4 - charge4 : NaN,
+      net4: Number.isFinite(charge4) ? discharge4 * ROUND_TRIP_EFF - charge4 : NaN,
+    });
+  }
+  return out;
+}
+
+function aggregateBess(days: BessDayMetrics[]): BessAggregate {
+  const mean = (xs: number[]) =>
+    xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  const has4 = days.filter((d) => Number.isFinite(d.gross4));
+  return {
+    days: days.length,
+    avgCharge2: mean(days.map((d) => d.charge2)),
+    avgDischarge2: mean(days.map((d) => d.discharge2)),
+    avgGross2: mean(days.map((d) => d.gross2)),
+    avgNet2: mean(days.map((d) => d.net2)),
+    avgCharge4: mean(has4.map((d) => d.charge4)),
+    avgDischarge4: mean(has4.map((d) => d.discharge4)),
+    avgGross4: mean(has4.map((d) => d.gross4)),
+    avgNet4: mean(has4.map((d) => d.net4)),
+  };
+}
+
 function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
+  const emptyBess: BessAggregate = {
+    days: 0,
+    avgCharge2: null,
+    avgDischarge2: null,
+    avgGross2: null,
+    avgNet2: null,
+    avgCharge4: null,
+    avgDischarge4: null,
+    avgGross4: null,
+    avgNet4: null,
+  };
   const empty: CapturePeriodMetrics = {
     baseload: null,
     solarCapture: null,
@@ -77,10 +182,15 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
     windRate: null,
     solarNegShare: null,
     windNegShare: null,
+    solarNegMwh: 0,
+    windNegMwh: 0,
+    solarTotalMwh: 0,
+    windTotalMwh: 0,
     negHours: 0,
     solarHours: 0,
     windHours: 0,
     priceHours: 0,
+    bess: emptyBess,
   };
   if (!points.length) return empty;
 
@@ -101,17 +211,20 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
     sumP += p.price;
     priceHours += 1;
     if (p.price < 0) negHours += 1;
-    if (Number.isFinite(p.solar) && p.solar > 0) {
-      sumPS += p.price * p.solar;
-      sumS += p.solar;
+    // Treat negative generation as zero per spec.
+    const solar = Number.isFinite(p.solar) && p.solar > 0 ? p.solar : 0;
+    const wind = Number.isFinite(p.wind) && p.wind > 0 ? p.wind : 0;
+    if (solar > 0) {
+      sumPS += p.price * solar;
+      sumS += solar;
       solarHours += 1;
-      if (p.price < 0) sumSneg += p.solar;
+      if (p.price < 0) sumSneg += solar;
     }
-    if (Number.isFinite(p.wind) && p.wind > 0) {
-      sumPW += p.price * p.wind;
-      sumW += p.wind;
+    if (wind > 0) {
+      sumPW += p.price * wind;
+      sumW += wind;
       windHours += 1;
-      if (p.price < 0) sumWneg += p.wind;
+      if (p.price < 0) sumWneg += wind;
     }
   }
 
@@ -129,27 +242,16 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
       baseload != null && baseload !== 0 && windCapture != null ? windCapture / baseload : null,
     solarNegShare: sumS > 0 ? sumSneg / sumS : null,
     windNegShare: sumW > 0 ? sumWneg / sumW : null,
+    solarNegMwh: sumSneg,
+    windNegMwh: sumWneg,
+    solarTotalMwh: sumS,
+    windTotalMwh: sumW,
     negHours,
     solarHours,
     windHours,
     priceHours,
+    bess: aggregateBess(bessDaily(points)),
   };
-}
-
-function captureMetricsByMonth(points: CapturePoint[]) {
-  const map = new Map<string, CapturePoint[]>();
-  for (const p of points) {
-    const key = monthKey(new Date(p.ts));
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(p);
-  }
-
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, pts]) => ({
-      month,
-      ...computeMetrics(pts),
-    }));
 }
 
 function hourlyProfile(points: CapturePoint[]) {
