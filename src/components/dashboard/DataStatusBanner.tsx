@@ -73,6 +73,9 @@ export function DataStatusBanner({
     : isPartial
       ? t("Partial ENTSO-E coverage", "Delimična ENTSO-E pokrivenost")
       : isLive
+        ? t("Complete ENTSO-E coverage", "Kompletna ENTSO-E pokrivenost")
+        : t("Cached only", "Samo iz keša");
+
         ? t("Live ENTSO-E", "Uživo ENTSO-E")
         : t("Cached fallback", "Keširani podaci");
 
