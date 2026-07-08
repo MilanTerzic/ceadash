@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey } from "@/lib/baseload";
 import { fetchMarketPrices } from "@/lib/market.functions";
+import { fetchHupxPrices } from "@/lib/hupx.functions";
 
 export const Route = createFileRoute("/dashboard/cbam")({
   head: () => ({
@@ -159,6 +160,29 @@ function CbamPage() {
     staleTime: 60 * 60_000,
   });
 
+  const hupx = useQuery({
+    queryKey: ["cbam-hupx", requestedRange.fromKey, requestedRange.toKey],
+    queryFn: () =>
+      fetchHupxPrices({
+        data: { from: requestedRange.fromKey, to: requestedRange.toKey },
+      }),
+    staleTime: 60 * 60_000,
+    enabled: settings.destinationCountry === "HU",
+  });
+
+  const hupxMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of hupx.data?.points ?? []) {
+      const d = new Date(p.ts);
+      d.setUTCMinutes(0, 0, 0);
+      m.set(d.toISOString(), p.price);
+    }
+    return m;
+  }, [hupx.data]);
+
+  const useHupx =
+    settings.destinationCountry === "HU" && hupxMap.size > 0;
+
   const rawPoints = live.data?.points ?? [];
   const lastTs = rawPoints[rawPoints.length - 1]?.ts
     ? new Date(rawPoints[rawPoints.length - 1].ts)
@@ -200,7 +224,14 @@ function CbamPage() {
       const cbamPrice = settings.quarterlyPrices[q] ?? 0;
       const cbamCost =
         settings.emissionFactor * (cbamPrice - settings.carbonPricePaid);
-      const eu = settings.destinationPrice;
+      let eu = settings.destinationPrice;
+      if (useHupx) {
+        const hourKey = new Date(p.ts);
+        hourKey.setUTCMinutes(0, 0, 0);
+        const hv = hupxMap.get(hourKey.toISOString());
+        if (hv != null && Number.isFinite(hv)) eu = hv;
+        else continue; // skip hours with no HUPX match when in HUPX mode
+      }
       const lossAdj = (settings.lossesPct / 100) * eu;
       const margin = eu - p.price - cbamCost - otherPerMwh - lossAdj;
       rows.push({
@@ -215,7 +246,7 @@ function CbamPage() {
       });
     }
     return rows;
-  }, [inRange, settings]);
+  }, [inRange, settings, useHupx, hupxMap]);
 
   const period = useMemo(() => {
     if (!hourly.length) return null;
@@ -332,6 +363,41 @@ function CbamPage() {
             "Kalkulator je orijentacioni, isključivo za izvoz električne energije, i nije pravni ili carinski savet. Ažurirajte srpski emisioni faktor i CBAM cene kada se zvanične EU vrednosti promene.",
           )}
         </p>
+      </div>
+
+      <div
+        className={`rounded-xl border p-3 text-sm ${
+          useHupx
+            ? "border-positive/40 bg-positive/10"
+            : "border-border/60 bg-muted/30 text-muted-foreground"
+        }`}
+      >
+        {settings.destinationCountry === "HU" ? (
+          useHupx ? (
+            <>
+              {t(
+                `EU price = HUPX (Hungary) day-ahead hourly prices from ENTSO-E — ${hupxMap.size} hours matched to SEEPEX.`,
+                `EU cena = HUPX (Mađarska) satne day-ahead cene sa ENTSO-E — ${hupxMap.size} sati usklađeno sa SEEPEX-om.`,
+              )}
+            </>
+          ) : (
+            <>
+              {t(
+                `HUPX (Hungary) selected but no ENTSO-E prices returned for this period${
+                  hupx.data?.reason ? ` (${hupx.data.reason})` : ""
+                }. Falling back to the flat EU price from settings.`,
+                `HUPX (Mađarska) izabrana ali ENTSO-E nije vratio cene za period. Koristi se ravna EU cena iz podešavanja.`,
+              )}
+            </>
+          )
+        ) : (
+          <>
+            {t(
+              "EU price = flat destination price from settings. Switch destination to Hungary to use live HUPX hourly prices from ENTSO-E.",
+              "EU cena = ravna destinaciona cena iz podešavanja. Izaberi Mađarsku da koristiš satne HUPX cene sa ENTSO-E.",
+            )}
+          </>
+        )}
       </div>
 
       {/* KPI cards */}
