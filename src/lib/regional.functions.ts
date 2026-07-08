@@ -275,30 +275,70 @@ async function snapshotFromCache(
   };
 }
 
-export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
-  async (): Promise<RegionalSnapshot> => {
-    const now = Date.now();
-    if (HOT.current && now - HOT.current.ts < HOT_TTL_MS) return HOT.current.data;
+function parseDayKey(k: string): Date {
+  // Interpret YYYY-MM-DD as a UTC midnight. Windowing is UTC-based and matches
+  // how market_prices_hourly rows are stored.
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
+}
 
+function yearChunks(from: Date, to: Date): { from: Date; to: Date }[] {
+  const chunks: { from: Date; to: Date }[] = [];
+  let cursor = new Date(from);
+  while (cursor < to) {
+    const next = new Date(cursor);
+    next.setUTCFullYear(next.getUTCFullYear() + 1);
+    const end = next < to ? next : to;
+    chunks.push({ from: new Date(cursor), to: end });
+    cursor = end;
+  }
+  return chunks;
+}
+
+// Per-warm-worker cache keyed by requested window.
+type CacheKey = string;
+const HOT_MAP = new Map<CacheKey, { ts: number; data: RegionalSnapshot }>();
+
+export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({ from: z.string().optional(), to: z.string().optional() })
+      .parse(data ?? {}),
+  )
+  .handler(async ({ data }): Promise<RegionalSnapshot> => {
+    const now = Date.now();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const to = new Date();
-    to.setUTCMinutes(0, 0, 0);
-    const from = new Date(to.getTime() - 7 * 24 * 3600_000); // keep a week of context
+    // Requested window (UTC). If unspecified, fall back to last 30 days.
+    const nowUtc = new Date();
+    nowUtc.setUTCMinutes(0, 0, 0);
+    const defaultFrom = new Date(nowUtc.getTime() - 30 * 24 * 3600_000);
+    const fromDate =
+      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
+        ? parseDayKey(data.from)
+        : defaultFrom;
+    const rawTo =
+      data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to)
+        ? new Date(parseDayKey(data.to).getTime() + 24 * 3600_000)
+        : nowUtc;
+    const toDate = rawTo <= fromDate ? new Date(fromDate.getTime() + 24 * 3600_000) : rawTo;
 
-    // Always try to refresh from ENTSO-E; on any failure fall back to DB cache.
+    const cacheKey: CacheKey = `${fromDate.toISOString()}|${toDate.toISOString()}`;
+    const cached = HOT_MAP.get(cacheKey);
+    if (cached && now - cached.ts < HOT_TTL_MS) return cached.data;
+
     const hasToken = Boolean(process.env.ENTSOE_SECURITY_TOKEN);
     let liveAny = false;
 
+    // Refresh recent DA prices from ENTSO-E for the "latest" column and SDAC
+    // publication. Historical prices already sit in market_prices_hourly.
     if (hasToken) {
       const zoneList = Object.keys(ZONES) as ZoneCode[];
-      const fetchFrom = new Date(to.getTime() - 48 * 3600_000);
-
-      // Prices
+      const refreshFrom = new Date(nowUtc.getTime() - 48 * 3600_000);
       const priceResults = await Promise.all(
         zoneList.map(async (z) => ({
           z,
-          pts: await fetchDayAheadPrice(ZONES[z].eic, fetchFrom, to),
+          pts: await fetchDayAheadPrice(ZONES[z].eic, refreshFrom, nowUtc),
         })),
       );
       const priceRows: {
@@ -324,16 +364,16 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
           .upsert(priceRows, { onConflict: "datetime,market" });
       }
 
-      // Flows (Serbia ↔ neighbours, 24h window)
-      const flowFrom = new Date(to.getTime() - 24 * 3600_000);
+      // Cross-border flows: keep 24h window — flow map is a "now" indicator.
+      const flowFrom = new Date(nowUtc.getTime() - 24 * 3600_000);
       const flowResults = await Promise.all(
         RS_NEIGHBOURS.flatMap((n) => [
-          fetchPhysicalFlow(ZONES.RS.eic, ZONES[n].eic, flowFrom, to).then((pts) => ({
+          fetchPhysicalFlow(ZONES.RS.eic, ZONES[n].eic, flowFrom, nowUtc).then((pts) => ({
             from: "RS" as ZoneCode,
             to: n,
             pts,
           })),
-          fetchPhysicalFlow(ZONES[n].eic, ZONES.RS.eic, flowFrom, to).then((pts) => ({
+          fetchPhysicalFlow(ZONES[n].eic, ZONES.RS.eic, flowFrom, nowUtc).then((pts) => ({
             from: n,
             to: "RS" as ZoneCode,
             pts,
@@ -366,25 +406,48 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
       }
     }
 
-    // Capture prices per zone — fetch wind+solar generation and weight against DA
+    // Pull the cached window (which includes anything we just refreshed) and
+    // compute period baseload / negatives / latest per zone.
+    const snap = await snapshotFromCache(supabaseAdmin, fromDate, toDate);
+
+    // Capture prices per zone — fetch generation across the FULL requested
+    // window (chunked ≤ 1 year per ENTSO-E limit) and weight against the
+    // cached hourly prices in the same window.
     const captureByZone = new Map<
       ZoneCode,
       { wind: number | null; solar: number | null; windRatio: number | null; solarRatio: number | null }
     >();
     if (hasToken) {
+      // Build price hourly maps per zone from the cached snapshot.
+      const priceHByZone = new Map<ZoneCode, Map<string, number>>();
+      for (const p of snap.prices) {
+        const m = new Map<string, number>();
+        for (const pt of p.points) {
+          const d = new Date(pt.ts);
+          d.setUTCMinutes(0, 0, 0);
+          m.set(d.toISOString(), pt.price);
+        }
+        priceHByZone.set(p.zone, m);
+      }
+
+      const chunks = yearChunks(fromDate, toDate);
       const zoneList = Object.keys(ZONES) as ZoneCode[];
-      const capFrom = new Date(to.getTime() - 24 * 3600_000);
       const capResults = await Promise.all(
         zoneList.map(async (z) => {
-          const [priceP, solarP, windOn, windOff] = await Promise.all([
-            fetchDayAheadPrice(ZONES[z].eic, capFrom, to),
-            fetchGeneration(ZONES[z].eic, "B16", capFrom, to),
-            fetchGeneration(ZONES[z].eic, "B19", capFrom, to),
-            fetchGeneration(ZONES[z].eic, "B18", capFrom, to),
-          ]);
-          const priceH = toHourly(priceP);
-          const solarH = toHourly(solarP);
-          const windH = toHourly([...windOn, ...windOff]);
+          const solarAll: { ts: Date; value: number }[] = [];
+          const windAll: { ts: Date; value: number }[] = [];
+          for (const c of chunks) {
+            const [solarP, windOn, windOff] = await Promise.all([
+              fetchGeneration(ZONES[z].eic, "B16", c.from, c.to),
+              fetchGeneration(ZONES[z].eic, "B19", c.from, c.to),
+              fetchGeneration(ZONES[z].eic, "B18", c.from, c.to),
+            ]);
+            solarAll.push(...solarP);
+            windAll.push(...windOn, ...windOff);
+          }
+          const priceH = priceHByZone.get(z) ?? new Map<string, number>();
+          const solarH = toHourly(solarAll);
+          const windH = toHourly(windAll);
           const baseload = priceH.size
             ? Array.from(priceH.values()).reduce((a, b) => a + b, 0) / priceH.size
             : null;
@@ -409,8 +472,6 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
       }
     }
 
-    // Build snapshot from the DB (which now includes anything we just wrote).
-    const snap = await snapshotFromCache(supabaseAdmin, from, to);
     if (liveAny) snap.source = "live";
     if (!hasToken && !snap.ok) snap.reason = "missing_token";
 
@@ -424,7 +485,7 @@ export const fetchRegionalSnapshot = createServerFn({ method: "GET" }).handler(
       }
     }
 
-    HOT.current = { ts: now, data: snap };
+    HOT_MAP.set(cacheKey, { ts: now, data: snap });
     return snap;
-  },
-);
+  });
+
