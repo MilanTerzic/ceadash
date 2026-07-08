@@ -211,22 +211,32 @@ async function entsoeRaw(params: Record<string, string>): Promise<
 // Range fetch (Belgrade-aligned window, returns hours inside the window)
 // ---------------------------------------------------------------------------
 
+type RangeFetchResult = {
+  ok: boolean;
+  reason?: string;
+  status?: number;
+  message?: string;
+  params?: Record<string, string>;
+  points: Array<{ ts: string; price: number }>;
+};
+
 async function fetchRangePrices(
   fromISO: string,
   toISO: string,
-): Promise<{ ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> }> {
+): Promise<RangeFetchResult> {
   const offsetFrom = cetOffsetHours(fromISO);
   const offsetTo = cetOffsetHours(toISO);
   const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
   const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
-  const r = await entsoeRaw({
+  const reqParams = {
     documentType: "A44",
     in_Domain: SERBIA_ZONE,
     out_Domain: SERBIA_ZONE,
     periodStart: ymdh(start),
     periodEnd: ymdh(end),
-  });
-  if (!r.ok) return { ok: false, reason: r.reason, points: [] };
+  };
+  const r = await entsoeRaw(reqParams);
+  if (!r.ok) return { ok: false, reason: r.reason, status: r.status, message: r.message, params: reqParams, points: [] };
   const startMs = start.getTime();
   const endMs = end.getTime();
   const points = parseTimeSeriesHourly(r.xml)
@@ -239,6 +249,7 @@ async function fetchRangePrices(
   for (const p of points) dedup.set(p.ts, p.price);
   return {
     ok: true,
+    params: reqParams,
     points: [...dedup.entries()]
       .map(([ts, price]) => ({ ts, price }))
       .sort((a, b) => a.ts.localeCompare(b.ts)),
