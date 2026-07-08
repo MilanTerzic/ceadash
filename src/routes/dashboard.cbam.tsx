@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey } from "@/lib/baseload";
 import { fetchMarketPrices } from "@/lib/market.functions";
+import { fetchHupxPrices } from "@/lib/hupx.functions";
 
 export const Route = createFileRoute("/dashboard/cbam")({
   head: () => ({
