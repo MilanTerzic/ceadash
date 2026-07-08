@@ -1,0 +1,1 @@
+GRANT INSERT, UPDATE ON public.market_prices_hourly TO sandbox_exec;
