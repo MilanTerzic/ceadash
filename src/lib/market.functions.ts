@@ -259,7 +259,7 @@ function normalizeCachedRows(rows: Array<{ datetime: string; price_eur_mwh: numb
 export const fetchMarketPrices = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z
-      .object({ from: z.string().optional() })
+      .object({ from: z.string().optional(), to: z.string().optional() })
       .parse(data ?? {}),
   )
   .handler(async ({ data }) => {
@@ -267,17 +267,27 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
 
   const today = todayBelgradeISO();
   const tomorrow = addDaysISO(today, 1);
+  const maxPast = addDaysISO(today, -365 * 5);
   const windowFrom = data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
-    ? (data.from < addDaysISO(today, -365 * 5) ? addDaysISO(today, -365 * 5) : data.from)
+    ? (data.from < maxPast ? maxPast : data.from)
     : addDaysISO(today, -30);
-  const windowTo = tomorrow;
+  const requestedTo = data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to) ? data.to : tomorrow;
+  // Always extend to at least tomorrow so SDAC publication is captured when
+  // the selected range includes today; never let `to` precede `from`.
+  const windowTo = requestedTo < windowFrom ? windowFrom : (requestedTo > tomorrow ? requestedTo : tomorrow);
+
+  // One-day buffer on each side so the UTC-stored rows fully cover the
+  // Europe/Belgrade local range (first/last local hour straddles UTC boundary).
+  const cacheFrom = addDaysISO(windowFrom, -1);
+  const cacheTo = addDaysISO(windowTo, 1);
+
 
   const cached = await supabaseAdmin
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
     .eq("market", MARKET)
-    .gte("datetime", `${windowFrom}T00:00:00Z`)
-    .lte("datetime", `${addDaysISO(windowTo, 1)}T00:00:00Z`)
+    .gte("datetime", `${cacheFrom}T00:00:00Z`)
+    .lte("datetime", `${cacheTo}T00:00:00Z`)
     .order("datetime", { ascending: true })
     .limit(200000);
 
@@ -340,8 +350,8 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
     .eq("market", MARKET)
-    .gte("datetime", `${windowFrom}T00:00:00Z`)
-    .lte("datetime", `${addDaysISO(windowTo, 1)}T00:00:00Z`)
+    .gte("datetime", `${cacheFrom}T00:00:00Z`)
+    .lte("datetime", `${cacheTo}T00:00:00Z`)
     .order("datetime", { ascending: true })
     .limit(200000);
 

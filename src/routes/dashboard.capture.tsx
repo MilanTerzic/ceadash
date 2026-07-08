@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey, bucketByBelgradeDay, type HourlyPrice } from "@/lib/baseload";
@@ -191,11 +191,11 @@ function nz(v: number | null | undefined) {
 
 function CapturePage() {
   const { t } = useLang();
-  const requestedFrom = useRequestedFromKey();
+  const requestedRange = useRequestedRangeKeys();
 
   const live = useQuery({
-    queryKey: ["capture-series", requestedFrom],
-    queryFn: () => fetchCaptureSeries({ data: { from: requestedFrom } }),
+    queryKey: ["capture-series", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
+    queryFn: () => fetchCaptureSeries({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 60 * 60_000,
   });
 

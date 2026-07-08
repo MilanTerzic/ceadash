@@ -6,7 +6,7 @@ import { toPng } from "html-to-image";
 import { Copy, Download, Loader2, Sparkles, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import {
   generateWeeklyReport,
@@ -36,10 +36,10 @@ export const Route = createFileRoute("/dashboard/weekly")({
 
 function WeeklyPage() {
   const { t } = useLang();
-  const requestedFrom = useRequestedFromKey();
+  const requestedRange = useRequestedRangeKeys();
   const live = useQuery({
-    queryKey: ["market-prices", requestedFrom],
-    queryFn: () => fetchMarketPrices({ data: { from: requestedFrom } }),
+    queryKey: ["market-prices", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
+    queryFn: () => fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 60 * 60_000,
   });
 
