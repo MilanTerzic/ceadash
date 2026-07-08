@@ -75,18 +75,23 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
   const navigate = useNavigate();
 
-  const latest = opts.latestAvailable ?? new Date();
+  // Presets are anchored to "today" (Belgrade), NOT to the latest available
+  // data point. Otherwise a partially-loaded dataset would silently clamp
+  // YTD/MTD/30d to whatever we happen to have cached.
+  const today = new Date();
   const preset: PresetKey = search.preset ?? "30d";
 
   const range = useMemo<{ from: Date; to: Date } | undefined>(() => {
     if (preset !== "custom") {
-      return presetRange(preset, latest);
+      return presetRange(preset, today);
     }
     if (search.from && search.to) {
       return { from: new Date(search.from), to: new Date(search.to) };
     }
-    return presetRange("30d", latest);
-  }, [preset, search.from, search.to, latest]);
+    return presetRange("30d", today);
+  // today is intentionally excluded from deps — a new Date() each render is fine
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, search.from, search.to]);
 
   const setPreset = (p: PresetKey) => {
     navigate({
