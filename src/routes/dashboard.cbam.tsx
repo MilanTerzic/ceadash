@@ -365,6 +365,41 @@ function CbamPage() {
         </p>
       </div>
 
+      <div
+        className={`rounded-xl border p-3 text-sm ${
+          useHupx
+            ? "border-positive/40 bg-positive/10"
+            : "border-border/60 bg-muted/30 text-muted-foreground"
+        }`}
+      >
+        {settings.destinationCountry === "HU" ? (
+          useHupx ? (
+            <>
+              {t(
+                `EU price = HUPX (Hungary) day-ahead hourly prices from ENTSO-E — ${hupxMap.size} hours matched to SEEPEX.`,
+                `EU cena = HUPX (Mađarska) satne day-ahead cene sa ENTSO-E — ${hupxMap.size} sati usklađeno sa SEEPEX-om.`,
+              )}
+            </>
+          ) : (
+            <>
+              {t(
+                `HUPX (Hungary) selected but no ENTSO-E prices returned for this period${
+                  hupx.data?.reason ? ` (${hupx.data.reason})` : ""
+                }. Falling back to the flat EU price from settings.`,
+                `HUPX (Mađarska) izabrana ali ENTSO-E nije vratio cene za period. Koristi se ravna EU cena iz podešavanja.`,
+              )}
+            </>
+          )
+        ) : (
+          <>
+            {t(
+              "EU price = flat destination price from settings. Switch destination to Hungary to use live HUPX hourly prices from ENTSO-E.",
+              "EU cena = ravna destinaciona cena iz podešavanja. Izaberi Mađarsku da koristiš satne HUPX cene sa ENTSO-E.",
+            )}
+          </>
+        )}
+      </div>
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
