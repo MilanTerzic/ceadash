@@ -286,8 +286,8 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     .from("market_prices_hourly")
     .select("datetime, price_eur_mwh")
     .eq("market", MARKET)
-    .gte("datetime", `${windowFrom}T00:00:00Z`)
-    .lte("datetime", `${addDaysISO(windowTo, 1)}T00:00:00Z`)
+    .gte("datetime", `${cacheFrom}T00:00:00Z`)
+    .lte("datetime", `${cacheTo}T00:00:00Z`)
     .order("datetime", { ascending: true })
     .limit(200000);
 
