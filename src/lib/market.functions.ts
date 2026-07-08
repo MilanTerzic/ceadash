@@ -271,7 +271,21 @@ function normalizeCachedRows(
  *  default max-rows cap (1000). `.limit(n)` is ignored above that cap, so we
  *  use `.range()` in 1000-row pages until a short page comes back. */
 async function readAllCachedRows(
-  supabaseAdmin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")>>["supabaseAdmin"] extends infer T ? T : never,
+  supabaseAdmin: {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          gte: (c: string, v: string) => {
+            lte: (c: string, v: string) => {
+              order: (c: string, o: { ascending: boolean }) => {
+                range: (from: number, to: number) => Promise<{ data: unknown }>;
+              };
+            };
+          };
+        };
+      };
+    };
+  },
   fromIso: string,
   toIso: string,
 ): Promise<Array<{ datetime: string; price_eur_mwh: number | string | null }>> {
