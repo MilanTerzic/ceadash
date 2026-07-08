@@ -224,7 +224,14 @@ function CbamPage() {
       const cbamPrice = settings.quarterlyPrices[q] ?? 0;
       const cbamCost =
         settings.emissionFactor * (cbamPrice - settings.carbonPricePaid);
-      const eu = settings.destinationPrice;
+      let eu = settings.destinationPrice;
+      if (useHupx) {
+        const hourKey = new Date(p.ts);
+        hourKey.setUTCMinutes(0, 0, 0);
+        const hv = hupxMap.get(hourKey.toISOString());
+        if (hv != null && Number.isFinite(hv)) eu = hv;
+        else continue; // skip hours with no HUPX match when in HUPX mode
+      }
       const lossAdj = (settings.lossesPct / 100) * eu;
       const margin = eu - p.price - cbamCost - otherPerMwh - lossAdj;
       rows.push({
@@ -239,7 +246,7 @@ function CbamPage() {
       });
     }
     return rows;
-  }, [inRange, settings]);
+  }, [inRange, settings, useHupx, hupxMap]);
 
   const period = useMemo(() => {
     if (!hourly.length) return null;
