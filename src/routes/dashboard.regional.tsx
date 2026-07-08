@@ -1,8 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
+import { useMemo } from "react";
+import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, DemoBadge } from "@/components/dashboard/atoms";
 import { Badge } from "@/components/ui/badge";
+import {
+  DateRangeControl,
+  useDashboardRange,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   fetchRegionalSnapshot,
   ZONES,
@@ -15,9 +27,17 @@ export const Route = createFileRoute("/dashboard/regional")({
   head: () => ({
     meta: [
       { title: "Regional Prices & Flows — CEA Power Dashboard" },
-      { name: "description", content: "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E." },
+      {
+        name: "description",
+        content:
+          "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E.",
+      },
       { property: "og:title", content: "Regional Prices & Flows — CEA Power Dashboard" },
-      { property: "og:description", content: "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E." },
+      {
+        property: "og:description",
+        content:
+          "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E.",
+      },
       { property: "og:url", content: "https://ceadash.lovable.app/dashboard/regional" },
     ],
     links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/regional" }],
@@ -51,8 +71,7 @@ function project(lat: number, lng: number, w: number, h: number) {
 
 function RegionMap({ data }: { data: RegionalSnapshot }) {
   const W = 760, H = 460;
-  const priceByZone = new Map(data.prices.map((p) => [p.zone, p.avg24h]));
-  const rs = project(ZONES.RS.lat, ZONES.RS.lng, W, H);
+  const priceByZone = new Map(data.prices.map((p) => [p.zone, p.baseload ?? p.avg24h]));
   const maxFlow = Math.max(1, ...data.flows.map((f) => f.absMw));
 
   return (
@@ -63,13 +82,11 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
         role="img"
         aria-label="Regional day-ahead prices and Serbian cross-border flows"
       >
-        {/* Flow lines from Serbia to neighbours */}
         {data.flows.map((f) => {
           const a = project(ZONES.RS.lat, ZONES.RS.lng, W, H);
           const b = project(ZONES[f.to].lat, ZONES[f.to].lng, W, H);
           const width = 1 + (f.absMw / maxFlow) * 8;
           const exports = f.netMw >= 0;
-          // Direction: arrowhead at the importing end
           const x1 = exports ? a.x : b.x;
           const y1 = exports ? a.y : b.y;
           const x2 = exports ? b.x : a.x;
@@ -77,8 +94,8 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
           const mx = (x1 + x2) / 2;
           const my = (y1 + y2) / 2;
           const stroke = exports
-            ? "oklch(0.55 0.13 150)" // green = Serbia exports
-            : "oklch(0.6 0.16 50)"; // orange = Serbia imports
+            ? "oklch(0.55 0.13 150)"
+            : "oklch(0.6 0.16 50)";
           return (
             <g key={`${f.from}-${f.to}`}>
               <line
@@ -108,7 +125,6 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
           );
         })}
 
-        {/* Country markers */}
         {(Object.keys(ZONES) as ZoneCode[]).map((z) => {
           const { lat, lng, name } = ZONES[z];
           const { x, y } = project(lat, lng, W, H);
@@ -125,33 +141,14 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
                 stroke={isRs ? "var(--foreground)" : "var(--background)"}
                 strokeWidth={isRs ? 2.5 : 1.5}
               />
-              <text
-                x={x}
-                y={y + 3}
-                fontSize={9}
-                textAnchor="middle"
-                fill="white"
-                style={{ fontWeight: 700 }}
-              >
+              <text x={x} y={y + 3} fontSize={9} textAnchor="middle" fill="white" style={{ fontWeight: 700 }}>
                 {z}
               </text>
-              <text
-                x={x}
-                y={y + 26}
-                fontSize={10}
-                textAnchor="middle"
-                fill="var(--foreground)"
-              >
+              <text x={x} y={y + 26} fontSize={10} textAnchor="middle" fill="var(--foreground)">
                 {name}
               </text>
               {price != null && (
-                <text
-                  x={x}
-                  y={y + 38}
-                  fontSize={10}
-                  textAnchor="middle"
-                  fill="var(--muted-foreground)"
-                >
+                <text x={x} y={y + 38} fontSize={10} textAnchor="middle" fill="var(--muted-foreground)">
                   €{price.toFixed(0)}/MWh
                 </text>
               )}
@@ -160,24 +157,15 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
         })}
 
         <defs>
-          <marker
-            id="arrow"
-            viewBox="0 0 10 10"
-            refX="8"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto-start-reverse"
-          >
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--foreground)" opacity="0.7" />
           </marker>
         </defs>
 
-        {/* Legend */}
         <g transform={`translate(12, ${H - 70})`}>
           <rect width="180" height="60" rx="8" fill="var(--background)" stroke="var(--border)" />
           <text x="10" y="16" fontSize="10" fill="var(--foreground)" style={{ fontWeight: 600 }}>
-            Price (€/MWh, 24h avg)
+            Baseload (€/MWh, period avg)
           </text>
           {[
             { c: "oklch(0.55 0.16 240)", l: "<0" },
@@ -202,21 +190,46 @@ function RegionMap({ data }: { data: RegionalSnapshot }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Page
 
+function fmtNum(v: number | null | undefined, digits = 2) {
+  return v == null || !Number.isFinite(v) ? "N/A" : v.toFixed(digits);
+}
+
+function fmtCapture(price: number | null, ratio: number | null) {
+  if (price == null || !Number.isFinite(price)) return "N/A";
+  const pct = ratio != null && Number.isFinite(ratio) ? ` (${Math.round(ratio * 100)}%)` : "";
+  return `${price.toFixed(2)} €/MWh${pct}`;
+}
+
 function RegionalPage() {
-  const fetcher = useServerFn(fetchRegionalSnapshot);
+  const requestedRange = useRequestedRangeKeys();
   const { data, isLoading } = useQuery({
-    queryKey: ["regional-snapshot"],
-    queryFn: () => fetcher(),
+    queryKey: ["regional-snapshot", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
+    queryFn: () =>
+      fetchRegionalSnapshot({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 30 * 60 * 1000,
   });
 
   const hasData = Boolean(data?.ok && data.prices.length > 0);
+  const firstAvailable = useMemo(
+    () => (data?.windowFrom ? new Date(data.windowFrom) : undefined),
+    [data?.windowFrom],
+  );
+  const latestAvailable = useMemo(
+    () => (data?.windowTo ? new Date(data.windowTo) : undefined),
+    [data?.windowTo],
+  );
+  const { range } = useDashboardRange({ firstAvailable, latestAvailable });
+  const periodLabel = range
+    ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
+    : "—";
 
   return (
     <div className="space-y-6">
+      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
+
       <ChartCard
         title="Regional Day-Ahead Prices"
-        description="Wholesale day-ahead electricity prices across Serbia and surrounding markets. 24-hour average from ENTSO-E."
+        description="Average day-ahead prices and capture prices for the selected period."
         right={
           hasData ? (
             <Badge variant="secondary" className="text-[10px]">
@@ -227,6 +240,9 @@ function RegionalPage() {
           )
         }
       >
+        <div className="mb-3 text-xs text-muted-foreground">
+          Period: <span className="text-foreground font-medium">{periodLabel}</span>
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading regional snapshot…</p>
         ) : !hasData ? (
@@ -234,25 +250,40 @@ function RegionalPage() {
             Regional data is currently unavailable from ENTSO-E. Please retry later.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-muted-foreground border-b border-border/60">
-                  <th className="py-2 pr-4">Zone</th>
-                  <th className="py-2 pr-4 text-right">Baseload (€/MWh)</th>
-                  <th className="py-2 pr-4 text-right">Wind capture</th>
-                  <th className="py-2 pr-4 text-right">Solar capture</th>
-                  <th className="py-2 pr-4 text-right">Latest (€/MWh)</th>
-                  <th className="py-2 pr-4">Latest hour (UTC)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data!.prices.map((p) => {
-                  const fmtCap = (v: number | null, r: number | null) =>
-                    v == null
-                      ? "—"
-                      : `${v.toFixed(2)}${r != null ? ` (${(r * 100).toFixed(0)}%)` : ""}`;
-                  return (
+          <TooltipProvider delayDuration={120}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-muted-foreground border-b border-border/60">
+                    <th className="py-2 pr-4">Zone</th>
+                    <th className="py-2 pr-4 text-right">Baseload Avg (€/MWh)</th>
+                    <th className="py-2 pr-4 text-right">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help underline decoration-dotted">Wind Capture</span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Capture price is calculated as generation-weighted average price over the selected period.
+                        </TooltipContent>
+                      </Tooltip>
+                    </th>
+                    <th className="py-2 pr-4 text-right">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help underline decoration-dotted">Solar Capture</span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Capture price is calculated as generation-weighted average price over the selected period.
+                        </TooltipContent>
+                      </Tooltip>
+                    </th>
+                    <th className="py-2 pr-4 text-right">Negative Hours</th>
+                    <th className="py-2 pr-4 text-right">Latest Price (€/MWh)</th>
+                    <th className="py-2 pr-4">Latest Hour (UTC)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data!.prices.map((p) => (
                     <tr key={p.zone} className="border-b border-border/40">
                       <td className="py-2 pr-4 font-medium">
                         <span
@@ -266,30 +297,35 @@ function RegionalPage() {
                           </Badge>
                         )}
                       </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{fmtNum(p.baseload)}</td>
                       <td className="py-2 pr-4 text-right tabular-nums">
-                        {p.baseload != null ? p.baseload.toFixed(2) : "—"}
+                        {fmtCapture(p.windCapture, p.windCaptureRatio)}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums">
-                        {fmtCap(p.windCapture, p.windCaptureRatio)}
+                        {fmtCapture(p.solarCapture, p.solarCaptureRatio)}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums">
-                        {fmtCap(p.solarCapture, p.solarCaptureRatio)}
+                        {p.priceHours > 0 ? p.negHours : "N/A"}
                       </td>
-                      <td className="py-2 pr-4 text-right tabular-nums">
-                        {p.latest != null ? p.latest.toFixed(2) : "—"}
-                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{fmtNum(p.latest)}</td>
                       <td className="py-2 pr-4 text-xs text-muted-foreground">
-                        {p.latestTs ? new Date(p.latestTs).toISOString().slice(0, 16).replace("T", " ") : "—"}
+                        {p.latestTs
+                          ? new Date(p.latestTs).toISOString().slice(0, 16).replace("T", " ")
+                          : "—"}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="text-xs text-muted-foreground mt-3">
-              Baseload = 24h average day-ahead price. Capture price = generation-weighted day-ahead price using ENTSO-E actual wind/solar output per country. Ratio in parentheses = capture / baseload (cannibalisation indicator). Dashes mean the country has no reported wind or solar generation for the window.
-            </p>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-muted-foreground mt-3">
+                Baseload = simple mean of hourly day-ahead prices over the selected period.
+                Capture price = generation-weighted day-ahead price using ENTSO-E actual wind/solar output per country.
+                Ratio in parentheses = capture / baseload (cannibalisation indicator).
+                &quot;N/A&quot; means no reported wind or solar generation for the selected window.
+                Latest Price shows the most recent day-ahead value and is not used in capture-rate denominators.
+              </p>
+            </div>
+          </TooltipProvider>
         )}
       </ChartCard>
 
@@ -325,11 +361,7 @@ function RegionalPage() {
                       </span>
                       <span
                         className="tabular-nums"
-                        style={{
-                          color: exports
-                            ? "oklch(0.55 0.13 150)"
-                            : "oklch(0.6 0.16 50)",
-                        }}
+                        style={{ color: exports ? "oklch(0.55 0.13 150)" : "oklch(0.6 0.16 50)" }}
                       >
                         {f.absMw} MW
                       </span>
