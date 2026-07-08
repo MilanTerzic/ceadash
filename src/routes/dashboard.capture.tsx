@@ -455,6 +455,17 @@ function CapturePage() {
         </div>
       )}
 
+      <GenerationDiagnostics
+        diagnostics={live.data?.diagnostics}
+        priceHours={live.data?.priceHours}
+        firstPriceTs={live.data?.firstPriceTs ?? null}
+        lastPriceTs={live.data?.lastPriceTs ?? null}
+        windowFrom={live.data?.windowFrom}
+        windowTo={live.data?.windowTo}
+        t={t}
+      />
+
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("Baseload average price", "Baseload prosečna cena")}
