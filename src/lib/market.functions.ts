@@ -219,28 +219,14 @@ function belgradeDayOf(iso: string): string {
   }).format(new Date(iso));
 }
 
-function monthsBetween(fromISO: string, toISO: string): string[] {
+function daysBetween(fromISO: string, toISO: string): string[] {
   const out: string[] = [];
-  const [fy, fm] = fromISO.split("-").map(Number);
-  const [ty, tm] = toISO.split("-").map(Number);
-  let y = fy, m = fm;
-  while (y < ty || (y === ty && m <= tm)) {
-    out.push(`${y}-${String(m).padStart(2, "0")}`);
-    m++;
-    if (m > 12) { m = 1; y++; }
+  const start = new Date(fromISO + "T12:00:00Z");
+  const end = new Date(toISO + "T12:00:00Z");
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
   }
   return out;
-}
-
-function monthBounds(ym: string, clampFrom: string, clampTo: string) {
-  const [y, m] = ym.split("-").map(Number);
-  const first = `${y}-${String(m).padStart(2, "0")}-01`;
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  return {
-    from: first < clampFrom ? clampFrom : first,
-    to: last > clampTo ? clampTo : last,
-  };
 }
 
 function normalizeCachedRows(rows: Array<{ datetime: string; price_eur_mwh: number | string | null }>) {
