@@ -267,6 +267,35 @@ function normalizeCachedRows(
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
+/** Read all rows in [fromIso, toIso] for MARKET, paginating past PostgREST's
+ *  default max-rows cap (1000). `.limit(n)` is ignored above that cap, so we
+ *  use `.range()` in 1000-row pages until a short page comes back. */
+async function readAllCachedRows(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  fromIso: string,
+  toIso: string,
+): Promise<Array<{ datetime: string; price_eur_mwh: number | string | null }>> {
+  const PAGE = 1000;
+  const out: Array<{ datetime: string; price_eur_mwh: number | string | null }> = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await supabaseAdmin
+      .from("market_prices_hourly")
+      .select("datetime, price_eur_mwh")
+      .eq("market", MARKET)
+      .gte("datetime", fromIso)
+      .lte("datetime", toIso)
+      .order("datetime", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    const rows = (res.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>;
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    if (offset > 500_000) break; // hard safety
+  }
+  return out;
+}
+
+
 // ---------------------------------------------------------------------------
 // Public server function
 // ---------------------------------------------------------------------------
@@ -304,18 +333,13 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     const cacheFrom = addDaysISO(windowFrom, -1);
     const cacheTo = addDaysISO(windowTo, 1);
 
-    const cached = await supabaseAdmin
-      .from("market_prices_hourly")
-      .select("datetime, price_eur_mwh")
-      .eq("market", MARKET)
-      .gte("datetime", `${cacheFrom}T00:00:00Z`)
-      .lte("datetime", `${cacheTo}T00:00:00Z`)
-      .order("datetime", { ascending: true })
-      .limit(200000);
-
-    const normalizedCached = normalizeCachedRows(
-      (cached.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>,
+    const cachedRows = await readAllCachedRows(
+      supabaseAdmin,
+      `${cacheFrom}T00:00:00Z`,
+      `${cacheTo}T00:00:00Z`,
     );
+
+    const normalizedCached = normalizeCachedRows(cachedRows);
     const dayHours = new Map<string, Set<string>>();
     for (const r of normalizedCached) {
       const day = belgradeDayOf(r.ts);
@@ -423,18 +447,13 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
       await Promise.all(capped.slice(i, i + CONCURRENCY).map(processDay));
     }
 
-    const after = await supabaseAdmin
-      .from("market_prices_hourly")
-      .select("datetime, price_eur_mwh")
-      .eq("market", MARKET)
-      .gte("datetime", `${cacheFrom}T00:00:00Z`)
-      .lte("datetime", `${cacheTo}T00:00:00Z`)
-      .order("datetime", { ascending: true })
-      .limit(200000);
-
-    const points = normalizeCachedRows(
-      (after.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>,
+    const afterRows = await readAllCachedRows(
+      supabaseAdmin,
+      `${cacheFrom}T00:00:00Z`,
+      `${cacheTo}T00:00:00Z`,
     );
+
+    const points = normalizeCachedRows(afterRows);
 
     // Diagnostics
     const finalDayHours = new Map<string, number>();
