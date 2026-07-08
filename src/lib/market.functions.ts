@@ -447,18 +447,13 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
       await Promise.all(capped.slice(i, i + CONCURRENCY).map(processDay));
     }
 
-    const after = await supabaseAdmin
-      .from("market_prices_hourly")
-      .select("datetime, price_eur_mwh")
-      .eq("market", MARKET)
-      .gte("datetime", `${cacheFrom}T00:00:00Z`)
-      .lte("datetime", `${cacheTo}T00:00:00Z`)
-      .order("datetime", { ascending: true })
-      .limit(200000);
-
-    const points = normalizeCachedRows(
-      (after.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>,
+    const afterRows = await readAllCachedRows(
+      supabaseAdmin,
+      `${cacheFrom}T00:00:00Z`,
+      `${cacheTo}T00:00:00Z`,
     );
+
+    const points = normalizeCachedRows(afterRows);
 
     // Diagnostics
     const finalDayHours = new Map<string, number>();
