@@ -267,6 +267,34 @@ function normalizeCachedRows(
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
+/** Read all rows in [fromIso, toIso] for MARKET, paginating past PostgREST's
+ *  default max-rows cap (1000). `.limit(n)` is ignored above that cap, so we
+ *  use `.range()` in 1000-row pages until a short page comes back. */
+async function readAllCachedRows(
+  supabaseAdmin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")>>["supabaseAdmin"] extends infer T ? T : never,
+  fromIso: string,
+  toIso: string,
+): Promise<Array<{ datetime: string; price_eur_mwh: number | string | null }>> {
+  const PAGE = 1000;
+  const out: Array<{ datetime: string; price_eur_mwh: number | string | null }> = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await supabaseAdmin
+      .from("market_prices_hourly")
+      .select("datetime, price_eur_mwh")
+      .eq("market", MARKET)
+      .gte("datetime", fromIso)
+      .lte("datetime", toIso)
+      .order("datetime", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    const rows = (res.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>;
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    if (offset > 500_000) break; // hard safety
+  }
+  return out;
+}
+
+
 // ---------------------------------------------------------------------------
 // Public server function
 // ---------------------------------------------------------------------------
