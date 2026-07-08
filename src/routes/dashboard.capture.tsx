@@ -455,6 +455,21 @@ function CapturePage() {
         </div>
       )}
 
+      {live.data?.solarSource === "modelled" && (
+        <div className="rounded-2xl border border-info/40 bg-info/10 p-4 text-sm text-foreground">
+          <div className="font-medium">
+            {t("Solar capture uses a modelled profile", "Solar capture koristi modelovani profil")}
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            {t(
+              "ENTSO-E does not publish Serbia B16 solar generation. Solar capture price is weighted using a clear-sky PV proxy for Belgrade (44.8°N, 20.5°E) instead of measured generation. Treat solar capture rate and premium as indicative, not measured.",
+              "ENTSO-E ne objavljuje B16 solarnu proizvodnju Srbije. Solar capture price je ponderisan modelovanim clear-sky PV profilom za Beograd (44.8°N, 20.5°E) umesto merenom proizvodnjom. Tumači solar capture rate i premiju kao orijentacione, ne merene vrednosti.",
+            )}
+          </p>
+        </div>
+      )}
+
+
       <GenerationDiagnostics
         diagnostics={live.data?.diagnostics}
         priceHours={live.data?.priceHours}
