@@ -183,6 +183,13 @@ function OverviewPage() {
         reasons={live.data?.reasons}
         incompleteDayList={live.data?.incompleteDays}
         failedFetches={live.data?.failedFetches}
+        totalSelectedDays={live.data?.totalSelectedDays}
+        attemptedDaysCount={live.data?.attemptedDaysCount}
+        fetchedDaysCount={live.data?.fetchedDaysCount}
+        failureCounts={live.data?.failureCounts}
+        capReached={live.data?.capReached}
+        maxFetchPerCall={live.data?.maxFetchPerCall}
+        debugSummary={live.data?.debugSummary}
       />
 
 

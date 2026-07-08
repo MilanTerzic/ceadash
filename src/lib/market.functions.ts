@@ -148,11 +148,42 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
 // HTTP
 // ---------------------------------------------------------------------------
 
+type EntsoeError = {
+  ok: false;
+  reason: string;
+  status?: number;
+  message?: string;
+  params?: Record<string, string>;
+};
+
+function sanitizeMessage(s: string): string {
+  return s
+    .replace(/securityToken=[^&\s"'<>]+/gi, "securityToken=***")
+    .replace(/token=[^&\s"'<>]+/gi, "token=***")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 400);
+}
+
+function classifyEntsoeBody(status: number, body: string): { reason: string; message: string } {
+  const b = body.toLowerCase();
+  const msgMatch = /<text>([\s\S]*?)<\/text>/i.exec(body);
+  const message = sanitizeMessage(msgMatch ? msgMatch[1] : body);
+  if (status === 401 || b.includes("unauthorized") || b.includes("invalid token")) return { reason: "unauthorized", message };
+  if (status === 429 || b.includes("too many requests")) return { reason: "rate_limited", message };
+  if (b.includes("no matching data") || b.includes("no data available") || b.includes("matching data not found")) return { reason: "no_data", message };
+  if (b.includes("invalid_domain") || b.includes("area domain") || b.includes("indomain") || b.includes("outdomain")) return { reason: "invalid_domain", message };
+  if (b.includes("period") && (b.includes("invalid") || b.includes("not allowed") || b.includes("exceeds"))) return { reason: "invalid_period", message };
+  if (status === 400) return { reason: "bad_request", message };
+  if (status >= 500) return { reason: `server_error_${status}`, message };
+  return { reason: `api_error_${status}`, message };
+}
+
 async function entsoeRaw(params: Record<string, string>): Promise<
-  { ok: true; xml: string } | { ok: false; reason: string }
+  { ok: true; xml: string } | EntsoeError
 > {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
-  if (!token) return { ok: false, reason: "missing_token" };
+  if (!token) return { ok: false, reason: "missing_token", params };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -160,38 +191,52 @@ async function entsoeRaw(params: Record<string, string>): Promise<
     try {
       const res = await fetch(url.toString(), { headers: { Accept: "application/xml" } });
       if (res.status === 200) return { ok: true, xml: await res.text() };
-      if (res.status === 400) return { ok: false, reason: "no_data" };
-      if (res.status === 401) return { ok: false, reason: "unauthorized" };
-      if (res.status === 429) return { ok: false, reason: "rate_limited" };
-      if (res.status < 500 || attempt === 1) return { ok: false, reason: `http_${res.status}` };
+      let body = "";
+      try { body = await res.text(); } catch { /* ignore */ }
+      const { reason, message } = classifyEntsoeBody(res.status, body);
+      if (res.status >= 500 && attempt === 0) {
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
+      }
+      return { ok: false, reason, status: res.status, message, params };
     } catch (e) {
-      if (attempt === 1) return { ok: false, reason: `network_${(e as Error).message}` };
+      if (attempt === 1) return { ok: false, reason: "network_error", message: sanitizeMessage((e as Error).message), params };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  return { ok: false, reason: "exhausted" };
+  return { ok: false, reason: "exhausted", params };
 }
 
 // ---------------------------------------------------------------------------
 // Range fetch (Belgrade-aligned window, returns hours inside the window)
 // ---------------------------------------------------------------------------
 
+type RangeFetchResult = {
+  ok: boolean;
+  reason?: string;
+  status?: number;
+  message?: string;
+  params?: Record<string, string>;
+  points: Array<{ ts: string; price: number }>;
+};
+
 async function fetchRangePrices(
   fromISO: string,
   toISO: string,
-): Promise<{ ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> }> {
+): Promise<RangeFetchResult> {
   const offsetFrom = cetOffsetHours(fromISO);
   const offsetTo = cetOffsetHours(toISO);
   const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
   const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
-  const r = await entsoeRaw({
+  const reqParams = {
     documentType: "A44",
     in_Domain: SERBIA_ZONE,
     out_Domain: SERBIA_ZONE,
     periodStart: ymdh(start),
     periodEnd: ymdh(end),
-  });
-  if (!r.ok) return { ok: false, reason: r.reason, points: [] };
+  };
+  const r = await entsoeRaw(reqParams);
+  if (!r.ok) return { ok: false, reason: r.reason, status: r.status, message: r.message, params: reqParams, points: [] };
   const startMs = start.getTime();
   const endMs = end.getTime();
   const points = parseTimeSeriesHourly(r.xml)
@@ -204,6 +249,7 @@ async function fetchRangePrices(
   for (const p of points) dedup.set(p.ts, p.price);
   return {
     ok: true,
+    params: reqParams,
     points: [...dedup.entries()]
       .map(([ts, price]) => ({ ts, price }))
       .sort((a, b) => a.ts.localeCompare(b.ts)),
@@ -308,36 +354,56 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
 
   let fetchedTotal = 0;
   let fetchedDaysCount = 0;
-  const failedFetches: { day: string; reason: string }[] = [];
+  type FailedFetch = {
+    day: string;
+    reason: string;
+    status?: number;
+    message?: string;
+    attempts: number;
+    params?: Record<string, string>;
+  };
+  const failedFetches: FailedFetch[] = [];
   const reasons: string[] = [];
 
   const CONCURRENCY = 4;
   async function fetchOneDay(day: string): Promise<void> {
     let attempts = 0;
-    let last: { ok: boolean; reason?: string; points: Array<{ ts: string; price: number }> } | null = null;
+    let last: RangeFetchResult | null = null;
     while (attempts < 3) {
+      attempts++;
       last = await fetchRangePrices(day, day);
       if (last.ok) break;
       if (last.reason === "rate_limited") {
         await new Promise((r) => setTimeout(r, 500 + attempts * 500));
-        attempts++;
         continue;
       }
-      if (last.reason?.startsWith("network_") || last.reason?.startsWith("http_5")) {
+      if (last.reason === "network_error" || last.reason?.startsWith("server_error_")) {
         await new Promise((r) => setTimeout(r, 300));
-        attempts++;
         continue;
       }
       break;
     }
     if (!last || !last.ok) {
       const reason = last?.reason ?? "unknown";
-      failedFetches.push({ day, reason });
-      reasons.push(`${day}: ${reason}`);
+      failedFetches.push({
+        day,
+        reason,
+        status: last?.status,
+        message: last?.message,
+        attempts,
+        params: last?.params,
+      });
+      reasons.push(`${day}: ${reason}${last?.status ? ` (http_${last.status})` : ""}`);
       return;
     }
     if (last.points.length === 0) {
-      failedFetches.push({ day, reason: "no_data" });
+      failedFetches.push({
+        day,
+        reason: "no_data",
+        attempts,
+        params: last.params,
+        message: "ENTSO-E returned 200 with no matching TimeSeries for this day.",
+      });
       reasons.push(`${day}: no_data`);
       return;
     }
@@ -349,13 +415,23 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     }));
     const minTs = rows[0].datetime;
     const maxTs = rows[rows.length - 1].datetime;
-    await supabaseAdmin
+    const del = await supabaseAdmin
       .from("market_prices_hourly")
       .delete()
       .eq("market", MARKET)
       .gte("datetime", minTs)
       .lte("datetime", maxTs);
-    await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    if (del.error) {
+      failedFetches.push({ day, reason: "supabase_delete_error", attempts, message: sanitizeMessage(del.error.message) });
+      reasons.push(`${day}: supabase_delete_error`);
+      return;
+    }
+    const ins = await supabaseAdmin.from("market_prices_hourly").insert(rows);
+    if (ins.error) {
+      failedFetches.push({ day, reason: "supabase_insert_error", attempts, message: sanitizeMessage(ins.error.message) });
+      reasons.push(`${day}: supabase_insert_error`);
+      return;
+    }
     fetchedTotal += rows.length;
     fetchedDaysCount += 1;
   }
@@ -394,6 +470,21 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
   const loadedFrom = completeDays[0];
   const loadedTo = completeDays[completeDays.length - 1];
 
+  // Failure reason breakdown
+  const failureCounts: Record<string, number> = {};
+  for (const f of failedFetches) failureCounts[f.reason] = (failureCounts[f.reason] ?? 0) + 1;
+  const topFailure = Object.entries(failureCounts).sort((a, b) => b[1] - a[1])[0];
+  const firstFailed = failedFetches[0];
+  const capReached = daysToFetch.length > capped.length;
+
+  const debugSummary =
+    `ENTSO-E debug: selected ${windowFrom} → ${windowTo}; ` +
+    `total ${allDays.length} d; complete ${completeDays.length}; incomplete ${incompleteDays.length}; ` +
+    `missing ${missingDays.length}; attempted ${capped.length}${capReached ? ` (cap ${MAX_FETCH_PER_CALL}, +${daysToFetch.length - capped.length} deferred)` : ""}; ` +
+    `fetched ${fetchedDaysCount}; failed ${failedFetches.length}` +
+    (topFailure ? `; top reason: ${topFailure[0]} (${topFailure[1]})` : "") +
+    (firstFailed ? `; first failed: ${firstFailed.day}${firstFailed.status ? ` http_${firstFailed.status}` : ""}${firstFailed.message ? ` — ${firstFailed.message}` : ""}` : "");
+
   return {
     ok: points.length > 0,
     source: fetchedTotal > 0 ? ("entsoe" as const) : ("cache" as const),
@@ -409,7 +500,13 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     missingDays,
     incompleteDays,
     failedFetches,
-    truncated: daysToFetch.length > capped.length,
+    failureCounts,
+    attemptedDaysCount: capped.length,
+    totalSelectedDays: allDays.length,
+    capReached,
+    maxFetchPerCall: MAX_FETCH_PER_CALL,
+    debugSummary,
+    truncated: capReached,
     reasons: reasons.length ? reasons : undefined,
     points,
   };
