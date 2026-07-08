@@ -9,6 +9,8 @@ export function DashboardTabs() {
     { to: "/dashboard", label: t("Overview", "Pregled") },
     { to: "/dashboard/regional", label: t("Regional Prices", "Regionalne cene") },
     { to: "/dashboard/capture", label: t("RES Capture Prices", "Capture cene OIE") },
+    { to: "/dashboard/cbam", label: t("CBAM Export Calculator", "CBAM izvozni kalkulator") },
+
     { to: "/dashboard/weekly", label: t("Weekly Intelligence", "Nedeljna analiza") },
     { to: "/dashboard/calculator", label: t("Solar Project Calculator", "Kalkulator solarnog projekta") },
     { to: "/dashboard/insights", label: t("Serbia RES Insights", "OIE uvidi — Srbija") },

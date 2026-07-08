@@ -19,6 +19,7 @@ import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
 import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
 import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
 import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
+import { Route as DashboardCbamRouteImport } from './routes/dashboard.cbam'
 import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
 import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
 
@@ -72,6 +73,11 @@ const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
   path: '/insights',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCbamRoute = DashboardCbamRouteImport.update({
+  id: '/cbam',
+  path: '/cbam',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
   id: '/capture',
   path: '/capture',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/cbam': typeof DashboardCbamRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/cbam': typeof DashboardCbamRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
+  '/dashboard/cbam': typeof DashboardCbamRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/market': typeof DashboardMarketRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/calculator'
     | '/dashboard/capture'
+    | '/dashboard/cbam'
     | '/dashboard/insights'
     | '/dashboard/market'
     | '/dashboard/methodology'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/calculator'
     | '/dashboard/capture'
+    | '/dashboard/cbam'
     | '/dashboard/insights'
     | '/dashboard/market'
     | '/dashboard/methodology'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/calculator'
     | '/dashboard/capture'
+    | '/dashboard/cbam'
     | '/dashboard/insights'
     | '/dashboard/market'
     | '/dashboard/methodology'
@@ -247,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardInsightsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/cbam': {
+      id: '/dashboard/cbam'
+      path: '/cbam'
+      fullPath: '/dashboard/cbam'
+      preLoaderRoute: typeof DashboardCbamRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/capture': {
       id: '/dashboard/capture'
       path: '/capture'
@@ -267,6 +286,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardCalculatorRoute: typeof DashboardCalculatorRoute
   DashboardCaptureRoute: typeof DashboardCaptureRoute
+  DashboardCbamRoute: typeof DashboardCbamRoute
   DashboardInsightsRoute: typeof DashboardInsightsRoute
   DashboardMarketRoute: typeof DashboardMarketRoute
   DashboardMethodologyRoute: typeof DashboardMethodologyRoute
@@ -279,6 +299,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardCalculatorRoute: DashboardCalculatorRoute,
   DashboardCaptureRoute: DashboardCaptureRoute,
+  DashboardCbamRoute: DashboardCbamRoute,
   DashboardInsightsRoute: DashboardInsightsRoute,
   DashboardMarketRoute: DashboardMarketRoute,
   DashboardMethodologyRoute: DashboardMethodologyRoute,
