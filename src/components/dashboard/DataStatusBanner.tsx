@@ -27,6 +27,8 @@ export function DataStatusBanner({
   availableTo,
   missingDays,
   reasons,
+  incompleteDayList,
+  failedFetches,
 }: {
   source: "entsoe" | "cache" | "none";
   lastUpdate?: Date;
@@ -41,6 +43,8 @@ export function DataStatusBanner({
   availableTo?: string;
   missingDays?: number;
   reasons?: string[];
+  incompleteDayList?: string[];
+  failedFetches?: { day: string; reason: string }[];
 }) {
   const { t } = useLang();
 
