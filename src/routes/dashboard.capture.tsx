@@ -669,5 +669,82 @@ function CapturePage() {
   );
 }
 
+function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; rangeLabel: string }) {
+  const { t } = useLang();
+  const todayMonth = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date()).replace("-", "-");
+  if (!rows.length) return null;
+  return (
+    <ChartCard
+      title={t("Monthly capture, negative-price exposure and BESS spreads", "Mesečni capture, izloženost negativnim cenama i BESS spread-ovi")}
+      description={t(
+        `Selected range: ${rangeLabel}. Volume-weighted capture prices, negative-price exposure and daily BESS arbitrage spreads (2h and 4h, 85% round-trip efficiency, one cycle per day).`,
+        `Izabrani opseg: ${rangeLabel}. Volumenski ponderisane capture cene, izloženost negativnim cenama i dnevni BESS arbitražni spread-ovi (2h i 4h, 85% round-trip efikasnost, jedan ciklus dnevno).`,
+      )}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-muted-foreground border-b border-border/60">
+              <th className="py-2 pr-3 font-medium">{t("Month", "Mesec")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Baseload", "Baseload")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar capture", "Solar capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar rate", "Solar rate")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind capture", "Wind capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind rate", "Wind rate")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Neg. hours", "Neg. sati")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Solar neg. %", "Solar neg. %")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("Wind neg. %", "Wind neg. %")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h gross", "BESS 2h bruto")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h net (85%)", "BESS 2h neto (85%)")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h gross", "BESS 4h bruto")}</th>
+              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h net (85%)", "BESS 4h neto (85%)")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const partial = r.month === todayMonth;
+              return (
+                <tr key={r.month} className="border-b border-border/40 hover:bg-muted/20">
+                  <td className="py-1.5 pr-3">
+                    {r.month}
+                    {partial && (
+                      <span className="ml-1.5 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] text-warning">
+                        {t("partial", "delimičan")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.baseload)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.solarCapture)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarRate)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.windCapture)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windRate)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{r.negHours}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarNegShare, 2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windNegShare, 2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet2)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross4)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet4)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          {t(
+            "All prices in EUR/MWh. Capture prices are volume-weighted: Σ(price×gen) / Σ(gen). BESS spreads are daily top-N minus bottom-N averaged across days; net = discharge × 0.85 − charge.",
+            "Sve cene u EUR/MWh. Capture cene su volumenski ponderisane: Σ(cena×prod) / Σ(prod). BESS spread-ovi su dnevni top-N minus bottom-N prosečno po danima; neto = discharge × 0.85 − charge.",
+          )}
+        </p>
+      </div>
+    </ChartCard>
+  );
+}
+
 const _u = AreaChart;
 void _u;
+
