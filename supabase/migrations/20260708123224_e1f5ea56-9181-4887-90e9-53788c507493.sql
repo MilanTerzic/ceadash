@@ -1,0 +1,1 @@
+REVOKE INSERT, UPDATE ON public.market_prices_hourly FROM sandbox_exec;
