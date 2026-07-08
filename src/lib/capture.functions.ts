@@ -351,10 +351,19 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     const windOffH = toHourly(windOffR.points);
     const windH = toHourly([...windOnR.points, ...windOffR.points]);
 
+    // If ENTSO-E does not publish Serbia B16 solar, fall back to a modelled
+    // clear-sky PV shape so capture-price weighting is possible. This is
+    // labelled as "modelled" in the response so the UI can flag it.
+    const solarSource: "entsoe" | "modelled" | "none" =
+      solarH.size > 0 ? "entsoe" : "modelled";
+
     const points: CapturePoint[] = marketPoints.map((p) => ({
       ts: p.ts,
       price: p.price,
-      solar: solarH.get(p.ts) ?? 0,
+      solar:
+        solarSource === "entsoe"
+          ? solarH.get(p.ts) ?? 0
+          : modelledSolarWeight(p.ts),
       wind: windH.get(p.ts) ?? 0,
     }));
 
@@ -385,6 +394,7 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       matchedHours,
       totalHours: points.length,
       generationSource: "ENTSO-E A75" as const,
+      solarSource,
       priceHours: marketPoints.length,
       firstPriceTs,
       lastPriceTs,
@@ -395,7 +405,9 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
         priceHours: marketPoints.length,
         firstPriceTs,
         lastPriceTs,
+        solarSource,
       },
     };
   });
+
 
