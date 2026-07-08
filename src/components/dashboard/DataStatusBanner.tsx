@@ -76,9 +76,6 @@ export function DataStatusBanner({
         ? t("Complete ENTSO-E coverage", "Kompletna ENTSO-E pokrivenost")
         : t("Cached only", "Samo iz keša");
 
-        ? t("Live ENTSO-E", "Uživo ENTSO-E")
-        : t("Cached fallback", "Keširani podaci");
-
   return (
     <div className={`rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-x-6 gap-y-1 ${tone}`}>
       <span className="inline-flex items-center gap-2 font-medium">
