@@ -455,6 +455,17 @@ function CapturePage() {
         </div>
       )}
 
+      <GenerationDiagnostics
+        diagnostics={live.data?.diagnostics}
+        priceHours={live.data?.priceHours}
+        firstPriceTs={live.data?.firstPriceTs ?? null}
+        lastPriceTs={live.data?.lastPriceTs ?? null}
+        windowFrom={live.data?.windowFrom}
+        windowTo={live.data?.windowTo}
+        t={t}
+      />
+
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("Baseload average price", "Baseload prosečna cena")}
@@ -747,4 +758,145 @@ function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; 
 
 const _u = AreaChart;
 void _u;
+
+type DiagRow = {
+  ok: boolean;
+  reason?: string;
+  apiMessage?: string;
+  httpStatus?: number;
+  psrType: string;
+  periodStart: string;
+  periodEnd: string;
+  parsedPoints: number;
+  firstTimestamp: string | null;
+  lastTimestamp: string | null;
+  matchedHours?: number;
+};
+
+function fmtTs(v: string | null | undefined) {
+  return v ? v : "—";
+}
+
+function DiagBlock({
+  label,
+  row,
+  emptyMessage,
+  t,
+}: {
+  label: string;
+  row: DiagRow | undefined;
+  emptyMessage: string;
+  t: (en: string, sr: string) => string;
+}) {
+  if (!row) return null;
+  const empty = !row.ok || row.parsedPoints === 0;
+  return (
+    <div className="rounded-xl border border-border/60 p-4 text-sm">
+      <div className="font-medium">{label} <span className="text-muted-foreground">({row.psrType})</span></div>
+      {empty ? (
+        <p className="mt-1 text-muted-foreground">
+          {emptyMessage}
+          {row.reason && (
+            <span className="block mt-1">
+              <span className="text-foreground">{t("Reason", "Razlog")}:</span> {row.reason}
+              {row.apiMessage ? ` — ${row.apiMessage}` : ""}
+              {row.httpStatus ? ` (HTTP ${row.httpStatus})` : ""}
+            </span>
+          )}
+        </p>
+      ) : null}
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <dt>{t("Requested period", "Traženi period")}</dt>
+        <dd className="text-foreground">{row.periodStart} → {row.periodEnd}</dd>
+        <dt>{t("Points returned", "Vraćeno tačaka")}</dt>
+        <dd className="text-foreground">{row.parsedPoints}</dd>
+        <dt>{t("Matched to price hours", "Uparano sa satima cene")}</dt>
+        <dd className="text-foreground">{row.matchedHours ?? "—"}</dd>
+        <dt>{t("First generation ts", "Prvi ts proizvodnje")}</dt>
+        <dd className="text-foreground">{fmtTs(row.firstTimestamp)}</dd>
+        <dt>{t("Last generation ts", "Poslednji ts proizvodnje")}</dt>
+        <dd className="text-foreground">{fmtTs(row.lastTimestamp)}</dd>
+        {row.httpStatus ? (
+          <>
+            <dt>HTTP</dt>
+            <dd className="text-foreground">{row.httpStatus}</dd>
+          </>
+        ) : null}
+      </dl>
+    </div>
+  );
+}
+
+function GenerationDiagnostics({
+  diagnostics,
+  priceHours,
+  firstPriceTs,
+  lastPriceTs,
+  windowFrom,
+  windowTo,
+  t,
+}: {
+  diagnostics: {
+    solar: DiagRow;
+    windOnshore: DiagRow;
+    windOffshore: DiagRow;
+  } | undefined;
+  priceHours: number | undefined;
+  firstPriceTs: string | null;
+  lastPriceTs: string | null;
+  windowFrom: string | undefined;
+  windowTo: string | undefined;
+  t: (en: string, sr: string) => string;
+}) {
+  if (!diagnostics) return null;
+  return (
+    <details className="rounded-2xl border border-border/60 bg-card/40 p-4 text-sm">
+      <summary className="cursor-pointer font-medium">
+        {t("Generation data diagnostics", "Dijagnostika podataka o proizvodnji")}
+      </summary>
+      <div className="mt-3 space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 text-xs">
+          <div className="text-muted-foreground">{t("Selected period", "Izabrani period")}</div>
+          <div className="text-foreground md:col-span-3">{windowFrom ?? "—"} → {windowTo ?? "—"}</div>
+          <div className="text-muted-foreground">{t("SEEPEX price hours", "SEEPEX sati cena")}</div>
+          <div className="text-foreground">{priceHours ?? "—"}</div>
+          <div className="text-muted-foreground">{t("First price ts", "Prvi ts cene")}</div>
+          <div className="text-foreground">{fmtTs(firstPriceTs)}</div>
+          <div className="text-muted-foreground">{t("Last price ts", "Poslednji ts cene")}</div>
+          <div className="text-foreground">{fmtTs(lastPriceTs)}</div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <DiagBlock
+            label={t("Solar", "Solar")}
+            row={diagnostics.solar}
+            emptyMessage={t(
+              "ENTSO-E did not provide Serbia B16 solar generation for this period. Solar capture price cannot be calculated from actual generation.",
+              "ENTSO-E nije vratio B16 solarnu proizvodnju Srbije za ovaj period. Solar capture price se ne može izračunati.",
+            )}
+            t={t}
+          />
+          <DiagBlock
+            label={t("Wind onshore", "Wind onshore")}
+            row={diagnostics.windOnshore}
+            emptyMessage={t(
+              "ENTSO-E did not provide Serbia B19 wind onshore generation for this period.",
+              "ENTSO-E nije vratio B19 onshore vetro proizvodnju Srbije za ovaj period.",
+            )}
+            t={t}
+          />
+          <DiagBlock
+            label={t("Wind offshore", "Wind offshore")}
+            row={diagnostics.windOffshore}
+            emptyMessage={t(
+              "ENTSO-E did not provide Serbia B18 wind offshore generation for this period.",
+              "ENTSO-E nije vratio B18 offshore vetro proizvodnju Srbije za ovaj period.",
+            )}
+            t={t}
+          />
+        </div>
+      </div>
+    </details>
+  );
+}
+
 
