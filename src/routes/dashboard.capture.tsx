@@ -254,6 +254,22 @@ function computeMetrics(points: CapturePoint[]): CapturePeriodMetrics {
   };
 }
 
+export type MonthlyCaptureRow = { month: string } & CapturePeriodMetrics;
+
+function captureMetricsByMonth(points: CapturePoint[]): MonthlyCaptureRow[] {
+  const map = new Map<string, CapturePoint[]>();
+  for (const p of points) {
+    const key = monthKey(new Date(p.ts));
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(p);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, pts]) => ({ month, ...computeMetrics(pts) }));
+}
+
+
+
 function hourlyProfile(points: CapturePoint[]) {
   const buckets: { p: number[]; s: number[]; w: number[] }[] = Array.from({ length: 24 }, () => ({
     p: [],
