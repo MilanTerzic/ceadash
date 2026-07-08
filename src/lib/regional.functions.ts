@@ -142,9 +142,8 @@ function captureFrom(prices: Map<string, number>, gen: Map<string, number>) {
 }
 
 // In-memory hot cache (per warm worker) — 30 min
-type CacheEntry = { ts: number; data: RegionalSnapshot };
-const HOT: { current?: CacheEntry } = {};
 const HOT_TTL_MS = 30 * 60 * 1000;
+
 
 export type ZonePrice = {
   zone: ZoneCode;
