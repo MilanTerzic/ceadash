@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useDashboardRange, useRequestedFromKey } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey, bucketByBelgradeDay, type HourlyPrice } from "@/lib/baseload";
