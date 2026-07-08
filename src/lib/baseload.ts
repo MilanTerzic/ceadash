@@ -67,7 +67,7 @@ export type DayBucket = {
  *  for KPI/baseload aggregation. ENTSO-E often publishes 20–23 hours for
  *  Serbia on some days; requiring exactly 24 excluded too much data. Range
  *  is clamped to [1, 24]. */
-export const DEFAULT_MIN_COMPLETE_HOURS = 20;
+export const DEFAULT_MIN_COMPLETE_HOURS = 1;
 
 export function bucketByBelgradeDay(
   points: HourlyPrice[],
