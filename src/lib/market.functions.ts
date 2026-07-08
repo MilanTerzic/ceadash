@@ -468,7 +468,7 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     for (const day of allDays) {
       const n = finalDayHours.get(day) ?? 0;
       if (n === 0) missingDays.push(day);
-      else if (n < 23) incompleteDays.push(day);
+      else if (n < DEFAULT_MIN_COMPLETE_HOURS) incompleteDays.push(day);
       else completeDays.push(day);
     }
     const loadedFrom = completeDays[0];
