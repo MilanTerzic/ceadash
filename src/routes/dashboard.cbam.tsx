@@ -160,6 +160,29 @@ function CbamPage() {
     staleTime: 60 * 60_000,
   });
 
+  const hupx = useQuery({
+    queryKey: ["cbam-hupx", requestedRange.fromKey, requestedRange.toKey],
+    queryFn: () =>
+      fetchHupxPrices({
+        data: { from: requestedRange.fromKey, to: requestedRange.toKey },
+      }),
+    staleTime: 60 * 60_000,
+    enabled: settings.destinationCountry === "HU",
+  });
+
+  const hupxMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of hupx.data?.points ?? []) {
+      const d = new Date(p.ts);
+      d.setUTCMinutes(0, 0, 0);
+      m.set(d.toISOString(), p.price);
+    }
+    return m;
+  }, [hupx.data]);
+
+  const useHupx =
+    settings.destinationCountry === "HU" && hupxMap.size > 0;
+
   const rawPoints = live.data?.points ?? [];
   const lastTs = rawPoints[rawPoints.length - 1]?.ts
     ? new Date(rawPoints[rawPoints.length - 1].ts)
