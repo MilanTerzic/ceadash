@@ -58,12 +58,22 @@ export type DayBucket = {
   key: string;
   date: Date;
   hours: HourlyPrice[];
-  complete: boolean; // exactly 24 distinct hour buckets
+  complete: boolean; // >= MIN_COMPLETE_HOURS distinct local hour buckets
   baseload: number;
   peakload: number | null;
 };
 
-export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
+/** Minimum distinct local hours in a Belgrade day to treat it as "complete"
+ *  for KPI/baseload aggregation. ENTSO-E often publishes 20–23 hours for
+ *  Serbia on some days; requiring exactly 24 excluded too much data. Range
+ *  is clamped to [1, 24]. */
+export const DEFAULT_MIN_COMPLETE_HOURS = 20;
+
+export function bucketByBelgradeDay(
+  points: HourlyPrice[],
+  minCompleteHours: number = DEFAULT_MIN_COMPLETE_HOURS,
+): DayBucket[] {
+  const threshold = Math.max(1, Math.min(24, Math.floor(minCompleteHours)));
   // Dedupe duplicate hours: same ISO ts wins last.
   const dedup = new Map<string, HourlyPrice>();
   for (const p of points) dedup.set(p.ts.toISOString(), p);
@@ -78,7 +88,7 @@ export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
   return Array.from(m.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, hrs]) => {
-      // count unique local hours-of-day (handles DST 23h/25h days as incomplete)
+      // count unique local hours-of-day (handles DST 23h/25h days too)
       const localHours = new Set(hrs.map((p) => belgradeHour(p.ts)));
       const peak = hrs.filter((p) => isBelgradePeakHour(p.ts));
       const baseload = hrs.reduce((a, b) => a + b.price, 0) / hrs.length;
@@ -89,12 +99,13 @@ export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
         key,
         date: dateFromBelgradeKey(key),
         hours: hrs,
-        complete: localHours.size === 24,
+        complete: localHours.size >= threshold,
         baseload,
         peakload,
       };
     });
 }
+
 
 export type PeriodAggregate = {
   baseload: number; // mean of daily baseloads over completeDays in range
