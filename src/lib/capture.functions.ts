@@ -122,8 +122,49 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
+export type EntsoeReason =
+  | "missing_token"
+  | "no_data"
+  | "bad_request"
+  | "invalid_psrtype_or_domain"
+  | "unauthorized"
+  | "rate_limited"
+  | "server_error"
+  | "network_error"
+  | string;
+
+export type GenerationDiagnostics = {
+  ok: boolean;
+  reason?: EntsoeReason;
+  apiMessage?: string;
+  httpStatus?: number;
+  psrType: string;
+  periodStart: string;
+  periodEnd: string;
+  parsedPoints: number;
+  firstTimestamp: string | null;
+  lastTimestamp: string | null;
+};
+
+function classify400(body: string): { reason: EntsoeReason; apiMessage?: string } {
+  const clean = stripNs(body);
+  const msg =
+    tagOne(clean, "text") ??
+    tagOne(clean, "Reason") ??
+    tagOne(clean, "message") ??
+    "";
+  const sanitized = msg.replace(/\s+/g, " ").trim().slice(0, 240);
+  const low = sanitized.toLowerCase();
+  if (!low) return { reason: "bad_request" };
+  if (low.includes("no matching data") || low.includes("no data")) return { reason: "no_data", apiMessage: sanitized };
+  if (low.includes("psrtype") || low.includes("domain") || low.includes("in_domain"))
+    return { reason: "invalid_psrtype_or_domain", apiMessage: sanitized };
+  if (low.includes("token") || low.includes("unauthorized")) return { reason: "unauthorized", apiMessage: sanitized };
+  return { reason: "bad_request", apiMessage: sanitized };
+}
+
 async function entsoeRaw(params: Record<string, string>): Promise<
-  { ok: true; xml: string } | { ok: false; reason: string }
+  { ok: true; xml: string; httpStatus: number } | { ok: false; reason: EntsoeReason; apiMessage?: string; httpStatus?: number }
 > {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
   if (!token) return { ok: false, reason: "missing_token" };
@@ -133,45 +174,89 @@ async function entsoeRaw(params: Record<string, string>): Promise<
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url.toString(), { headers: { Accept: "application/xml" } });
-      if (res.status === 200) return { ok: true, xml: await res.text() };
-      if (res.status === 400) return { ok: false, reason: "no_data" };
-      if (res.status === 401) return { ok: false, reason: "unauthorized" };
-      if (res.status === 429) return { ok: false, reason: "rate_limited" };
-      if (res.status < 500 || attempt === 1) return { ok: false, reason: `http_${res.status}` };
+      if (res.status === 200) return { ok: true, xml: await res.text(), httpStatus: 200 };
+      if (res.status === 400) {
+        const body = await res.text().catch(() => "");
+        const c = classify400(body);
+        return { ok: false, reason: c.reason, apiMessage: c.apiMessage, httpStatus: 400 };
+      }
+      if (res.status === 401) return { ok: false, reason: "unauthorized", httpStatus: 401 };
+      if (res.status === 429) return { ok: false, reason: "rate_limited", httpStatus: 429 };
+      if (res.status < 500 || attempt === 1)
+        return { ok: false, reason: `http_${res.status}`, httpStatus: res.status };
     } catch (e) {
-      if (attempt === 1) return { ok: false, reason: `network_${(e as Error).message}` };
+      if (attempt === 1) return { ok: false, reason: "network_error", apiMessage: (e as Error).message };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  return { ok: false, reason: "exhausted" };
+  return { ok: false, reason: "server_error" };
 }
 
 async function fetchGenerationRange(
   psrType: string,
   fromISO: string,
   toISO: string,
-): Promise<{ ok: boolean; reason?: string; points: Array<{ ts: string; value: number }> }> {
+): Promise<{
+  ok: boolean;
+  reason?: EntsoeReason;
+  points: Array<{ ts: string; value: number }>;
+  diagnostics: GenerationDiagnostics;
+}> {
   const offsetFrom = cetOffsetHours(fromISO);
   const offsetTo = cetOffsetHours(toISO);
   const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
   const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
+  const periodStart = ymdh(start);
+  const periodEnd = ymdh(end);
   const r = await entsoeRaw({
     documentType: "A75",
     processType: "A16",
     in_Domain: SERBIA_ZONE,
     psrType,
-    periodStart: ymdh(start),
-    periodEnd: ymdh(end),
+    periodStart,
+    periodEnd,
   });
-  if (!r.ok) return { ok: false, reason: r.reason, points: [] };
+  if (!r.ok) {
+    return {
+      ok: false,
+      reason: r.reason,
+      points: [],
+      diagnostics: {
+        ok: false,
+        reason: r.reason,
+        apiMessage: r.apiMessage,
+        httpStatus: r.httpStatus,
+        psrType,
+        periodStart,
+        periodEnd,
+        parsedPoints: 0,
+        firstTimestamp: null,
+        lastTimestamp: null,
+      },
+    };
+  }
   const startMs = start.getTime();
   const endMs = end.getTime();
   const points = parseTimeSeriesHourly(r.xml).filter((p) => {
     const t = Date.parse(p.ts);
     return t >= startMs && t < endMs;
   });
-  return { ok: true, points };
+  return {
+    ok: true,
+    points,
+    diagnostics: {
+      ok: true,
+      httpStatus: r.httpStatus,
+      psrType,
+      periodStart,
+      periodEnd,
+      parsedPoints: points.length,
+      firstTimestamp: points[0]?.ts ?? null,
+      lastTimestamp: points[points.length - 1]?.ts ?? null,
+    },
+  };
 }
+
 
 function belgradeDayOf(iso: string): string {
   return new Intl.DateTimeFormat("en-CA", {
