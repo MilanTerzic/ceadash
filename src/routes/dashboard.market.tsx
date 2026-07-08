@@ -192,27 +192,12 @@ function MarketPage() {
         incompleteDays={buckets.length - completeDays.length}
         selectedFrom={fromKey}
         selectedTo={toKey}
-        availableFrom={completeDays.filter((b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey))[0]?.key}
-        availableTo={(() => {
-          const inRange = completeDays.filter((b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey));
-          return inRange[inRange.length - 1]?.key;
-        })()}
-        missingDays={(() => {
-          if (!fromKey || !toKey) return 0;
-          const start = new Date(fromKey + "T00:00:00Z");
-          const end = new Date(toKey + "T00:00:00Z");
-          const total = Math.round((+end - +start) / 86400000) + 1;
-          return Math.max(0, total - period.completeDaysCount);
-        })()}
+        availableFrom={live.data?.loadedFrom ?? completeDays[0]?.key}
+        availableTo={live.data?.loadedTo ?? completeDays[completeDays.length - 1]?.key}
+        missingDays={live.data?.missingDays?.length ?? 0}
         reasons={live.data?.reasons}
-        warning={
-          buckets.length - completeDays.length > 0
-            ? t(
-                "Incomplete days are excluded from baseload when they have fewer than 24 unique hourly observations (for example today-so-far or DST-affected days).",
-                "Nekompletni dani se isključuju iz baseload-a kada imaju manje od 24 jedinstvene satne opservacije (na primer današnji dan u toku ili DST dani).",
-              )
-            : undefined
-        }
+        incompleteDayList={live.data?.incompleteDays}
+        failedFetches={live.data?.failedFetches}
       />
 
 
