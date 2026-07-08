@@ -7,7 +7,6 @@ export function DashboardTabs() {
   const { t } = useLang();
   const TABS = [
     { to: "/dashboard", label: t("Overview", "Pregled") },
-    { to: "/dashboard/market", label: t("Market Prices", "Cene na tržištu") },
     { to: "/dashboard/regional", label: t("Regional Prices", "Regionalne cene") },
     { to: "/dashboard/capture", label: t("RES Capture Prices", "Capture cene OIE") },
     { to: "/dashboard/weekly", label: t("Weekly Intelligence", "Nedeljna analiza") },
