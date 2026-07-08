@@ -30,6 +30,13 @@ export function DataStatusBanner({
   reasons,
   incompleteDayList,
   failedFetches,
+  totalSelectedDays,
+  attemptedDaysCount,
+  fetchedDaysCount,
+  failureCounts,
+  capReached,
+  maxFetchPerCall,
+  debugSummary,
 }: {
   source: "entsoe" | "cache" | "none";
   lastUpdate?: Date;
@@ -45,9 +52,18 @@ export function DataStatusBanner({
   missingDays?: number;
   reasons?: string[];
   incompleteDayList?: string[];
-  failedFetches?: { day: string; reason: string }[];
+  failedFetches?: { day: string; reason: string; status?: number; message?: string; attempts?: number }[];
+  totalSelectedDays?: number;
+  attemptedDaysCount?: number;
+  fetchedDaysCount?: number;
+  failureCounts?: Record<string, number>;
+  capReached?: boolean;
+  maxFetchPerCall?: number;
+  debugSummary?: string;
 }) {
   const { t } = useLang();
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Detect partial coverage: selected range extends past what we actually loaded.
   const partial =
