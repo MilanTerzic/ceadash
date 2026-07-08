@@ -70,7 +70,9 @@ function OverviewPage() {
   const live = useQuery({
     queryKey: ["market-prices", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
     queryFn: () => fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
-    staleTime: 60 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
   const hasReal = (live.data?.points?.length ?? 0) > 0;
 
