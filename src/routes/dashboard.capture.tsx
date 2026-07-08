@@ -191,11 +191,11 @@ function nz(v: number | null | undefined) {
 
 function CapturePage() {
   const { t } = useLang();
-  const requestedFrom = useRequestedFromKey();
+  const requestedRange = useRequestedRangeKeys();
 
   const live = useQuery({
-    queryKey: ["capture-series", requestedFrom],
-    queryFn: () => fetchCaptureSeries({ data: { from: requestedFrom } }),
+    queryKey: ["capture-series", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
+    queryFn: () => fetchCaptureSeries({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 60 * 60_000,
   });
 
