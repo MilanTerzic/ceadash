@@ -40,23 +40,36 @@ function presetRange(preset: PresetKey, latest: Date): { from: Date; to: Date } 
  *  search params, independent of what data is already cached. Used to drive
  *  server-side backfill so KPIs/charts cover the full chosen period. */
 export function useRequestedFromKey(): string {
+  return useRequestedRangeKeys().fromKey;
+}
+
+/** Resolve the requested analysis-period start AND end (Belgrade YYYY-MM-DD)
+ *  from URL search params, independent of what data is already cached. Used
+ *  to drive server-side backfill so KPIs/charts cover the full chosen period. */
+export function useRequestedRangeKeys(): { fromKey: string; toKey: string; preset: PresetKey } {
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
   const preset: PresetKey = search.preset ?? "30d";
   const now = new Date();
   let from: Date;
+  let to: Date;
   if (preset === "custom") {
     from = search.from ? new Date(search.from) : presetRange("30d", now).from;
+    to = search.to ? new Date(search.to) : now;
   } else {
-    from = presetRange(preset, now).from;
+    const r = presetRange(preset, now);
+    from = r.from;
+    to = r.to;
   }
-  // Format as Belgrade YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Belgrade",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(from);
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Belgrade",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  return { fromKey: fmt(from), toKey: fmt(to), preset };
 }
+
 
 export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable?: Date }) {
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
