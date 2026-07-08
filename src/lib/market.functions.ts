@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { DEFAULT_MIN_COMPLETE_HOURS } from "@/lib/baseload";
 
 /**
  * SEEPEX Serbia day-ahead price fetcher (ENTSO-E Transparency Platform).
@@ -355,7 +356,7 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     for (const day of allDays) {
       const have = dayHours.get(day)?.size ?? 0;
       const isLiveWindow = day === today || day === tomorrow;
-      if (isLiveWindow || have < 23) daysToFetch.push(day);
+      if (isLiveWindow || have < DEFAULT_MIN_COMPLETE_HOURS) daysToFetch.push(day);
     }
 
     // Cap per invocation to keep server-fn wall time bounded.
@@ -467,7 +468,7 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
     for (const day of allDays) {
       const n = finalDayHours.get(day) ?? 0;
       if (n === 0) missingDays.push(day);
-      else if (n < 23) incompleteDays.push(day);
+      else if (n < DEFAULT_MIN_COMPLETE_HOURS) incompleteDays.push(day);
       else completeDays.push(day);
     }
     const loadedFrom = completeDays[0];
