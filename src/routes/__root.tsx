@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { LanguageProvider, LanguageToggle, useLang } from "@/lib/i18n";
+import ceaLogo from "@/assets/cea-logo.png.asset.json";
 
 function NotFoundComponent() {
   const { t } = useLang();
