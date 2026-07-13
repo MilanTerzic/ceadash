@@ -10,6 +10,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip as RTooltip,
   XAxis,
@@ -692,7 +693,11 @@ function LinkedInReportCard({
           </div>
 
           <div className="mt-9">
-            <LinkedInDailyPriceChart rows={rsDailyRows} />
+            <LinkedInDailyPriceChart
+              rows={rsDailyRows}
+              periodFrom={report.period.from}
+              periodTo={report.period.to}
+            />
           </div>
 
           <div className="mt-7 grid grid-cols-[1.05fr_0.95fr] gap-7">
@@ -716,8 +721,12 @@ function LinkedInReportCard({
 
 function LinkedInDailyPriceChart({
   rows,
+  periodFrom,
+  periodTo,
 }: {
   rows: Array<Record<string, string | number | null>>;
+  periodFrom: string;
+  periodTo: string;
 }) {
   const points = rows
     .map((row) => ({
@@ -728,16 +737,23 @@ function LinkedInDailyPriceChart({
   const values = points.map((point) => point.RS);
   const min = values.length ? Math.min(...values) : null;
   const max = values.length ? Math.max(...values) : null;
+  const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   const last = points[points.length - 1];
   const dense = points.length > 14;
   const tickAngle = dense ? -45 : 0;
-
+  const referenceValues = [min, avg, max]
+    .filter((value): value is number => finiteNumber(value))
+    .sort((a, b) => a - b)
+    .filter((value, index, list) => index === 0 || Math.abs(value - list[index - 1]) >= 1);
   return (
     <div className="rounded-3xl border border-border bg-card p-7">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm uppercase tracking-widest text-muted-foreground">
             Serbia Daily Baseload Price
+          </div>
+          <div className="mt-1 text-sm font-semibold text-muted-foreground">
+            Selected period: {periodFrom} to {periodTo}
           </div>
           <div className="mt-2 font-display text-4xl">
             {last ? fmt(last.RS) : "N/A"}
@@ -749,31 +765,49 @@ function LinkedInDailyPriceChart({
           <div>max {fmt(max)}</div>
         </div>
       </div>
-      <div className="mt-6 h-[360px] w-full">
+      <div className="mt-5 h-[420px] w-full">
         {points.length ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={points}
-              margin={{ top: 26, right: 20, bottom: dense ? 58 : 28, left: 8 }}
+              margin={{ top: 34, right: 86, bottom: dense ? 66 : 34, left: 10 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#d5d1bf" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#d5d1bf" vertical={false} />
               <XAxis
                 dataKey="date"
                 interval={0}
                 angle={tickAngle}
                 textAnchor={dense ? "end" : "middle"}
-                height={dense ? 58 : 28}
-                tick={{ fontSize: dense ? 8 : 10, fill: "#3e4038" }}
+                height={dense ? 66 : 34}
+                tick={{ fontSize: dense ? 9 : 11, fill: "#3e4038", fontWeight: 700 }}
                 tickFormatter={(value) => String(value).slice(5)}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#3e4038" }}
+                tick={{ fontSize: 11, fill: "#3e4038", fontWeight: 700 }}
+                tickFormatter={(value) => `${Number(value).toFixed(0)}`}
+                ticks={referenceValues}
                 unit=" EUR"
+                width={64}
                 domain={[
                   (dataMin: number) => Math.floor(dataMin - 12),
                   (dataMax: number) => Math.ceil(dataMax + 18),
                 ]}
               />
+              {referenceValues.map((value) => (
+                <ReferenceLine
+                  key={value}
+                  y={value}
+                  stroke="#bdb7a5"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `${value.toFixed(1)} EUR/MWh`,
+                    position: "right",
+                    fill: "#263126",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                />
+              ))}
               <RTooltip
                 formatter={(value) => [
                   typeof value === "number" ? `${value.toFixed(2)} EUR/MWh` : "N/A",
@@ -795,10 +829,11 @@ function LinkedInDailyPriceChart({
                   dataKey="RS"
                   position="top"
                   formatter={(value: unknown) =>
-                    typeof value === "number" && Number.isFinite(value) ? value.toFixed(0) : ""
+                    typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : ""
                   }
                   fill="#263126"
-                  fontSize={dense ? 8 : 10}
+                  fontSize={dense ? 9 : 11}
+                  fontWeight={700}
                 />
               </Line>
             </LineChart>
