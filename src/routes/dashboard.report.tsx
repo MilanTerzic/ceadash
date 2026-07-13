@@ -640,14 +640,7 @@ function LinkedInReportCard({
 }) {
   const rsVsHuValue =
     rs?.baseload != null && hu?.baseload != null ? fmt(rs.baseload - hu.baseload) : "N/A";
-  const topRows = report.prices.marketSummary
-    .filter((row) => finiteNumber(row.baseload))
-    .sort((a, b) => (b.baseload ?? 0) - (a.baseload ?? 0))
-    .slice(0, 8);
   const rsDailyRows = report.prices.dailyBaseload.filter((row) => finiteNumber(row.RS));
-  const summaryLines = (
-    report.deskSummary.length ? report.deskSummary : ["No complete observations available."]
-  ).slice(0, 3);
 
   return (
     <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
@@ -679,72 +672,34 @@ function LinkedInReportCard({
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-4 gap-4">
+          <div className="mt-8 grid grid-cols-4 gap-5">
             <LinkedInMetric label="RS baseload" value={fmt(rs?.baseload)} unit="EUR/MWh" />
             <LinkedInMetric label="RS peakload" value={fmt(rs?.peakload)} unit="EUR/MWh" />
-            <LinkedInMetric label="Negative hours" value={String(rs?.negativeHours ?? "N/A")} />
+            <LinkedInMetric label="RS volatility" value={fmt(rs?.volatility)} unit="EUR/MWh" />
+            <LinkedInMetric
+              label="Negative-price hours"
+              value={String(rs?.negativeHours ?? "N/A")}
+            />
+            <LinkedInMetric label="RS min price" value={fmt(rs?.min)} unit="EUR/MWh" />
+            <LinkedInMetric label="RS max price" value={fmt(rs?.max)} unit="EUR/MWh" />
             <LinkedInMetric label="RS vs HU" value={rsVsHuValue} unit="EUR/MWh" />
+            <LinkedInMetric
+              label="Largest RS spread"
+              value={bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
+              unit={bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
+            />
+            <LinkedInMetric
+              label="Solar capture"
+              value={fmt(capture?.solarCapture)}
+              unit="EUR/MWh"
+            />
+            <LinkedInMetric label="Wind capture" value={fmt(capture?.windCapture)} unit="EUR/MWh" />
+            <LinkedInMetric label="BESS 2h net" value={fmt(capture?.bessNet2h)} unit="EUR/MWh" />
+            <LinkedInMetric label="BESS 4h net" value={fmt(capture?.bessNet4h)} unit="EUR/MWh" />
           </div>
 
-          <div className="mt-8 grid grid-cols-[1.15fr_0.85fr] gap-7">
+          <div className="mt-9">
             <LinkedInDailyPriceChart rows={rsDailyRows} />
-
-            <div className="rounded-3xl border border-border bg-card p-6">
-              <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                Regional Baseload
-              </div>
-              <LinkedInRegionalBars rows={topRows} />
-            </div>
-          </div>
-
-          <div className="mt-7 grid grid-cols-[1.1fr_0.9fr] gap-7">
-            <div className="rounded-3xl border border-border bg-card p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                  Serbia Hourly Price Heatmap
-                </div>
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  red = negative
-                </div>
-              </div>
-              <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
-            </div>
-
-            <div className="rounded-3xl border border-border bg-card p-6">
-              <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                Desk Signals
-              </div>
-              <div className="mt-5 space-y-4 text-lg leading-snug">
-                {summaryLines.map((line) => (
-                  <div key={line} className="flex gap-3">
-                    <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
-                    <span>{line}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <LinkedInMiniMetric
-                  label="Solar capture"
-                  value={fmt(capture?.solarCapture)}
-                  unit="EUR/MWh"
-                />
-                <LinkedInMiniMetric
-                  label="Wind capture"
-                  value={fmt(capture?.windCapture)}
-                  unit="EUR/MWh"
-                />
-                <LinkedInMiniMetric
-                  label="BESS 2h net"
-                  value={fmt(capture?.bessNet2h)}
-                  unit="EUR/MWh"
-                />
-                <LinkedInMiniMetric
-                  label="Largest spread"
-                  value={bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
-                  unit={bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -832,114 +787,6 @@ function LinkedInDailyPriceChart({
       <div className="mt-2 flex justify-between text-sm text-muted-foreground">
         <span>{points[0]?.date ?? "No data"}</span>
         <span>{last?.date ?? ""}</span>
-      </div>
-    </div>
-  );
-}
-
-function LinkedInRegionalBars({ rows }: { rows: MarketPriceSummary[] }) {
-  const values = rows.map((row) => row.baseload).filter(finiteNumber);
-  const max = values.length ? Math.max(...values) : 1;
-
-  return (
-    <div className="mt-5 space-y-3">
-      {rows.length ? (
-        rows.map((row) => (
-          <div key={row.zone} className="grid grid-cols-[56px_1fr_110px] items-center gap-3">
-            <div className="font-display text-3xl">{row.zone}</div>
-            <div className="h-5 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${clamp(((row.baseload ?? 0) / max) * 100, 5, 100)}%` }}
-              />
-            </div>
-            <div className="text-right text-2xl tabular-nums">{fmt(row.baseload)}</div>
-          </div>
-        ))
-      ) : (
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 text-xl text-muted-foreground">
-          No regional price data
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeatmap"] }) {
-  const compactRows = rows.slice(-8);
-  const domain = heatScaleDomain(compactRows);
-
-  if (!compactRows.length) {
-    return (
-      <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-5 text-xl text-muted-foreground">
-        No Serbia hourly data
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-5">
-      <div
-        className="grid gap-1"
-        style={{ gridTemplateColumns: "84px repeat(24, minmax(0, 1fr))" }}
-      >
-        <div />
-        {Array.from({ length: 24 }, (_, hour) => (
-          <div key={hour} className="text-center text-[10px] font-semibold text-muted-foreground">
-            {hour % 3 === 0 ? String(hour).padStart(2, "0") : ""}
-          </div>
-        ))}
-        {compactRows.map((row) => (
-          <div key={row.date} className="contents">
-            <div className="pr-2 text-xs font-semibold text-muted-foreground">{row.date}</div>
-            {Array.from({ length: 24 }, (_, hour) => {
-              const value = row.hours[String(hour)];
-              return (
-                <div
-                  key={`${row.date}-${hour}`}
-                  className="h-5 rounded-[5px] border border-background/60"
-                  style={{ backgroundColor: heatCellFill(value, domain) }}
-                  title={`${row.date} ${String(hour).padStart(2, "0")}:00 - ${fmt(value)} EUR/MWh`}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-        <div className="inline-flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />
-          negative
-        </div>
-        <div className="col-span-3 inline-flex items-center gap-2">
-          <span
-            className="h-3 w-24 rounded-sm"
-            style={{
-              background: "linear-gradient(90deg, hsl(145 34% 88%), hsl(145 52% 40%))",
-            }}
-          />
-          non-negative: lowest lightest
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LinkedInMiniMetric({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <div className="font-display text-2xl">{value}</div>
-        {unit ? <div className="text-xs text-muted-foreground">{unit}</div> : null}
       </div>
     </div>
   );
