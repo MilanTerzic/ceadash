@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toJpeg } from "html-to-image";
 import {
   Bar,
   BarChart,
@@ -13,13 +14,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download, Printer } from "lucide-react";
+import { Download, ImageDown, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
 import { DateRangeControl, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { useLang } from "@/lib/i18n";
 import { getCeaTraderReport, type CeaTraderReport } from "@/lib/report.functions";
+import type { CaptureSummary, MarketPriceSummary } from "@/lib/report.analytics";
 
 export const Route = createFileRoute("/dashboard/report")({
   head: () => ({
@@ -123,6 +126,8 @@ function PeriodBadge({ report }: { report: CeaTraderReport }) {
 
 function TraderReportPage() {
   const { t } = useLang();
+  const linkedinCardRef = useRef<HTMLDivElement>(null);
+  const [isExportingLinkedIn, setIsExportingLinkedIn] = useState(false);
   const requested = useRequestedRangeKeys();
   const reportQuery = useQuery({
     queryKey: ["cea-trader-report", requested.fromKey, requested.toKey, requested.preset],
@@ -141,6 +146,33 @@ function TraderReportPage() {
   const bestSpread = report?.prices.marketSummary
     .filter((m) => m.zone !== "RS" && m.spreadVsRs != null)
     .sort((a, b) => Math.abs(b.spreadVsRs ?? 0) - Math.abs(a.spreadVsRs ?? 0))[0];
+
+  const exportLinkedInJpeg = async () => {
+    if (!report || !linkedinCardRef.current) return;
+    setIsExportingLinkedIn(true);
+    try {
+      await document.fonts?.ready;
+      const dataUrl = await toJpeg(linkedinCardRef.current, {
+        quality: 0.95,
+        pixelRatio: 1,
+        cacheBust: true,
+        backgroundColor: "#fefff2",
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `cea-trader-linkedin-${report.period.from}-${report.period.to}.jpg`;
+      a.click();
+      toast.success(t("LinkedIn JPEG created", "LinkedIn JPEG je kreiran"));
+    } catch (error) {
+      toast.error(
+        `${t("JPEG export failed", "JPEG izvoz nije uspeo")}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    } finally {
+      setIsExportingLinkedIn(false);
+    }
+  };
 
   if (reportQuery.isLoading) {
     return (
@@ -192,6 +224,15 @@ function TraderReportPage() {
               <Download className="mr-2 h-4 w-4" />
               CSV
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isExportingLinkedIn}
+              onClick={exportLinkedInJpeg}
+            >
+              <ImageDown className="mr-2 h-4 w-4" />
+              {isExportingLinkedIn ? t("Creating...", "Kreiram...") : "LinkedIn JPEG"}
+            </Button>
             <Button size="sm" variant="outline" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
               {t("Print", "Stampaj")}
@@ -199,6 +240,15 @@ function TraderReportPage() {
           </div>
         </div>
       </section>
+
+      <LinkedInReportCard
+        cardRef={linkedinCardRef}
+        report={report}
+        rs={rs}
+        hu={hu}
+        capture={capture}
+        bestSpread={bestSpread}
+      />
 
       <ChartCard
         title={t("Desk Summary", "Desk Summary")}
@@ -548,6 +598,149 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-border/60 p-3">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 font-display text-2xl">{value}</div>
+    </div>
+  );
+}
+
+function LinkedInReportCard({
+  cardRef,
+  report,
+  rs,
+  hu,
+  capture,
+  bestSpread,
+}: {
+  cardRef: RefObject<HTMLDivElement | null>;
+  report: CeaTraderReport;
+  rs: MarketPriceSummary | undefined;
+  hu: MarketPriceSummary | undefined;
+  capture: CaptureSummary | null;
+  bestSpread: MarketPriceSummary | undefined;
+}) {
+  const rsVsHu =
+    rs?.baseload != null && hu?.baseload != null
+      ? `${fmt(rs.baseload - hu.baseload)} EUR/MWh`
+      : "N/A";
+  const topRows = report.prices.marketSummary.slice(0, 5);
+
+  return (
+    <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
+      <div
+        ref={cardRef}
+        className="flex h-[1200px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-16 text-foreground"
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        <div>
+          <div className="flex items-start justify-between gap-8 border-b border-border pb-8">
+            <div>
+              <div className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
+                CEA Power Dashboard
+              </div>
+              <h1 className="mt-5 font-display text-7xl leading-none">Trader Report</h1>
+              <p className="mt-4 max-w-3xl text-2xl leading-snug text-muted-foreground">
+                Serbia day-ahead prices, regional spreads, RES capture and BESS market signals.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card px-6 py-4 text-right">
+              <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                Europe/Belgrade
+              </div>
+              <div className="mt-1 font-display text-3xl">
+                {report.period.from} {"->"} {report.period.to}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 grid grid-cols-4 gap-5">
+            <LinkedInMetric label="RS baseload" value={fmt(rs?.baseload)} unit="EUR/MWh" />
+            <LinkedInMetric label="RS peakload" value={fmt(rs?.peakload)} unit="EUR/MWh" />
+            <LinkedInMetric label="Negative hours" value={String(rs?.negativeHours ?? "N/A")} />
+            <LinkedInMetric label="RS vs HU" value={rsVsHu} />
+            <LinkedInMetric
+              label="Solar capture"
+              value={fmt(capture?.solarCapture)}
+              unit="EUR/MWh"
+            />
+            <LinkedInMetric label="Wind capture" value={fmt(capture?.windCapture)} unit="EUR/MWh" />
+            <LinkedInMetric label="BESS 2h net" value={fmt(capture?.bessNet2h)} unit="EUR/MWh" />
+            <LinkedInMetric label="BESS 4h net" value={fmt(capture?.bessNet4h)} unit="EUR/MWh" />
+          </div>
+
+          <div className="mt-10 grid grid-cols-[1.1fr_0.9fr] gap-8">
+            <div className="rounded-3xl border border-border bg-card p-7">
+              <div className="text-sm uppercase tracking-widest text-muted-foreground">
+                Desk Summary
+              </div>
+              <div className="mt-5 space-y-4 text-2xl leading-snug">
+                {(report.deskSummary.length
+                  ? report.deskSummary
+                  : ["No complete observations available."]
+                )
+                  .slice(0, 5)
+                  .map((line) => (
+                    <div key={line} className="flex gap-3">
+                      <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                      <span>{line}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card p-7">
+              <div className="text-sm uppercase tracking-widest text-muted-foreground">
+                Regional Baseload
+              </div>
+              <div className="mt-5 space-y-3">
+                {topRows.map((row) => (
+                  <div
+                    key={row.zone}
+                    className="grid grid-cols-[56px_1fr_140px] items-center gap-3"
+                  >
+                    <div className="font-display text-3xl">{row.zone}</div>
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{
+                          width: `${Math.max(8, Math.min(100, ((row.baseload ?? 0) / 180) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="text-right text-2xl tabular-nums">{fmt(row.baseload)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-7 rounded-2xl border border-border/70 bg-muted/30 p-5">
+                <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                  Largest RS spread
+                </div>
+                <div className="mt-1 font-display text-4xl">
+                  {bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
+                  <span className="ml-2 text-xl text-muted-foreground">
+                    {bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border pt-7 text-lg text-muted-foreground">
+          <span>Source: ENTSO-E / CEA calculations. No demo data substituted.</span>
+          <span>ceadash.lovable.app</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LinkedInMetric({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="text-xs uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <div className="font-display text-4xl">{value}</div>
+        {unit ? <div className="text-sm text-muted-foreground">{unit}</div> : null}
+      </div>
     </div>
   );
 }
