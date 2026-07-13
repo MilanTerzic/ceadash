@@ -96,7 +96,7 @@ function exportReportCsv(report: CeaTraderReport) {
 
 function heatCellColor(value: number | undefined) {
   if (value == null || !Number.isFinite(value)) return "bg-muted/30";
-  if (value < 0) return "bg-sky-500/35";
+  if (value < 0) return "bg-red-500/45";
   if (value < 40) return "bg-positive/30";
   if (value < 90) return "bg-primary/25";
   if (value < 150) return "bg-warning/35";
@@ -373,7 +373,7 @@ function TraderReportPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-sky-500/35" /> negative
+                  <span className="h-3 w-3 rounded-sm bg-red-500/45" /> negative
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-3 w-3 rounded-sm bg-positive/30" /> low
