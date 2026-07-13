@@ -145,16 +145,16 @@ export function DateRangeControl({
   const presets: { key: PresetKey; label: string }[] = [
     { key: "7d", label: t("Last 7d", "7 dana") },
     { key: "30d", label: t("Last 30d", "30 dana") },
-    { key: "mtd", label: t("MTD", "Tek. mesec") },
-    { key: "prev_month", label: t("Prev. month", "Pret. mesec") },
-    { key: "ytd", label: t("YTD", "YTD") },
+    { key: "mtd", label: t("MTD", "Tekući mesec") },
+    { key: "prev_month", label: t("Prev. month", "Prethodni mesec") },
+    { key: "ytd", label: t("YTD", "Od početka godine") },
   ];
 
   const label = range
     ? belgradeDayKey(range.from) === belgradeDayKey(range.to)
       ? format(range.from, "d MMM yyyy")
       : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
-    : t("Pick a range", "Izaberi opseg");
+    : t("Pick a range", "Izaberite period");
 
   const selectableBounds = useMemo(() => {
     const today = new Date();
@@ -298,7 +298,7 @@ export function DateRangeControl({
             htmlFor="compare-with"
             className="text-xs uppercase tracking-wider text-muted-foreground"
           >
-            {t("Compare with", "Poredi sa")}
+            {t("Compare with", "Uporedi sa")}
           </Label>
           <select
             id="compare-with"
@@ -311,7 +311,7 @@ export function DateRangeControl({
             </option>
             <option value="previous_month">{t("Previous month", "Prethodni mesec")}</option>
             <option value="previous_year">{t("Previous year", "Prethodna godina")}</option>
-            <option value="none">{t("No comparison", "Bez poredjenja")}</option>
+            <option value="none">{t("No comparison", "Bez poređenja")}</option>
           </select>
         </div>
       </div>

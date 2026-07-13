@@ -61,7 +61,7 @@ export function DashboardTabs() {
   const groups: NavGroup[] = [
     { to: "/dashboard", label: t("Overview", "Pregled"), icon: LayoutDashboard },
     {
-      label: t("Markets", "Trzista"),
+      label: t("Markets", "Tržišta"),
       icon: BarChart3,
       items: [
         {
@@ -69,7 +69,7 @@ export function DashboardTabs() {
           label: t("Prices & Flows", "Cene i tokovi"),
           description: t(
             "Regional DA prices and physical-flow snapshot",
-            "Regionalne DA cene i fizicki tokovi",
+            "Regionalne day-ahead cene i fizički tokovi",
           ),
         },
         {
@@ -77,12 +77,12 @@ export function DashboardTabs() {
           label: t("RES Capture Prices", "Capture cene OIE"),
           description: t(
             "Solar, wind and baseload capture analytics",
-            "Analitika capture cena za solar, vetar i baseload",
+            "Analitika capture cena za solar, vetar i baznu cenu",
           ),
         },
         {
           to: "/dashboard/market",
-          label: t("Serbia Market Position", "Pozicija trzista Srbije"),
+          label: t("Serbia Market Position", "Pozicija tržišta Srbije"),
           description: t(
             "Serbian prices, spreads and market statistics",
             "Cene, spreadovi i statistika Srbije",
@@ -90,40 +90,40 @@ export function DashboardTabs() {
         },
         {
           to: "/dashboard/report",
-          label: t("Flexibility & Storage", "Fleksibilnost i storage"),
+          label: t("Flexibility & Storage", "Fleksibilnost i skladištenje"),
           description: t(
             "BESS spreads and daily trading signals",
-            "BESS spreadovi i dnevni trading signali",
+            "BESS spreadovi i dnevni tržišni signali",
           ),
         },
       ],
     },
     {
-      label: t("Intelligence", "Intelligence"),
+      label: t("Intelligence", "Analitika"),
       icon: FileChartColumn,
       items: [
         {
           to: "/dashboard/weekly",
-          label: t("Market Brief", "Trzisni brief"),
-          description: t("Weekly CEA market intelligence", "Nedeljna CEA analiza trzista"),
+          label: t("Market Brief", "Tržišni pregled"),
+          description: t("Weekly CEA market intelligence", "Nedeljna CEA analiza tržišta"),
         },
         {
           to: "/dashboard/report",
-          label: t("CEA Report", "CEA izvestaj"),
-          description: t("LinkedIn-ready CEA market report", "CEA izvestaj spreman za LinkedIn"),
+          label: t("CEA Report", "CEA izveštaj"),
+          description: t("LinkedIn-ready CEA market report", "CEA izveštaj spreman za LinkedIn"),
         },
         {
           to: "/dashboard/insights",
-          label: t("Analytical Signals", "Analiticki signali"),
+          label: t("Analytical Signals", "Analitički signali"),
           description: t(
             "Serbia RES market signals and context",
-            "Signali i kontekst OIE trzista Srbije",
+            "Signali i kontekst OIE tržišta Srbije",
           ),
         },
         {
           to: "/dashboard/news",
           label: t("News & Policy", "Vesti i regulativa"),
-          description: t("Policy and market updates", "Regulatorne i trzisne vesti"),
+          description: t("Policy and market updates", "Regulatorne i tržišne vesti"),
         },
       ],
     },
@@ -144,7 +144,7 @@ export function DashboardTabs() {
           label: t("CBAM Export Calculator", "CBAM izvozni kalkulator"),
           description: t(
             "Carbon-cost impact on export economics",
-            "Uticaj troska ugljenika na izvoznu ekonomiku",
+            "Uticaj troška ugljenika na ekonomiku izvoza",
           ),
         },
       ],

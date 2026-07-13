@@ -202,7 +202,7 @@ function OverviewPage() {
           <>
             {t(
               "We could not retrieve the latest Serbian day-ahead price data for the selected period. Try retrying live data or selecting a different range.",
-              "Nismo uspeli da preuzmemo najnovije day-ahead cene Srbije za izabrani period. Pokusajte ponovo ili izaberite drugi opseg.",
+              "Nismo uspeli da preuzmemo najnovije day-ahead cene za Srbiju u izabranom periodu. Pokušajte ponovo ili izaberite drugi period.",
             )}
             {live.isError && <span className="mt-1 block text-critical">{String(live.error)}</span>}
           </>
@@ -245,7 +245,7 @@ function OverviewPage() {
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label={t("Baseload (period)", "Baseload (period)")}
+          label={t("Baseload (period)", "Bazna cena u periodu")}
           value={fmt(period.baseload)}
           unit="EUR/MWh"
           hint={methodology({
@@ -259,7 +259,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
-          label={t("Peakload (period)", "Peakload (period)")}
+          label={t("Peakload (period)", "Peakload u periodu")}
           value={fmt(period.peakload ?? NaN)}
           unit="EUR/MWh"
           hint={methodology({
@@ -273,7 +273,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
-          label={t("Negative hours", "Negativni sati")}
+          label={t("Negative hours", "Sati sa negativnom cenom")}
           value={period.negHours}
           unit={t("hours", "sati")}
           hint={methodology({
@@ -296,10 +296,18 @@ function OverviewPage() {
             formula: "Population standard deviation of hourly DA prices in the range.",
           })}
         />
-        <KpiCard label={t("Min hour", "Min sat")} value={fmt(period.minHour, 0)} unit="EUR/MWh" />
-        <KpiCard label={t("Max hour", "Max sat")} value={fmt(period.maxHour, 0)} unit="EUR/MWh" />
         <KpiCard
-          label={t("7-day baseload", "Baseload 7d")}
+          label={t("Min hour", "Najniži sat")}
+          value={fmt(period.minHour, 0)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Max hour", "Najviši sat")}
+          value={fmt(period.maxHour, 0)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("7-day baseload", "Bazna cena 7 dana")}
           value={fmt(baseload7)}
           unit="EUR/MWh"
           hint={methodology({
@@ -311,7 +319,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
-          label={t("30-day baseload", "Baseload 30d")}
+          label={t("30-day baseload", "Bazna cena 30 dana")}
           value={fmt(baseload30)}
           unit="EUR/MWh"
           hint={methodology({
@@ -329,7 +337,7 @@ function OverviewPage() {
           title={t("Hourly day-ahead price", "Satna day-ahead cena")}
           description={t(
             "Last 48 hours of SEEPEX-style hourly prices.",
-            "Poslednja 48 sati SEEPEX-style satnih cena.",
+            "Poslednjih 48 sati satnih cena u SEEPEX formatu.",
           )}
         >
           <ResponsiveContainer width="100%" height={280}>
@@ -351,10 +359,10 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
-          title={t("Daily baseload & peakload (period)", "Dnevni baseload i peakload (period)")}
+          title={t("Daily baseload & peakload (period)", "Dnevna bazna cena i peakload u periodu")}
           description={t(
             "In selected range. Peakload = Mon–Fri 08:00–20:00.",
-            "U izabranom opsegu. Peakload = Pon–Pet 08:00–20:00.",
+            "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.",
           )}
         >
           <ResponsiveContainer width="100%" height={280}>
@@ -367,7 +375,7 @@ function OverviewPage() {
               <Bar
                 dataKey="baseload"
                 fill="var(--color-chart-1)"
-                name={t("Baseload", "Baseload")}
+                name={t("Baseload", "Bazna cena")}
               />
               <Bar
                 dataKey="peakload"
@@ -378,7 +386,7 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Monthly baseload", "Mesečni baseload")}>
+        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -398,7 +406,9 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Negative price hours per month", "Sati negativnih cena po mesecu")}>
+        <ChartCard
+          title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -421,13 +431,13 @@ function OverviewPage() {
         <p className="text-muted-foreground">
           {t(
             "Baseload prices are computed as the simple mean of daily baseloads, where each daily baseload is the simple mean of that day's 24 hourly SEEPEX DA prices in Europe/Belgrade local time. Incomplete days (DST or today-so-far) are excluded so that month-to-date numbers are comparable with exchange-published averages.",
-            "Baseload cene se računaju kao prost prosek dnevnih baseload-a, gde je dnevni baseload prost prosek 24 satnih SEEPEX DA cena u lokalnom vremenu Europe/Belgrade. Nepotpuni dani (DST ili tekući dan) se izuzimaju kako bi MTD brojevi bili uporedivi sa zvaničnim prosecima berze.",
+            "Bazne cene se računaju kao prost prosek dnevnih baznih cena, pri čemu je dnevna bazna cena prost prosek satnih SEEPEX DA cena u lokalnom vremenu Europe/Belgrade. Nepotpuni dani, uključujući DST dane ili tekući dan, izuzimaju se kako bi MTD vrednosti bile uporedive sa berzanskim prosekom.",
           )}
         </p>
         <p className="text-muted-foreground">
           {t(
             "If you see a small gap vs SEEPEX WB — note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on any KPI to see exact range, hours included and last update.",
-            "Ako vidite malo odstupanje u odnosu na SEEPEX WB — SEEPEX WB je regionalna referenca Zapadnog Balkana; ova kontrolna tabla koristi srpsku zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na KPI-jevima za tačan opseg, sate i poslednje ažuriranje.",
+            "Ako vidite manje odstupanje u odnosu na SEEPEX WB, imajte u vidu da je SEEPEX WB regionalna referenca za Zapadni Balkan; ova platforma koristi srpsku bidding zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na KPI karticama za tačan period, uključene sate i poslednje ažuriranje.",
           )}
         </p>
       </div>

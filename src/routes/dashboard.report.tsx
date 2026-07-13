@@ -187,7 +187,7 @@ function TraderReportPage() {
         <DateRangeControl />
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
           <p className="text-sm text-muted-foreground">
-            {t("Building CEA report...", "Priprema CEA izvestaja...")}
+            {t("Building CEA report...", "Priprema CEA izveštaja...")}
           </p>
         </div>
       </div>
@@ -201,7 +201,7 @@ function TraderReportPage() {
         <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm">
           {t(
             "No report data is available for this period.",
-            "Nema dostupnih podataka za izvestaj u ovom periodu.",
+            "Nema dostupnih podataka za izveštaj u ovom periodu.",
           )}
         </div>
       </div>
@@ -222,11 +222,11 @@ function TraderReportPage() {
       <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl">{t("CEA Report", "CEA izvestaj")}</h2>
+            <h2 className="font-display text-3xl">{t("CEA Report", "CEA izveštaj")}</h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               {t(
                 "CEA-style market brief combining Serbia day-ahead prices, regional spreads, RES capture signals, BESS spreads and physical-flow period averages.",
-                "CEA market brief koji spaja Serbia day-ahead cene, regionalne spreadove, RES capture signale, BESS spreadove i proseke fizickih tokova za period.",
+                "CEA tržišni pregled koji objedinjuje day-ahead cene Srbije, regionalne spreadove, capture signale OIE, BESS spreadove i proseke fizičkih tokova za izabrani period.",
               )}
             </p>
           </div>
@@ -247,7 +247,7 @@ function TraderReportPage() {
             </Button>
             <Button size="sm" variant="outline" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
-              {t("Print", "Stampaj")}
+              {t("Print", "Štampaj")}
             </Button>
           </div>
         </div>
@@ -263,10 +263,10 @@ function TraderReportPage() {
       />
 
       <ChartCard
-        title={t("Desk Summary", "Desk Summary")}
+        title={t("Desk Summary", "Sažetak za trgovanje")}
         description={t(
           "Deterministic observations calculated from available report data. Missing inputs are skipped, not replaced with demo values.",
-          "Deterministicki zakljucci iz dostupnih podataka. Nedostajuci inputi se preskacu, ne zamenjuju demo vrednostima.",
+          "Deterministički zaključci iz dostupnih podataka. Nedostajući ulazni podaci se preskaču i ne zamenjuju demo vrednostima.",
         )}
         right={<PeriodBadge report={report} />}
       >
@@ -285,42 +285,69 @@ function TraderReportPage() {
           <p className="text-sm text-muted-foreground">
             {t(
               "No complete observations can be generated for this range.",
-              "Nema dovoljno podataka za zakljucke u ovom opsegu.",
+              "Nema dovoljno podataka za zaključke u ovom periodu.",
             )}
           </p>
         )}
       </ChartCard>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="RS baseload" value={fmt(rs?.baseload)} unit="EUR/MWh" />
-        <KpiCard label="RS peakload" value={fmt(rs?.peakload)} unit="EUR/MWh" />
-        <KpiCard label="RS volatility" value={fmt(rs?.volatility)} unit="EUR/MWh" />
-        <KpiCard label="Negative-price hours" value={rs?.negativeHours ?? "N/A"} />
-        <KpiCard label="RS min price" value={fmt(rs?.min)} unit="EUR/MWh" />
-        <KpiCard label="RS max price" value={fmt(rs?.max)} unit="EUR/MWh" />
         <KpiCard
-          label="RS vs HU"
+          label={t("RS baseload", "RS bazna cena")}
+          value={fmt(rs?.baseload)}
+          unit="EUR/MWh"
+        />
+        <KpiCard label={t("RS peakload", "RS peakload")} value={fmt(rs?.peakload)} unit="EUR/MWh" />
+        <KpiCard
+          label={t("RS volatility", "RS volatilnost")}
+          value={fmt(rs?.volatility)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Negative-price hours", "Sati sa negativnom cenom")}
+          value={rs?.negativeHours ?? "N/A"}
+        />
+        <KpiCard label={t("RS min price", "Najniža RS cena")} value={fmt(rs?.min)} unit="EUR/MWh" />
+        <KpiCard label={t("RS max price", "Najviša RS cena")} value={fmt(rs?.max)} unit="EUR/MWh" />
+        <KpiCard
+          label={t("RS vs HU", "RS u odnosu na HU")}
           value={
             rs?.baseload != null && hu?.baseload != null ? fmt(rs.baseload - hu.baseload) : "N/A"
           }
           unit="EUR/MWh"
         />
         <KpiCard
-          label="Largest RS spread"
+          label={t("Largest RS spread", "Najveći RS spread")}
           value={bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
           unit={bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
         />
-        <KpiCard label="Solar capture" value={fmt(capture?.solarCapture)} unit="EUR/MWh" />
-        <KpiCard label="Wind capture" value={fmt(capture?.windCapture)} unit="EUR/MWh" />
-        <KpiCard label="BESS 2h net" value={fmt(capture?.bessNet2h)} unit="EUR/MWh" />
-        <KpiCard label="BESS 4h net" value={fmt(capture?.bessNet4h)} unit="EUR/MWh" />
+        <KpiCard
+          label={t("Solar capture", "Solar capture")}
+          value={fmt(capture?.solarCapture)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Wind capture", "Wind capture")}
+          value={fmt(capture?.windCapture)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("BESS 2h net", "BESS 2h neto")}
+          value={fmt(capture?.bessNet2h)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("BESS 4h net", "BESS 4h neto")}
+          value={fmt(capture?.bessNet4h)}
+          unit="EUR/MWh"
+        />
       </div>
 
       <ChartCard
-        title={t("Serbia Daily Baseload Price", "Dnevna baseload cena Srbije")}
+        title={t("Serbia Daily Baseload Price", "Dnevna bazna cena Srbije")}
         description={t(
           "Arithmetic average of available Serbian hourly day-ahead prices per local Belgrade delivery day. Other markets remain in the Market Statistics table below.",
-          "Aritmeticki prosek dostupnih hourly day-ahead cena Srbije po lokalnom Belgrade delivery day. Ostala trzista su u tabeli Market Statistics ispod.",
+          "Aritmetički prosek dostupnih satnih day-ahead cena Srbije po lokalnom danu isporuke u vremenskoj zoni Europe/Belgrade. Ostala tržišta su prikazana u tabeli tržišne statistike ispod.",
         )}
       >
         {rsDailyBaseload.length ? (
@@ -360,10 +387,10 @@ function TraderReportPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ChartCard
-          title={t("Serbia Hourly Price Heatmap", "Hourly heatmap cena Srbije")}
+          title={t("Serbia Hourly Price Heatmap", "Satna heatmap cena Srbije")}
           description={t(
             "Rows are Belgrade delivery dates; columns are local hours 00-23.",
-            "Redovi su Belgrade delivery datumi; kolone su lokalni sati 00-23.",
+            "Redovi su datumi isporuke po vremenu u Beogradu; kolone su lokalni sati 00-23.",
           )}
         >
           {report.prices.serbiaHeatmap.length ? (
@@ -399,7 +426,7 @@ function TraderReportPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-red-500/45" /> negative
+                  <span className="h-3 w-3 rounded-sm bg-red-500/45" /> {t("negative", "negativno")}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span
@@ -408,22 +435,22 @@ function TraderReportPage() {
                       background: "linear-gradient(90deg, hsl(145 34% 88%), hsl(145 52% 40%))",
                     }}
                   />{" "}
-                  non-negative: lowest lightest
+                  {t("non-negative: lowest lightest", "nenegativno: najniže je najsvetlije")}
                 </span>
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {t("No Serbia hourly data available.", "Nema hourly podataka za Srbiju.")}
+              {t("No Serbia hourly data available.", "Nema satnih podataka za Srbiju.")}
             </p>
           )}
         </ChartCard>
 
         <ChartCard
-          title={t("RES Capture and BESS Signals", "RES capture i BESS signali")}
+          title={t("RES Capture and BESS Signals", "OIE capture i BESS signali")}
           description={t(
             "Capture uses Serbia day-ahead prices and available ENTSO-E generation inputs; solar may be modelled where ENTSO-E does not publish Serbia B16.",
-            "Capture koristi Serbia day-ahead cene i dostupne ENTSO-E podatke o proizvodnji; solar moze biti modelovan kada ENTSO-E ne objavljuje B16 za Srbiju.",
+            "Capture koristi day-ahead cene Srbije i dostupne ENTSO-E podatke o proizvodnji; solar može biti modelovan kada ENTSO-E ne objavljuje B16 za Srbiju.",
           )}
           right={
             report.capture.solarSource ? (
@@ -434,13 +461,22 @@ function TraderReportPage() {
           }
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <MiniMetric label="Solar capture rate" value={fmtPct(capture?.solarCaptureRate, 1)} />
-            <MiniMetric label="Wind capture rate" value={fmtPct(capture?.windCaptureRate, 1)} />
             <MiniMetric
-              label="Solar neg. exposure"
+              label={t("Solar capture rate", "Solar capture stopa")}
+              value={fmtPct(capture?.solarCaptureRate, 1)}
+            />
+            <MiniMetric
+              label={t("Wind capture rate", "Wind capture stopa")}
+              value={fmtPct(capture?.windCaptureRate, 1)}
+            />
+            <MiniMetric
+              label={t("Solar neg. exposure", "Izloženost solara negativnim cenama")}
               value={fmtPct(capture?.solarNegativeShare, 2)}
             />
-            <MiniMetric label="Wind neg. exposure" value={fmtPct(capture?.windNegativeShare, 2)} />
+            <MiniMetric
+              label={t("Wind neg. exposure", "Izloženost vetra negativnim cenama")}
+              value={fmtPct(capture?.windNegativeShare, 2)}
+            />
           </div>
           <div className="mt-5">
             {report.capture.daily.length ? (
@@ -460,7 +496,10 @@ function TraderReportPage() {
               </ResponsiveContainer>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {t("No RES capture inputs available.", "Nema RES capture inputa.")}
+                {t(
+                  "No RES capture inputs available.",
+                  "Nema dostupnih OIE capture ulaznih podataka.",
+                )}
               </p>
             )}
           </div>
@@ -468,29 +507,29 @@ function TraderReportPage() {
       </div>
 
       <ChartCard
-        title={t("Market Statistics", "Trzisna statistika")}
+        title={t("Market Statistics", "Tržišna statistika")}
         description={t(
           "Spreads and correlations use overlapping hourly timestamps only. RS spread = Serbia price minus comparison-market price.",
-          "Spreadovi i korelacije koriste samo poklopljene hourly timestampove. RS spread = cena Srbije minus cena uporednog trzista.",
+          "Spreadovi i korelacije koriste samo poklopljene satne vremenske oznake. RS spread = cena Srbije minus cena uporednog tržišta.",
         )}
       >
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border/60 text-left text-muted-foreground">
-                <th className="sticky left-0 bg-card py-2 pr-3">Market</th>
-                <th className="py-2 pr-3 text-right">Base</th>
-                <th className="py-2 pr-3 text-right">Peak</th>
-                <th className="py-2 pr-3 text-right">Offpeak</th>
+                <th className="sticky left-0 bg-card py-2 pr-3">{t("Market", "Tržište")}</th>
+                <th className="py-2 pr-3 text-right">{t("Base", "Bazna")}</th>
+                <th className="py-2 pr-3 text-right">{t("Peak", "Peak")}</th>
+                <th className="py-2 pr-3 text-right">{t("Offpeak", "Offpeak")}</th>
                 <th className="py-2 pr-3 text-right">Min</th>
                 <th className="py-2 pr-3 text-right">Max</th>
                 <th className="py-2 pr-3 text-right">Std</th>
-                <th className="py-2 pr-3 text-right">Neg h</th>
-                <th className="py-2 pr-3 text-right">Spread vs RS</th>
-                <th className="py-2 pr-3 text-right">Abs spread</th>
-                <th className="py-2 pr-3 text-right">Cheaper than RS</th>
-                <th className="py-2 pr-3 text-right">Corr vs RS</th>
-                <th className="py-2 pr-3 text-right">Hours</th>
+                <th className="py-2 pr-3 text-right">{t("Neg h", "Neg. sati")}</th>
+                <th className="py-2 pr-3 text-right">{t("Spread vs RS", "Spread vs RS")}</th>
+                <th className="py-2 pr-3 text-right">{t("Abs spread", "Aps. spread")}</th>
+                <th className="py-2 pr-3 text-right">{t("Cheaper than RS", "Jeftinije od RS")}</th>
+                <th className="py-2 pr-3 text-right">{t("Corr vs RS", "Korel. vs RS")}</th>
+                <th className="py-2 pr-3 text-right">{t("Hours", "Sati")}</th>
               </tr>
             </thead>
             <tbody>
@@ -524,7 +563,7 @@ function TraderReportPage() {
         <ChartCard
           title={t(
             "Serbia Physical-Flow Period Average",
-            "Prosek fizickih tokova Srbije za period",
+            "Prosek fizičkih tokova Srbije za period",
           )}
           description={report.flows.note}
         >
@@ -543,7 +582,9 @@ function TraderReportPage() {
                     <div className={f.netMw >= 0 ? "text-positive" : "text-warning"}>
                       {fmt(f.netMw, 0)} MW
                     </div>
-                    <div className="text-xs text-muted-foreground">abs {fmt(f.absMw, 0)} MW</div>
+                    <div className="text-xs text-muted-foreground">
+                      {t("abs", "aps.")} {fmt(f.absMw, 0)} MW
+                    </div>
                   </div>
                 </div>
               ))}
@@ -552,7 +593,7 @@ function TraderReportPage() {
             <p className="text-sm text-muted-foreground">
               {t(
                 "No physical-flow data available for this period.",
-                "Nema podataka o fizickim tokovima za ovaj period.",
+                "Nema podataka o fizičkim tokovima za ovaj period.",
               )}
             </p>
           )}
@@ -560,7 +601,10 @@ function TraderReportPage() {
 
         <ChartCard
           title={t("Data Coverage and Sources", "Pokrivenost podataka i izvori")}
-          description="No missing dataset is converted to zero."
+          description={t(
+            "No missing dataset is converted to zero.",
+            "Nijedan nedostajući skup podataka se ne pretvara u nulu.",
+          )}
         >
           <div className="space-y-2">
             {report.coverage.map((row) => (
@@ -578,17 +622,20 @@ function TraderReportPage() {
                 </div>
                 <div className="mt-1 grid gap-x-3 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                   <span>
-                    Rows: <span className="text-foreground">{row.rows}</span>
+                    {t("Rows", "Redova")}: <span className="text-foreground">{row.rows}</span>
                   </span>
                   <span>
-                    First: <span className="text-foreground">{row.firstTimestamp ?? "N/A"}</span>
+                    {t("First", "Prvi zapis")}:{" "}
+                    <span className="text-foreground">{row.firstTimestamp ?? "N/A"}</span>
                   </span>
                   <span>
-                    Last: <span className="text-foreground">{row.lastTimestamp ?? "N/A"}</span>
+                    {t("Last", "Poslednji zapis")}:{" "}
+                    <span className="text-foreground">{row.lastTimestamp ?? "N/A"}</span>
                   </span>
                   {row.message ? (
                     <span className="sm:col-span-2">
-                      Note: <span className="text-foreground">{row.message}</span>
+                      {t("Note", "Napomena")}:{" "}
+                      <span className="text-foreground">{row.message}</span>
                     </span>
                   ) : null}
                 </div>
@@ -601,7 +648,7 @@ function TraderReportPage() {
       <p className="text-xs text-muted-foreground">
         {t(
           "Indicative trading analytics before losses, fees, nomination constraints, balancing costs, taxes and other transaction costs.",
-          "Indikativna trading analitika pre gubitaka, naknada, nominacionih ogranicenja, balancing troskova, poreza i drugih troskova transakcije.",
+          "Indikativna tržišna analitika pre gubitaka, naknada, nominacionih ograničenja, balancing troškova, poreza i drugih transakcionih troškova.",
         )}
       </p>
     </div>

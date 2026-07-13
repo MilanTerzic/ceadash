@@ -52,7 +52,13 @@ export function DataStatusBanner({
   missingDays?: number;
   reasons?: string[];
   incompleteDayList?: string[];
-  failedFetches?: { day: string; reason: string; status?: number; message?: string; attempts?: number }[];
+  failedFetches?: {
+    day: string;
+    reason: string;
+    status?: number;
+    message?: string;
+    attempts?: number;
+  }[];
   totalSelectedDays?: number;
   attemptedDaysCount?: number;
   fetchedDaysCount?: number;
@@ -67,9 +73,9 @@ export function DataStatusBanner({
 
   // Detect partial coverage: selected range extends past what we actually loaded.
   const partial =
-    !!selectedFrom && !!selectedTo &&
-    (!availableFrom || !availableTo ||
-      availableFrom > selectedFrom || availableTo < selectedTo);
+    !!selectedFrom &&
+    !!selectedTo &&
+    (!availableFrom || !availableTo || availableFrom > selectedFrom || availableTo < selectedTo);
 
   const isLive = source === "entsoe" && !partial;
   const isCache = source === "cache" && !partial;
@@ -88,9 +94,9 @@ export function DataStatusBanner({
   const statusLabel = isNone
     ? t("Data unavailable", "Podaci nedostupni")
     : isPartial
-      ? t("Partial ENTSO-E coverage", "Delimična ENTSO-E pokrivenost")
+      ? t("Partial ENTSO-E coverage", "Delimična pokrivenost ENTSO-E podacima")
       : isLive
-        ? t("Complete ENTSO-E coverage", "Kompletna ENTSO-E pokrivenost")
+        ? t("Complete ENTSO-E coverage", "Potpuna pokrivenost ENTSO-E podacima")
         : t("Cached only", "Samo iz keša");
 
   const hasDiagnostics =
@@ -112,70 +118,84 @@ export function DataStatusBanner({
       await navigator.clipboard.writeText(computedDebug);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   return (
     <div className="space-y-2">
-      <div className={`rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-x-6 gap-y-1 ${tone}`}>
-      <span className="inline-flex items-center gap-2 font-medium">
-        <Icon className="h-4 w-4" />
-        {statusLabel}
-      </span>
-      <span className="text-muted-foreground">
-        {t("Source: ", "Izvor: ")}
-        <span className="text-foreground">{marketArea}</span>
-      </span>
-      <span className="text-muted-foreground">
-        {t("Time zone: ", "Vremenska zona: ")}
-        <span className="text-foreground">Europe/Belgrade (CET/CEST)</span>
-      </span>
-      {selectedFrom && selectedTo && (
-        <span className="text-muted-foreground">
-          {t("Selected: ", "Izabrano: ")}
-          <span className="text-foreground">{selectedFrom} → {selectedTo}</span>
+      <div
+        className={`rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-x-6 gap-y-1 ${tone}`}
+      >
+        <span className="inline-flex items-center gap-2 font-medium">
+          <Icon className="h-4 w-4" />
+          {statusLabel}
         </span>
-      )}
-      {availableFrom && availableTo && (
         <span className="text-muted-foreground">
-          {t("Loaded: ", "Učitano: ")}
-          <span className="text-foreground">{availableFrom} → {availableTo}</span>
+          {t("Source: ", "Izvor: ")}
+          <span className="text-foreground">{marketArea}</span>
         </span>
-      )}
-      {lastUpdate && (
         <span className="text-muted-foreground">
-          {t("Latest hour: ", "Najnoviji sat: ")}
-          <span className="text-foreground">{formatHourStamp(lastUpdate)}</span>
+          {t("Time zone: ", "Vremenska zona: ")}
+          <span className="text-foreground">Europe/Belgrade (CET/CEST)</span>
         </span>
-      )}
-      <span className="text-muted-foreground">
-        {hours.toLocaleString()} {t("hourly observations", "satnih opservacija")} · {completeDays}{" "}
-        {t("complete day(s)", "kompletnih dana")}
-        {incompleteDays > 0 && (
-          <span className="text-warning"> · {incompleteDays} {t("incomplete", "nepotpunih")}</span>
+        {selectedFrom && selectedTo && (
+          <span className="text-muted-foreground">
+            {t("Selected: ", "Izabrano: ")}
+            <span className="text-foreground">
+              {selectedFrom} → {selectedTo}
+            </span>
+          </span>
         )}
-        {missingDays != null && missingDays > 0 && (
-          <span className="text-warning"> · {missingDays} {t("missing selected day(s)", "izabranih dana nedostaje")}</span>
+        {availableFrom && availableTo && (
+          <span className="text-muted-foreground">
+            {t("Loaded: ", "Učitano: ")}
+            <span className="text-foreground">
+              {availableFrom} → {availableTo}
+            </span>
+          </span>
         )}
-      </span>
-      {isPartial && selectedFrom && selectedTo && (
-        <span className="basis-full text-warning text-xs">
-          {t(
-            `Selected period is not fully covered by available data. Baseload is calculated only from available complete days: ${availableFrom ?? "?"} → ${availableTo ?? "?"}.`,
-            `Izabrani period nije potpuno pokriven dostupnim podacima. Baseload se računa samo iz dostupnih kompletnih dana: ${availableFrom ?? "?"} → ${availableTo ?? "?"}.`,
+        {lastUpdate && (
+          <span className="text-muted-foreground">
+            {t("Latest hour: ", "Najnoviji sat: ")}
+            <span className="text-foreground">{formatHourStamp(lastUpdate)}</span>
+          </span>
+        )}
+        <span className="text-muted-foreground">
+          {hours.toLocaleString()} {t("hourly observations", "satnih zapisa")} · {completeDays}{" "}
+          {t("complete day(s)", "potpunih dana")}
+          {incompleteDays > 0 && (
+            <span className="text-warning">
+              {" "}
+              · {incompleteDays} {t("incomplete", "nepotpunih")}
+            </span>
+          )}
+          {missingDays != null && missingDays > 0 && (
+            <span className="text-warning">
+              {" "}
+              · {missingDays} {t("missing selected day(s)", "izabranih dana bez podataka")}
+            </span>
           )}
         </span>
-      )}
-      {incompleteDayList && incompleteDayList.length > 0 && (
-        <span className="basis-full text-warning text-xs">
-          {t("Incomplete days excluded: ", "Nepotpuni dani izuzeti: ")}
-          {incompleteDayList.slice(0, 8).join(", ")}
-          {incompleteDayList.length > 8 ? ` (+${incompleteDayList.length - 8})` : ""}
-        </span>
-      )}
-      {warning && !incompleteDayList?.length && (
-        <span className="basis-full text-warning text-xs">{warning}</span>
-      )}
+        {isPartial && selectedFrom && selectedTo && (
+          <span className="basis-full text-warning text-xs">
+            {t(
+              `Selected period is not fully covered by available data. Baseload is calculated only from available complete days: ${availableFrom ?? "?"} → ${availableTo ?? "?"}.`,
+              `Izabrani period nije potpuno pokriven dostupnim podacima. Bazna cena se računa samo iz dostupnih potpunih dana: ${availableFrom ?? "?"} → ${availableTo ?? "?"}.`,
+            )}
+          </span>
+        )}
+        {incompleteDayList && incompleteDayList.length > 0 && (
+          <span className="basis-full text-warning text-xs">
+            {t("Incomplete days excluded: ", "Nepotpuni dani izuzeti: ")}
+            {incompleteDayList.slice(0, 8).join(", ")}
+            {incompleteDayList.length > 8 ? ` (+${incompleteDayList.length - 8})` : ""}
+          </span>
+        )}
+        {warning && !incompleteDayList?.length && (
+          <span className="basis-full text-warning text-xs">{warning}</span>
+        )}
       </div>
 
       {hasDiagnostics && (
@@ -186,12 +206,16 @@ export function DataStatusBanner({
             className="w-full flex items-center justify-between gap-2 px-4 py-2 text-left"
           >
             <span className="inline-flex items-center gap-2 font-medium">
-              {diagOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              {diagOpen ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
               {t("ENTSO-E fetch diagnostics", "ENTSO-E dijagnostika preuzimanja")}
             </span>
             <span className="text-muted-foreground">
-              {failedFetches?.length ?? 0} {t("failed", "neuspešnih")} ·{" "}
-              {fetchedDaysCount ?? 0}/{attemptedDaysCount ?? 0} {t("fetched", "preuzeto")}
+              {failedFetches?.length ?? 0} {t("failed", "neuspešnih")} · {fetchedDaysCount ?? 0}/
+              {attemptedDaysCount ?? 0} {t("fetched", "preuzeto")}
               {capReached && maxFetchPerCall
                 ? ` · ${t(`cap ${maxFetchPerCall}`, `limit ${maxFetchPerCall}`)}`
                 : ""}
@@ -200,24 +224,55 @@ export function DataStatusBanner({
           {diagOpen && (
             <div className="px-4 pb-3 space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-muted-foreground">
-                <div>{t("Selected days", "Izabrani dani")}: <span className="text-foreground">{totalSelectedDays ?? "—"}</span></div>
-                <div>{t("Complete", "Kompletni")}: <span className="text-foreground">{completeDays}</span></div>
-                <div>{t("Incomplete", "Nepotpuni")}: <span className="text-foreground">{incompleteDays}</span></div>
-                <div>{t("Missing", "Nedostaje")}: <span className="text-foreground">{missingDays ?? 0}</span></div>
-                <div>{t("Attempted this run", "Pokušano ovog puta")}: <span className="text-foreground">{attemptedDaysCount ?? 0}</span></div>
-                <div>{t("Fetched", "Preuzeto")}: <span className="text-foreground">{fetchedDaysCount ?? 0}</span></div>
-                <div>{t("Failed", "Neuspešno")}: <span className="text-foreground">{failedFetches?.length ?? 0}</span></div>
-                <div>{t("Per-call cap", "Limit po pozivu")}: <span className="text-foreground">{maxFetchPerCall ?? "—"}{capReached ? " ⚠︎" : ""}</span></div>
+                <div>
+                  {t("Selected days", "Izabrani dani")}:{" "}
+                  <span className="text-foreground">{totalSelectedDays ?? "—"}</span>
+                </div>
+                <div>
+                  {t("Complete", "Potpuni")}:{" "}
+                  <span className="text-foreground">{completeDays}</span>
+                </div>
+                <div>
+                  {t("Incomplete", "Nepotpuni")}:{" "}
+                  <span className="text-foreground">{incompleteDays}</span>
+                </div>
+                <div>
+                  {t("Missing", "Nedostaje")}:{" "}
+                  <span className="text-foreground">{missingDays ?? 0}</span>
+                </div>
+                <div>
+                  {t("Attempted this run", "Pokušano ovog puta")}:{" "}
+                  <span className="text-foreground">{attemptedDaysCount ?? 0}</span>
+                </div>
+                <div>
+                  {t("Fetched", "Preuzeto")}:{" "}
+                  <span className="text-foreground">{fetchedDaysCount ?? 0}</span>
+                </div>
+                <div>
+                  {t("Failed", "Neuspešno")}:{" "}
+                  <span className="text-foreground">{failedFetches?.length ?? 0}</span>
+                </div>
+                <div>
+                  {t("Per-call cap", "Limit po pozivu")}:{" "}
+                  <span className="text-foreground">
+                    {maxFetchPerCall ?? "—"}
+                    {capReached ? " ⚠︎" : ""}
+                  </span>
+                </div>
               </div>
 
               {failureCounts && Object.keys(failureCounts).length > 0 && (
                 <div>
-                  <div className="font-medium mb-0.5">{t("Failures by reason", "Greške po razlogu")}</div>
+                  <div className="font-medium mb-0.5">
+                    {t("Failures by reason", "Greške po razlogu")}
+                  </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
                     {Object.entries(failureCounts)
                       .sort((a, b) => b[1] - a[1])
                       .map(([r, n]) => (
-                        <span key={r}>{r}: {n}</span>
+                        <span key={r}>
+                          {r}: {n}
+                        </span>
                       ))}
                   </div>
                 </div>
@@ -226,7 +281,8 @@ export function DataStatusBanner({
               {failedFetches && failedFetches.length > 0 && (
                 <div>
                   <div className="font-medium mb-0.5">
-                    {t("First failed days", "Prvi neuspešni dani")} ({Math.min(20, failedFetches.length)}/{failedFetches.length})
+                    {t("First failed days", "Prvi neuspešni dani")} (
+                    {Math.min(20, failedFetches.length)}/{failedFetches.length})
                   </div>
                   <div className="max-h-48 overflow-auto font-mono leading-5">
                     {failedFetches.slice(0, 20).map((f) => (

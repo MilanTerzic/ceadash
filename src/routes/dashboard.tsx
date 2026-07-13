@@ -38,13 +38,13 @@ function DashboardLayout() {
             <h1 className="mt-1 font-display text-3xl text-foreground md:text-4xl">
               {t(
                 "Serbia Electricity Market Intelligence",
-                "Intelligence trzista elektricne energije Srbije",
+                "Analitika tržišta električne energije Srbije",
               )}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               {t(
                 "Prices, renewable capture, cross-border signals, project economics and CEA market intelligence in one workspace.",
-                "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analiza u jednom radnom prostoru.",
+                "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analitika u jednom radnom prostoru.",
               )}
             </p>
           </div>
