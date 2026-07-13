@@ -70,7 +70,6 @@ export function useRequestedRangeKeys(): { fromKey: string; toKey: string; prese
   return { fromKey: fmt(from), toKey: fmt(to), preset };
 }
 
-
 export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable?: Date }) {
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
   const navigate = useNavigate();
@@ -89,14 +88,19 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
       return { from: new Date(search.from), to: new Date(search.to) };
     }
     return presetRange("30d", today);
-  // today is intentionally excluded from deps — a new Date() each render is fine
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // today is intentionally excluded from deps — a new Date() each render is fine
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset, search.from, search.to]);
 
   const setPreset = (p: PresetKey) => {
     navigate({
       to: ".",
-      search: (prev: Record<string, unknown>) => ({ ...prev, preset: p, from: undefined, to: undefined }),
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        preset: p,
+        from: undefined,
+        to: undefined,
+      }),
       replace: true,
     });
   };
@@ -162,7 +166,7 @@ export function DateRangeControl({
       to: ".",
       search: (prev: Record<string, unknown>) => ({
         ...prev,
-        preset: "custom",
+        preset: "custom" as const,
         from: belgradeDayKey(from),
         to: belgradeDayKey(to),
       }),
@@ -210,7 +214,10 @@ export function DateRangeControl({
               <div className="pointer-events-auto space-y-4 p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="analysis-from" className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label
+                      htmlFor="analysis-from"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
                       {t("From", "Od")}
                     </Label>
                     <Input
@@ -223,7 +230,10 @@ export function DateRangeControl({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="analysis-to" className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label
+                      htmlFor="analysis-to"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
                       {t("To", "Do")}
                     </Label>
                     <Input
@@ -239,10 +249,18 @@ export function DateRangeControl({
                 <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
                   <span className="text-xs text-muted-foreground">
                     {!canApply && draftFromKey && draftToKey
-                      ? t("End date must be after start date", "Krajnji datum mora biti posle početnog")
+                      ? t(
+                          "End date must be after start date",
+                          "Krajnji datum mora biti posle početnog",
+                        )
                       : t("Choose both dates, then apply", "Izaberite oba datuma, zatim primenite")}
                   </span>
-                  <Button size="sm" className="h-8 px-3 text-xs" disabled={!canApply} onClick={handleApply}>
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    disabled={!canApply}
+                    onClick={handleApply}
+                  >
                     {t("Apply", "Primeni")}
                   </Button>
                 </div>

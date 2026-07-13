@@ -183,3 +183,27 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  html, body {
+    background: white !important;
+    color: #1f241f !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  section,
+  table,
+  tr,
+  .rounded-2xl,
+  .rounded-xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .shadow-card {
+    box-shadow: none !important;
+  }
+}
