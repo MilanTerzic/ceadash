@@ -703,7 +703,10 @@ function LinkedInReportCard({
           </div>
 
           <div className="mt-7 grid grid-cols-[1.05fr_0.95fr] gap-7">
-            <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
+            <div className="space-y-5">
+              <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
+              <LinkedInDeskSummary lines={report.deskSummary} />
+            </div>
             <LinkedInFlowSnapshot rows={report.flows.latest24h} />
           </div>
         </div>
@@ -865,6 +868,30 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
       ) : (
         <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-5 text-lg text-muted-foreground">
           No Serbia hourly data
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedInDeskSummary({ lines }: { lines: string[] }) {
+  const compactLines = lines.slice(0, 3);
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6">
+      <div className="text-sm uppercase tracking-widest text-muted-foreground">Desk Signals</div>
+      {compactLines.length ? (
+        <div className="mt-4 space-y-3">
+          {compactLines.map((line) => (
+            <div key={line} className="grid grid-cols-[12px_1fr] gap-3 text-base leading-snug">
+              <span className="mt-2 h-2 w-2 rounded-full bg-primary" />
+              <span>{line}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+          No desk summary available for this period.
         </div>
       )}
     </div>
