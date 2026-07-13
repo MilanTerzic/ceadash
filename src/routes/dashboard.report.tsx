@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toJpeg } from "html-to-image";
 import {
@@ -42,19 +42,6 @@ export const Route = createFileRoute("/dashboard/report")({
   }),
   component: TraderReportPage,
 });
-
-const MARKET_COLORS = [
-  "var(--color-chart-1)",
-  "var(--color-chart-2)",
-  "var(--color-chart-3)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
-  "var(--color-chart-6)",
-  "oklch(0.58 0.10 150)",
-  "oklch(0.58 0.09 300)",
-  "oklch(0.62 0.13 55)",
-  "oklch(0.48 0.06 210)",
-];
 
 function fmt(v: number | null | undefined, digits = 1) {
   return v == null || !Number.isFinite(v) ? "N/A" : v.toFixed(digits);
@@ -136,10 +123,6 @@ function TraderReportPage() {
   });
 
   const report = reportQuery.data;
-  const zones = useMemo(
-    () => report?.prices.marketSummary.map((m) => m.zone) ?? [],
-    [report?.prices.marketSummary],
-  );
   const rs = report?.prices.marketSummary.find((m) => m.zone === "RS");
   const hu = report?.prices.marketSummary.find((m) => m.zone === "HU");
   const capture = report?.capture.summary ?? null;
@@ -200,6 +183,10 @@ function TraderReportPage() {
       </div>
     );
   }
+
+  const rsDailyBaseload = report.prices.dailyBaseload.filter(
+    (row) => typeof row.RS === "number" && Number.isFinite(row.RS),
+  );
 
   return (
     <div className="space-y-6 print:bg-white">
@@ -305,44 +292,43 @@ function TraderReportPage() {
       </div>
 
       <ChartCard
-        title={t("Daily Baseload Prices by Market", "Dnevne baseload cene po trzistu")}
+        title={t("Serbia Daily Baseload Price", "Dnevna baseload cena Srbije")}
         description={t(
-          "Arithmetic average of available hourly day-ahead prices per local Belgrade delivery day.",
-          "Aritmeticki prosek dostupnih hourly day-ahead cena po lokalnom Belgrade delivery day.",
+          "Arithmetic average of available Serbian hourly day-ahead prices per local Belgrade delivery day. Other markets remain in the Market Statistics table below.",
+          "Aritmeticki prosek dostupnih hourly day-ahead cena Srbije po lokalnom Belgrade delivery day. Ostala trzista su u tabeli Market Statistics ispod.",
         )}
       >
-        {report.prices.dailyBaseload.length ? (
+        {rsDailyBaseload.length ? (
           <ResponsiveContainer width="100%" height={360}>
-            <LineChart data={report.prices.dailyBaseload}>
+            <LineChart data={rsDailyBaseload}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
               />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} unit=" EUR" />
-              <RTooltip />
-              <Legend />
-              {zones.map((zone, idx) => (
-                <Line
-                  key={zone}
-                  type="monotone"
-                  dataKey={zone}
-                  name={zone}
-                  stroke={
-                    zone === "RS"
-                      ? "var(--color-primary)"
-                      : MARKET_COLORS[idx % MARKET_COLORS.length]
-                  }
-                  strokeWidth={zone === "RS" ? 3 : 1.7}
-                  dot={false}
-                  connectNulls
-                />
-              ))}
+              <RTooltip
+                formatter={(value) => [
+                  typeof value === "number" ? `${value.toFixed(2)} EUR/MWh` : "N/A",
+                  "RS",
+                ]}
+                labelFormatter={(label) => `Delivery day ${label}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="RS"
+                name="RS"
+                stroke="var(--color-primary)"
+                strokeWidth={3}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {t("No price data available.", "Nema dostupnih cena.")}
+            {t("No Serbia price data available.", "Nema dostupnih cena za Srbiju.")}
           </p>
         )}
       </ChartCard>
