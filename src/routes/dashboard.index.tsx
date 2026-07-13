@@ -14,27 +14,38 @@ import {
   Bar,
   ReferenceLine,
 } from "recharts";
-import { KpiCard, ChartCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import {
+  ChartCard,
+  DataUnavailableState,
+  KpiCard,
+  PageLoadingSkeleton,
+} from "@/components/dashboard/atoms";
+import {
+  DateRangeControl,
+  useDashboardRange,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
-import {
-  bucketByBelgradeDay,
-  aggregatePeriod,
-  type HourlyPrice,
-} from "@/lib/baseload";
+import { bucketByBelgradeDay, aggregatePeriod, type HourlyPrice } from "@/lib/baseload";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
     meta: [
       { title: "Overview — CEA Power Dashboard" },
-      { name: "description", content: "Key Serbian power market and renewable indicators at a glance." },
+      {
+        name: "description",
+        content: "Key Serbian power market and renewable indicators at a glance.",
+      },
       { property: "og:title", content: "Overview — CEA Power Dashboard" },
-      { property: "og:description", content: "Key Serbian power market and renewable indicators at a glance." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard" },
+      {
+        property: "og:description",
+        content: "Key Serbian power market and renewable indicators at a glance.",
+      },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard" }],
   }),
   component: OverviewPage,
 });
@@ -52,13 +63,28 @@ function methodology(opts: {
   return (
     <div className="space-y-1.5">
       <div className="font-medium">{opts.metric}</div>
-      <div><span className="text-muted-foreground">Source:</span> ENTSO-E DA (Serbia SEEPEX, EIC 10YCS-SERBIATSOV)</div>
-      <div><span className="text-muted-foreground">Range:</span> {opts.range}</div>
-      <div><span className="text-muted-foreground">Time zone:</span> Europe/Belgrade</div>
-      <div><span className="text-muted-foreground">Method:</span> {opts.formula}</div>
-      <div><span className="text-muted-foreground">Sample:</span> {opts.hours} hours · {opts.days} complete day(s)</div>
+      <div>
+        <span className="text-muted-foreground">Source:</span> ENTSO-E DA (Serbia SEEPEX, EIC
+        10YCS-SERBIATSOV)
+      </div>
+      <div>
+        <span className="text-muted-foreground">Range:</span> {opts.range}
+      </div>
+      <div>
+        <span className="text-muted-foreground">Time zone:</span> Europe/Belgrade
+      </div>
+      <div>
+        <span className="text-muted-foreground">Method:</span> {opts.formula}
+      </div>
+      <div>
+        <span className="text-muted-foreground">Sample:</span> {opts.hours} hours · {opts.days}{" "}
+        complete day(s)
+      </div>
       {opts.lastUpdate && (
-        <div><span className="text-muted-foreground">Updated:</span> {opts.lastUpdate.toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}</div>
+        <div>
+          <span className="text-muted-foreground">Updated:</span>{" "}
+          {opts.lastUpdate.toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}
+        </div>
       )}
     </div>
   );
@@ -68,8 +94,14 @@ function OverviewPage() {
   const { t } = useLang();
   const requestedRange = useRequestedRangeKeys();
   const live = useQuery({
-    queryKey: ["market-prices", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
-    queryFn: () => fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
+    queryKey: [
+      "market-prices",
+      requestedRange.fromKey,
+      requestedRange.toKey,
+      requestedRange.preset,
+    ],
+    queryFn: () =>
+      fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -96,7 +128,9 @@ function OverviewPage() {
   const last7 = useMemo(() => completeDays.slice(-7), [completeDays]);
   const last30 = useMemo(() => completeDays.slice(-30), [completeDays]);
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
-  const baseload30 = last30.length ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length : NaN;
+  const baseload30 = last30.length
+    ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length
+    : NaN;
 
   // Monthly series — every month spanned by the selected analysis range
   const monthly = useMemo(() => {
@@ -114,11 +148,15 @@ function OverviewPage() {
     const months: string[] = [];
     const [fy, fm] = fromKey.split("-").map(Number);
     const [ty, tm] = toKey.split("-").map(Number);
-    let y = fy, m = fm;
+    let y = fy,
+      m = fm;
     while (y < ty || (y === ty && m <= tm)) {
       months.push(`${y}-${String(m).padStart(2, "0")}`);
       m += 1;
-      if (m > 12) { m = 1; y += 1; }
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
     }
     const sameYear = fy === ty;
     return months.map((ym) => {
@@ -154,14 +192,23 @@ function OverviewPage() {
   );
 
   if (live.isLoading) {
-    return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
+    return <PageLoadingSkeleton />;
   }
   if (!hasReal) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {t("Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.", "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.")}
-        {live.isError && <span className="block mt-1 text-critical">{String(live.error)}</span>}
-      </p>
+      <DataUnavailableState
+        title={t("Live ENTSO-E data unavailable", "ENTSO-E podaci trenutno nisu dostupni")}
+        description={
+          <>
+            {t(
+              "We could not retrieve the latest Serbian day-ahead price data for the selected period. Try retrying live data or selecting a different range.",
+              "Nismo uspeli da preuzmemo najnovije day-ahead cene Srbije za izabrani period. Pokusajte ponovo ili izaberite drugi opseg.",
+            )}
+            {live.isError && <span className="mt-1 block text-critical">{String(live.error)}</span>}
+          </>
+        }
+        onRetry={() => live.refetch()}
+      />
     );
   }
 
@@ -194,8 +241,6 @@ function OverviewPage() {
         debugSummary={live.data?.debugSummary}
       />
 
-
-
       <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -208,7 +253,8 @@ function OverviewPage() {
             range: rangeLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
-            formula: "Mean of daily baseloads (each = mean of 24 hourly prices) over complete days only.",
+            formula:
+              "Mean of daily baseloads (each = mean of 24 hourly prices) over complete days only.",
             lastUpdate: lastTs,
           })}
         />
@@ -221,7 +267,8 @@ function OverviewPage() {
             range: rangeLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
-            formula: "Mean of daily peakloads (Mon–Fri 08:00–20:00 Europe/Belgrade) over complete days.",
+            formula:
+              "Mean of daily peakloads (Mon–Fri 08:00–20:00 Europe/Belgrade) over complete days.",
             lastUpdate: lastTs,
           })}
         />
@@ -280,7 +327,10 @@ function OverviewPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
           title={t("Hourly day-ahead price", "Satna day-ahead cena")}
-          description={t("Last 48 hours of SEEPEX-style hourly prices.", "Poslednja 48 sati SEEPEX-style satnih cena.")}
+          description={t(
+            "Last 48 hours of SEEPEX-style hourly prices.",
+            "Poslednja 48 sati SEEPEX-style satnih cena.",
+          )}
         >
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
@@ -289,14 +339,23 @@ function OverviewPage() {
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="price" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} />
+              <Line
+                type="monotone"
+                dataKey="price"
+                stroke="var(--color-chart-1)"
+                strokeWidth={2}
+                dot={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard
           title={t("Daily baseload & peakload (period)", "Dnevni baseload i peakload (period)")}
-          description={t("In selected range. Peakload = Mon–Fri 08:00–20:00.", "U izabranom opsegu. Peakload = Pon–Pet 08:00–20:00.")}
+          description={t(
+            "In selected range. Peakload = Mon–Fri 08:00–20:00.",
+            "U izabranom opsegu. Peakload = Pon–Pet 08:00–20:00.",
+          )}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={inRangeDaily}>
@@ -305,8 +364,16 @@ function OverviewPage() {
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Legend />
-              <Bar dataKey="baseload" fill="var(--color-chart-1)" name={t("Baseload", "Baseload")} />
-              <Bar dataKey="peakload" fill="var(--color-chart-3)" name={t("Peakload", "Peakload")} />
+              <Bar
+                dataKey="baseload"
+                fill="var(--color-chart-1)"
+                name={t("Baseload", "Baseload")}
+              />
+              <Bar
+                dataKey="peakload"
+                fill="var(--color-chart-3)"
+                name={t("Peakload", "Peakload")}
+              />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -315,10 +382,18 @@ function OverviewPage() {
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
-              <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-2)" strokeWidth={2} />
+              <Line
+                type="monotone"
+                dataKey="baseload"
+                stroke="var(--color-chart-2)"
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -327,7 +402,10 @@ function OverviewPage() {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Bar dataKey="negHours" fill="var(--color-critical)" />
@@ -337,7 +415,9 @@ function OverviewPage() {
       </div>
 
       <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card text-sm space-y-2">
-        <h3 className="font-display text-lg">{t("Data check & methodology", "Provera podataka i metodologija")}</h3>
+        <h3 className="font-display text-lg">
+          {t("Data check & methodology", "Provera podataka i metodologija")}
+        </h3>
         <p className="text-muted-foreground">
           {t(
             "Baseload prices are computed as the simple mean of daily baseloads, where each daily baseload is the simple mean of that day's 24 hourly SEEPEX DA prices in Europe/Belgrade local time. Incomplete days (DST or today-so-far) are excluded so that month-to-date numbers are comparable with exchange-published averages.",

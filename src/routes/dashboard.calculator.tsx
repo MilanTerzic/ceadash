@@ -39,9 +39,9 @@ export const Route = createFileRoute("/dashboard/calculator")({
       { name: "description", content: "Estimate merchant and PPA revenue, LCOE, IRR, NPV and capture price for solar projects in Serbia." },
       { property: "og:title", content: "Solar Project Calculator — CEA Power Dashboard" },
       { property: "og:description", content: "Estimate merchant and PPA revenue, LCOE, IRR, NPV and capture price for solar projects in Serbia." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/calculator" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/calculator" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/calculator" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/calculator" }],
   }),
   component: CalculatorPage,
 });

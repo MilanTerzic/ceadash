@@ -10,9 +10,9 @@ export const Route = createFileRoute("/dashboard/insights")({
       { name: "description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
       { property: "og:title", content: "Market Insights — CEA Power Dashboard" },
       { property: "og:description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/insights" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/insights" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/insights" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/insights" }],
   }),
   component: InsightsPage,
 });

@@ -38,9 +38,9 @@ export const Route = createFileRoute("/dashboard/regional")({
         content:
           "Day-ahead electricity prices and cross-border power flows for Serbia and surrounding markets, sourced from ENTSO-E.",
       },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/regional" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/regional" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/regional" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/regional" }],
   }),
   component: RegionalPage,
 });

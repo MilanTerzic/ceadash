@@ -8,9 +8,9 @@ export const Route = createFileRoute("/dashboard/methodology")({
       { name: "description", content: "Data sources, formulas and assumptions used in the CEA Power Dashboard." },
       { property: "og:title", content: "Methodology — CEA Power Dashboard" },
       { property: "og:description", content: "Data sources, formulas and assumptions used in the CEA Power Dashboard." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/methodology" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/methodology" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/methodology" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/methodology" }],
   }),
   component: MethPage,
 });

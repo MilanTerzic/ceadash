@@ -345,7 +345,7 @@ const LinkedInCard = ({
         </p>
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-4">
           <span>Source: ENTSO-E DA · Serbia SEEPEX · Europe/Belgrade</span>
-          <span>ceadash.lovable.app</span>
+          <span>dashboard.cea.org.rs</span>
         </div>
       </div>
     </div>

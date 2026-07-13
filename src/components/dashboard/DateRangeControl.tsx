@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Clock3, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +133,7 @@ export function DateRangeControl({
   const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
 
   const [open, setOpen] = useState(false);
+  const [comparison, setComparison] = useState("previous_equivalent");
   const [draftFromKey, setDraftFromKey] = useState(range ? belgradeDayKey(range.from) : "");
   const [draftToKey, setDraftToKey] = useState(range ? belgradeDayKey(range.to) : "");
 
@@ -292,12 +293,45 @@ export function DateRangeControl({
             {t("Custom", "Prilagođeno")}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground max-w-md">
+        <div className="min-w-[220px]">
+          <Label
+            htmlFor="compare-with"
+            className="text-xs uppercase tracking-wider text-muted-foreground"
+          >
+            {t("Compare with", "Poredi sa")}
+          </Label>
+          <select
+            id="compare-with"
+            value={comparison}
+            onChange={(event) => setComparison(event.target.value)}
+            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground"
+          >
+            <option value="previous_equivalent">
+              {t("Previous equivalent period", "Prethodni ekvivalentni period")}
+            </option>
+            <option value="previous_month">{t("Previous month", "Prethodni mesec")}</option>
+            <option value="previous_year">{t("Previous year", "Prethodna godina")}</option>
+            <option value="none">{t("No comparison", "Bez poredjenja")}</option>
+          </select>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarIcon className="h-3.5 w-3.5" />
+          {t("Selected", "Izabrano")}: <span className="text-foreground">{label}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Clock3 className="h-3.5 w-3.5" />
+          {t("Time zone", "Vremenska zona")}:{" "}
+          <span className="text-foreground">Europe/Belgrade</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-positive" />
           {t(
-            "All KPIs, charts and the Weekly Update use this range. Time zone: Europe/Belgrade.",
-            "Svi KPI, grafici i nedeljni izveštaj koriste ovaj opseg. Vremenska zona: Europe/Belgrade.",
+            "Data coverage is shown beside each dataset.",
+            "Pokrivenost podataka je prikazana uz svaki dataset.",
           )}
-        </p>
+        </span>
       </div>
     </div>
   );

@@ -43,9 +43,9 @@ export const Route = createFileRoute("/dashboard/market")({
       { name: "description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
       { property: "og:title", content: "Market Prices — CEA Power Dashboard" },
       { property: "og:description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/market" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/market" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/market" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/market" }],
   }),
   component: MarketPage,
 });

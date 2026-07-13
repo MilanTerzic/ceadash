@@ -31,9 +31,9 @@ export const Route = createFileRoute("/dashboard/capture")({
       { name: "description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
       { property: "og:title", content: "Capture Prices — CEA Power Dashboard" },
       { property: "og:description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/capture" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/capture" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/capture" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/capture" }],
   }),
   component: CapturePage,
 });

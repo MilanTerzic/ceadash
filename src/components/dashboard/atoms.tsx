@@ -1,5 +1,7 @@
-import { Info } from "lucide-react";
+import { AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import type { ReactNode } from "react";
@@ -14,7 +16,12 @@ export function MetricLabel({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground", className)}>
+    <div
+      className={cn(
+        "flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground",
+        className,
+      )}
+    >
       <span>{label}</span>
       {hint && (
         <TooltipProvider delayDuration={120}>
@@ -61,7 +68,11 @@ export function KpiCard({
         <div
           className={cn(
             "mt-1 text-xs",
-            trend.delta > 0 ? "text-positive" : trend.delta < 0 ? "text-critical" : "text-muted-foreground",
+            trend.delta > 0
+              ? "text-positive"
+              : trend.delta < 0
+                ? "text-critical"
+                : "text-muted-foreground",
           )}
         >
           {trend.delta > 0 ? "▲" : trend.delta < 0 ? "▼" : "·"} {Math.abs(trend.delta).toFixed(1)}
@@ -109,7 +120,11 @@ export function ChartCard({
   );
 }
 
-export function SignalPill({ signal }: { signal: "Positive" | "Neutral" | "Warning" | "Critical" }) {
+export function SignalPill({
+  signal,
+}: {
+  signal: "Positive" | "Neutral" | "Warning" | "Critical";
+}) {
   const { t } = useLang();
   const color =
     signal === "Positive"
@@ -128,8 +143,70 @@ export function SignalPill({ signal }: { signal: "Positive" | "Neutral" | "Warni
           ? t("Critical", "Kritično")
           : t("Neutral", "Neutralno");
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium", color)}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+        color,
+      )}
+    >
       {label}
     </span>
+  );
+}
+
+export function PageLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="mt-4 h-10 w-72 max-w-full" />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-8 w-24" />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="mt-4 h-9 w-32" />
+            <Skeleton className="mt-3 h-3 w-40" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div key={index} className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="mt-5 h-72 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function DataUnavailableState({
+  title,
+  description,
+  onRetry,
+}: {
+  title: ReactNode;
+  description: ReactNode;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card p-8 text-center shadow-card">
+      <AlertTriangle className="mx-auto h-9 w-9 text-warning" />
+      <h2 className="mt-4 font-display text-2xl text-foreground">{title}</h2>
+      <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">{description}</p>
+      {onRetry && (
+        <Button type="button" variant="outline" className="mt-5 gap-2" onClick={onRetry}>
+          <RefreshCw className="h-4 w-4" />
+          Retry live data
+        </Button>
+      )}
+    </div>
   );
 }

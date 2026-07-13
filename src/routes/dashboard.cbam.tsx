@@ -42,9 +42,9 @@ export const Route = createFileRoute("/dashboard/cbam")({
         content:
           "CBAM adder, export margin and breakeven EU price for Serbian electricity exports.",
       },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/cbam" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/cbam" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/cbam" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/cbam" }],
   }),
   component: CbamPage,
 });

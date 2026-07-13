@@ -21,7 +21,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="font-display text-7xl text-foreground">404</h1>
-        <h2 className="mt-4 text-xl text-foreground">{t("Page not found", "Stranica nije pronađena")}</h2>
+        <h2 className="mt-4 text-xl text-foreground">
+          {t("Page not found", "Stranica nije pronađena")}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {t("The page you're looking for doesn't exist.", "Stranica koju tražite ne postoji.")}
         </p>
@@ -49,7 +51,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="font-display text-2xl text-foreground">{t("Something went wrong", "Došlo je do greške")}</h1>
+        <h1 className="font-display text-2xl text-foreground">
+          {t("Something went wrong", "Došlo je do greške")}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -100,17 +104,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@graph": [
             {
               "@type": "Organization",
-              "@id": "https://ceadash.lovable.app/#organization",
+              "@id": "https://dashboard.cea.org.rs/#organization",
               name: "Centar za energetske analize",
               alternateName: "CEA",
               url: "https://www.cea.org.rs/",
             },
             {
               "@type": "WebSite",
-              "@id": "https://ceadash.lovable.app/#website",
+              "@id": "https://dashboard.cea.org.rs/#website",
               name: "CEA Power Dashboard",
-              url: "https://ceadash.lovable.app/",
-              publisher: { "@id": "https://ceadash.lovable.app/#organization" },
+              url: "https://dashboard.cea.org.rs/",
+              publisher: { "@id": "https://dashboard.cea.org.rs/#organization" },
             },
           ],
         }),
@@ -157,10 +161,18 @@ function SiteHeader() {
           </div>
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">{t("About CEA", "O CEA")}</a>
-          <Link to="/" className="hover:text-foreground">{t("Dashboard", "Dashboard")}</Link>
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">{t("Projects", "Projekti")}</a>
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">{t("News", "Vesti")}</a>
+          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+            {t("About CEA", "O CEA")}
+          </a>
+          <Link to="/" className="hover:text-foreground">
+            {t("Dashboard", "Dashboard")}
+          </Link>
+          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+            {t("Projects", "Projekti")}
+          </a>
+          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+            {t("News", "Vesti")}
+          </a>
         </nav>
         <LanguageToggle />
       </div>
@@ -183,7 +195,9 @@ function SiteFooter() {
           </p>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">{t("Data sources", "Izvori podataka")}</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            {t("Data sources", "Izvori podataka")}
+          </div>
           <ul className="mt-2 space-y-1 text-foreground/80">
             <li>ENTSO-E Transparency Platform</li>
             <li>{t("SEEPEX day-ahead market", "SEEPEX day-ahead tržište")}</li>
@@ -192,7 +206,9 @@ function SiteFooter() {
           </ul>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">{t("Disclaimer", "Napomena")}</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            {t("Disclaimer", "Napomena")}
+          </div>
           <p className="mt-2 text-muted-foreground">
             {t(
               "This tool provides indicative analysis only and should not be interpreted as financial or investment advice.",

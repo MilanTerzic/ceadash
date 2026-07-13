@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { z } from "zod";
+
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { useLang } from "@/lib/i18n";
 
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/dashboard")({
   validateSearch: (s) => searchSchema.parse(s),
   head: () => ({
     meta: [
-      { title: "Dashboard — CEA Power Dashboard" },
+      { title: "Dashboard - CEA Power Dashboard" },
       {
         name: "description",
         content:
@@ -28,28 +29,29 @@ function DashboardLayout() {
   const { t } = useLang();
   return (
     <div>
-      <section className="bg-surface border-b border-border/60">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <div className="flex items-baseline justify-between gap-6 flex-wrap">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                {t("CEA Analytical Tool", "CEA analitički alat")}
-              </div>
-              <h1 className="mt-1 font-display text-4xl md:text-5xl text-foreground">
-                CEA Power Dashboard
-              </h1>
-              <p className="mt-3 text-muted-foreground max-w-2xl">
-                {t(
-                  "An analytical tool for tracking renewable energy market signals, capture prices and project economics in Serbia.",
-                  "Analitički alat za praćenje signala tržišta obnovljivih izvora energije, capture cena i ekonomike projekata u Srbiji.",
-                )}
-              </p>
+      <section className="border-b border-border/60 bg-surface/70">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">
+              {t("CEA Power Dashboard", "CEA Power Dashboard")}
             </div>
+            <h1 className="mt-1 font-display text-3xl text-foreground md:text-4xl">
+              {t(
+                "Serbia Electricity Market Intelligence",
+                "Intelligence trzista elektricne energije Srbije",
+              )}
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              {t(
+                "Prices, renewable capture, cross-border signals, project economics and CEA market intelligence in one workspace.",
+                "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analiza u jednom radnom prostoru.",
+              )}
+            </p>
           </div>
         </div>
       </section>
       <DashboardTabs />
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <Outlet />
       </div>
     </div>

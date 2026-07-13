@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = "https://ceadash.lovable.app";
+const BASE_URL = "https://dashboard.cea.org.rs";
 
 interface SitemapEntry {
   path: string;

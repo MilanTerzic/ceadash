@@ -28,10 +28,10 @@ export const Route = createFileRoute("/dashboard/news")({
       { name: "description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
       { property: "og:title", content: "News & Policy Monitor — CEA Power Dashboard" },
       { property: "og:description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
-      { property: "og:url", content: "https://ceadash.lovable.app/dashboard/news" },
+      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/news" },
       { property: "og:type", content: "article" },
     ],
-    links: [{ rel: "canonical", href: "https://ceadash.lovable.app/dashboard/news" }],
+    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/news" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/dashboard/news")({
           "@context": "https://schema.org",
           "@type": "CollectionPage",
           name: "News & Policy Monitor",
-          url: "https://ceadash.lovable.app/dashboard/news",
+          url: "https://dashboard.cea.org.rs/dashboard/news",
           about: "Serbian and regional renewable energy news, policy and market updates.",
         }),
       },

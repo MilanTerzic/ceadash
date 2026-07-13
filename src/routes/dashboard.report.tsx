@@ -712,7 +712,7 @@ function LinkedInReportCard({
 
         <div className="flex items-center justify-between border-t border-border pt-6 text-base text-muted-foreground">
           <span>Source: ENTSO-E / CEA calculations. No demo data substituted.</span>
-          <span>ceadash.lovable.app</span>
+          <span>dashboard.cea.org.rs</span>
         </div>
       </div>
     </div>
