@@ -6,6 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -120,20 +121,6 @@ function heatCellFill(value: number | undefined, domain: { min: number; max: num
   const saturation = 34 + ratio * 18;
   const lightness = 88 - ratio * 48;
   return `hsl(145 ${saturation.toFixed(0)}% ${lightness.toFixed(0)}%)`;
-}
-
-function sparklinePath(values: number[], width: number, height: number, padding = 16) {
-  if (values.length < 2) return "";
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const spread = max - min || 1;
-  return values
-    .map((value, index) => {
-      const x = padding + (index / (values.length - 1)) * (width - padding * 2);
-      const y = height - padding - ((value - min) / spread) * (height - padding * 2);
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
 }
 
 function PeriodBadge({ report }: { report: CeaTraderReport }) {
@@ -735,24 +722,25 @@ function LinkedInDailyPriceChart({
   const points = rows
     .map((row) => ({
       date: String(row.date ?? ""),
-      value: finiteNumber(row.RS) ? row.RS : null,
+      RS: finiteNumber(row.RS) ? row.RS : null,
     }))
-    .filter((point): point is { date: string; value: number } => finiteNumber(point.value));
-  const values = points.map((point) => point.value);
+    .filter((point): point is { date: string; RS: number } => finiteNumber(point.RS));
+  const values = points.map((point) => point.RS);
   const min = values.length ? Math.min(...values) : null;
   const max = values.length ? Math.max(...values) : null;
   const last = points[points.length - 1];
-  const path = sparklinePath(values, 610, 270, 28);
+  const dense = points.length > 14;
+  const tickAngle = dense ? -45 : 0;
 
   return (
     <div className="rounded-3xl border border-border bg-card p-7">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm uppercase tracking-widest text-muted-foreground">
-            Serbia Daily Baseload
+            Serbia Daily Baseload Price
           </div>
           <div className="mt-2 font-display text-4xl">
-            {last ? fmt(last.value) : "N/A"}
+            {last ? fmt(last.RS) : "N/A"}
             <span className="ml-2 text-lg text-muted-foreground">EUR/MWh latest</span>
           </div>
         </div>
@@ -761,44 +749,66 @@ function LinkedInDailyPriceChart({
           <div>max {fmt(max)}</div>
         </div>
       </div>
-      <svg className="mt-6 h-[270px] w-full" viewBox="0 0 610 270" role="img">
-        <defs>
-          <linearGradient id="linkedin-price-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#0f9f8f" stopOpacity="0.26" />
-            <stop offset="100%" stopColor="#0f9f8f" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        {[0, 1, 2, 3].map((line) => (
-          <line
-            key={line}
-            x1="24"
-            x2="586"
-            y1={34 + line * 62}
-            y2={34 + line * 62}
-            stroke="#d5d1bf"
-            strokeDasharray="6 7"
-          />
-        ))}
-        {path ? (
-          <>
-            <path d={`${path} L 582 246 L 28 246 Z`} fill="url(#linkedin-price-fill)" />
-            <path d={path} fill="none" stroke="#0f9f8f" strokeLinecap="round" strokeWidth="8" />
-            {points.map((point, index) => {
-              if (!values.length) return null;
-              const minValue = Math.min(...values);
-              const maxValue = Math.max(...values);
-              const spread = maxValue - minValue || 1;
-              const x = 28 + (index / Math.max(1, points.length - 1)) * (610 - 56);
-              const y = 270 - 28 - ((point.value - minValue) / spread) * (270 - 56);
-              return <circle key={point.date} cx={x} cy={y} r="5" fill="#263126" />;
-            })}
-          </>
+      <div className="mt-6 h-[360px] w-full">
+        {points.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={points}
+              margin={{ top: 26, right: 20, bottom: dense ? 58 : 28, left: 8 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#d5d1bf" />
+              <XAxis
+                dataKey="date"
+                interval={0}
+                angle={tickAngle}
+                textAnchor={dense ? "end" : "middle"}
+                height={dense ? 58 : 28}
+                tick={{ fontSize: dense ? 8 : 10, fill: "#3e4038" }}
+                tickFormatter={(value) => String(value).slice(5)}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#3e4038" }}
+                unit=" EUR"
+                domain={[
+                  (dataMin: number) => Math.floor(dataMin - 12),
+                  (dataMax: number) => Math.ceil(dataMax + 18),
+                ]}
+              />
+              <RTooltip
+                formatter={(value) => [
+                  typeof value === "number" ? `${value.toFixed(2)} EUR/MWh` : "N/A",
+                  "RS",
+                ]}
+                labelFormatter={(label) => `Delivery day ${label}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="RS"
+                name="RS"
+                stroke="#0f9f8f"
+                strokeWidth={4}
+                dot={{ r: dense ? 2 : 3, fill: "#263126", stroke: "#263126" }}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+              >
+                <LabelList
+                  dataKey="RS"
+                  position="top"
+                  formatter={(value: unknown) =>
+                    typeof value === "number" && Number.isFinite(value) ? value.toFixed(0) : ""
+                  }
+                  fill="#263126"
+                  fontSize={dense ? 8 : 10}
+                />
+              </Line>
+            </LineChart>
+          </ResponsiveContainer>
         ) : (
-          <text x="305" y="145" textAnchor="middle" fill="#646759" fontSize="26">
+          <div className="flex h-full items-center justify-center text-2xl text-muted-foreground">
             No Serbia daily price data
-          </text>
+          </div>
         )}
-      </svg>
+      </div>
       <div className="mt-2 flex justify-between text-sm text-muted-foreground">
         <span>{points[0]?.date ?? "No data"}</span>
         <span>{last?.date ?? ""}</span>
