@@ -27,12 +27,12 @@ import type { CaptureSummary, MarketPriceSummary } from "@/lib/report.analytics"
 export const Route = createFileRoute("/dashboard/report")({
   head: () => ({
     meta: [
-      { title: "Trader Report - CEA Power Dashboard" },
+      { title: "CEA Report - CEA Power Dashboard" },
       {
         name: "description",
         content: "CEA-styled trading report combining Serbia and regional power-market signals.",
       },
-      { property: "og:title", content: "Trader Report - CEA Power Dashboard" },
+      { property: "og:title", content: "CEA Report - CEA Power Dashboard" },
       {
         property: "og:description",
         content:
@@ -67,7 +67,7 @@ function tableToCsv(rows: Array<Record<string, unknown>>) {
 
 function exportReportCsv(report: CeaTraderReport) {
   const parts = [
-    "# CEA Trader Report",
+    "# CEA Report",
     `# Period,${report.period.from},${report.period.to}`,
     "",
     "# Market Summary",
@@ -89,7 +89,7 @@ function exportReportCsv(report: CeaTraderReport) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `cea-trader-report-${report.period.from}-${report.period.to}.csv`;
+  a.download = `cea-report-${report.period.from}-${report.period.to}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -176,7 +176,7 @@ function TraderReportPage() {
       });
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `cea-trader-linkedin-${report.period.from}-${report.period.to}.jpg`;
+      a.download = `cea-report-linkedin-${report.period.from}-${report.period.to}.jpg`;
       a.click();
       toast.success(t("LinkedIn JPEG created", "LinkedIn JPEG je kreiran"));
     } catch (error) {
@@ -231,7 +231,7 @@ function TraderReportPage() {
       <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl">{t("Trader Report", "Traderski izvestaj")}</h2>
+            <h2 className="font-display text-3xl">{t("CEA Report", "CEA izvestaj")}</h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               {t(
                 "CEA-style market brief combining Serbia day-ahead prices, regional spreads, RES capture signals, BESS spreads and a latest physical-flow snapshot.",
@@ -646,7 +646,7 @@ function LinkedInReportCard({
     <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
       <div
         ref={cardRef}
-        className="flex h-[1500px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-14 text-foreground"
+        className="flex h-[1800px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-14 text-foreground"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         <div>
@@ -655,7 +655,7 @@ function LinkedInReportCard({
               <div className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
                 CEA Power Dashboard
               </div>
-              <h1 className="mt-4 font-display text-6xl leading-none">Trader Report</h1>
+              <h1 className="mt-4 font-display text-6xl leading-none">CEA Report</h1>
               <p className="mt-3 max-w-3xl text-xl leading-snug text-muted-foreground">
                 Serbia day-ahead prices, regional spreads, RES capture and BESS market signals.
               </p>
