@@ -7,12 +7,12 @@ export function DashboardTabs() {
   const { t } = useLang();
   const TABS = [
     { to: "/dashboard", label: t("Overview", "Pregled") },
-    { to: "/dashboard/report", label: t("Trader Report", "Traderski izvestaj") },
     { to: "/dashboard/regional", label: t("Regional Prices", "Regionalne cene") },
     { to: "/dashboard/capture", label: t("RES Capture Prices", "Capture cene OIE") },
     { to: "/dashboard/cbam", label: t("CBAM Export Calculator", "CBAM izvozni kalkulator") },
 
     { to: "/dashboard/weekly", label: t("Weekly Intelligence", "Nedeljna analiza") },
+    { to: "/dashboard/report", label: t("Trader Report", "Traderski izvestaj") },
     {
       to: "/dashboard/calculator",
       label: t("Solar Project Calculator", "Kalkulator solarnog projekta"),
