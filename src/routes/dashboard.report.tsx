@@ -103,6 +103,37 @@ function heatCellColor(value: number | undefined) {
   return "bg-critical/35";
 }
 
+function heatCellFill(value: number | undefined) {
+  if (value == null || !Number.isFinite(value)) return "#e6e3d6";
+  if (value < 0) return "#ef4444";
+  if (value < 40) return "#99bfa4";
+  if (value < 90) return "#c7c6bb";
+  if (value < 150) return "#e8c982";
+  return "#d87870";
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sparklinePath(values: number[], width: number, height: number, padding = 16) {
+  if (values.length < 2) return "";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || 1;
+  return values
+    .map((value, index) => {
+      const x = padding + (index / (values.length - 1)) * (width - padding * 2);
+      const y = height - padding - ((value - min) / spread) * (height - padding * 2);
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
 function PeriodBadge({ report }: { report: CeaTraderReport }) {
   return (
     <Badge variant="secondary" className="text-[10px]">
@@ -607,7 +638,14 @@ function LinkedInReportCard({
     rs?.baseload != null && hu?.baseload != null
       ? `${fmt(rs.baseload - hu.baseload)} EUR/MWh`
       : "N/A";
-  const topRows = report.prices.marketSummary.slice(0, 5);
+  const topRows = report.prices.marketSummary
+    .filter((row) => finiteNumber(row.baseload))
+    .sort((a, b) => (b.baseload ?? 0) - (a.baseload ?? 0))
+    .slice(0, 8);
+  const rsDailyRows = report.prices.dailyBaseload.filter((row) => finiteNumber(row.RS));
+  const summaryLines = (
+    report.deskSummary.length ? report.deskSummary : ["No complete observations available."]
+  ).slice(0, 3);
 
   return (
     <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
@@ -642,69 +680,65 @@ function LinkedInReportCard({
             <LinkedInMetric label="RS peakload" value={fmt(rs?.peakload)} unit="EUR/MWh" />
             <LinkedInMetric label="Negative hours" value={String(rs?.negativeHours ?? "N/A")} />
             <LinkedInMetric label="RS vs HU" value={rsVsHu} />
-            <LinkedInMetric
-              label="Solar capture"
-              value={fmt(capture?.solarCapture)}
-              unit="EUR/MWh"
-            />
-            <LinkedInMetric label="Wind capture" value={fmt(capture?.windCapture)} unit="EUR/MWh" />
-            <LinkedInMetric label="BESS 2h net" value={fmt(capture?.bessNet2h)} unit="EUR/MWh" />
-            <LinkedInMetric label="BESS 4h net" value={fmt(capture?.bessNet4h)} unit="EUR/MWh" />
           </div>
 
-          <div className="mt-10 grid grid-cols-[1.1fr_0.9fr] gap-8">
-            <div className="rounded-3xl border border-border bg-card p-7">
-              <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                Desk Summary
-              </div>
-              <div className="mt-5 space-y-4 text-2xl leading-snug">
-                {(report.deskSummary.length
-                  ? report.deskSummary
-                  : ["No complete observations available."]
-                )
-                  .slice(0, 5)
-                  .map((line) => (
-                    <div key={line} className="flex gap-3">
-                      <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
-                      <span>{line}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
+          <div className="mt-10 grid grid-cols-[1.15fr_0.85fr] gap-8">
+            <LinkedInDailyPriceChart rows={rsDailyRows} />
 
             <div className="rounded-3xl border border-border bg-card p-7">
               <div className="text-sm uppercase tracking-widest text-muted-foreground">
                 Regional Baseload
               </div>
-              <div className="mt-5 space-y-3">
-                {topRows.map((row) => (
-                  <div
-                    key={row.zone}
-                    className="grid grid-cols-[56px_1fr_140px] items-center gap-3"
-                  >
-                    <div className="font-display text-3xl">{row.zone}</div>
-                    <div className="h-3 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{
-                          width: `${Math.max(8, Math.min(100, ((row.baseload ?? 0) / 180) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="text-right text-2xl tabular-nums">{fmt(row.baseload)}</div>
+              <LinkedInRegionalBars rows={topRows} />
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-[1.1fr_0.9fr] gap-8">
+            <div className="rounded-3xl border border-border bg-card p-7">
+              <div className="flex items-center justify-between">
+                <div className="text-sm uppercase tracking-widest text-muted-foreground">
+                  Serbia Hourly Price Heatmap
+                </div>
+                <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                  red = negative
+                </div>
+              </div>
+              <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card p-7">
+              <div className="text-sm uppercase tracking-widest text-muted-foreground">
+                Desk Signals
+              </div>
+              <div className="mt-5 space-y-4 text-xl leading-snug">
+                {summaryLines.map((line) => (
+                  <div key={line} className="flex gap-3">
+                    <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                    <span>{line}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-7 rounded-2xl border border-border/70 bg-muted/30 p-5">
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  Largest RS spread
-                </div>
-                <div className="mt-1 font-display text-4xl">
-                  {bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
-                  <span className="ml-2 text-xl text-muted-foreground">
-                    {bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
-                  </span>
-                </div>
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <LinkedInMiniMetric
+                  label="Solar capture"
+                  value={fmt(capture?.solarCapture)}
+                  unit="EUR/MWh"
+                />
+                <LinkedInMiniMetric
+                  label="Wind capture"
+                  value={fmt(capture?.windCapture)}
+                  unit="EUR/MWh"
+                />
+                <LinkedInMiniMetric
+                  label="BESS 2h net"
+                  value={fmt(capture?.bessNet2h)}
+                  unit="EUR/MWh"
+                />
+                <LinkedInMiniMetric
+                  label="Largest spread"
+                  value={bestSpread?.spreadVsRs != null ? fmt(bestSpread.spreadVsRs) : "N/A"}
+                  unit={bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
+                />
               </div>
             </div>
           </div>
@@ -714,6 +748,191 @@ function LinkedInReportCard({
           <span>Source: ENTSO-E / CEA calculations. No demo data substituted.</span>
           <span>ceadash.lovable.app</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LinkedInDailyPriceChart({
+  rows,
+}: {
+  rows: Array<Record<string, string | number | null>>;
+}) {
+  const points = rows
+    .map((row) => ({
+      date: String(row.date ?? ""),
+      value: finiteNumber(row.RS) ? row.RS : null,
+    }))
+    .filter((point): point is { date: string; value: number } => finiteNumber(point.value));
+  const values = points.map((point) => point.value);
+  const min = values.length ? Math.min(...values) : null;
+  const max = values.length ? Math.max(...values) : null;
+  const last = points[points.length - 1];
+  const path = sparklinePath(values, 610, 270, 28);
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-7">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-sm uppercase tracking-widest text-muted-foreground">
+            Serbia Daily Baseload
+          </div>
+          <div className="mt-2 font-display text-4xl">
+            {last ? fmt(last.value) : "N/A"}
+            <span className="ml-2 text-lg text-muted-foreground">EUR/MWh latest</span>
+          </div>
+        </div>
+        <div className="text-right text-sm text-muted-foreground">
+          <div>min {fmt(min)}</div>
+          <div>max {fmt(max)}</div>
+        </div>
+      </div>
+      <svg className="mt-6 h-[270px] w-full" viewBox="0 0 610 270" role="img">
+        <defs>
+          <linearGradient id="linkedin-price-fill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#0f9f8f" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="#0f9f8f" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[0, 1, 2, 3].map((line) => (
+          <line
+            key={line}
+            x1="24"
+            x2="586"
+            y1={34 + line * 62}
+            y2={34 + line * 62}
+            stroke="#d5d1bf"
+            strokeDasharray="6 7"
+          />
+        ))}
+        {path ? (
+          <>
+            <path d={`${path} L 582 246 L 28 246 Z`} fill="url(#linkedin-price-fill)" />
+            <path d={path} fill="none" stroke="#0f9f8f" strokeLinecap="round" strokeWidth="8" />
+            {points.map((point, index) => {
+              if (!values.length) return null;
+              const minValue = Math.min(...values);
+              const maxValue = Math.max(...values);
+              const spread = maxValue - minValue || 1;
+              const x = 28 + (index / Math.max(1, points.length - 1)) * (610 - 56);
+              const y = 270 - 28 - ((point.value - minValue) / spread) * (270 - 56);
+              return <circle key={point.date} cx={x} cy={y} r="5" fill="#263126" />;
+            })}
+          </>
+        ) : (
+          <text x="305" y="145" textAnchor="middle" fill="#646759" fontSize="26">
+            No Serbia daily price data
+          </text>
+        )}
+      </svg>
+      <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+        <span>{points[0]?.date ?? "No data"}</span>
+        <span>{last?.date ?? ""}</span>
+      </div>
+    </div>
+  );
+}
+
+function LinkedInRegionalBars({ rows }: { rows: MarketPriceSummary[] }) {
+  const values = rows.map((row) => row.baseload).filter(finiteNumber);
+  const max = values.length ? Math.max(...values) : 1;
+
+  return (
+    <div className="mt-5 space-y-3">
+      {rows.length ? (
+        rows.map((row) => (
+          <div key={row.zone} className="grid grid-cols-[56px_1fr_110px] items-center gap-3">
+            <div className="font-display text-3xl">{row.zone}</div>
+            <div className="h-5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${clamp(((row.baseload ?? 0) / max) * 100, 5, 100)}%` }}
+              />
+            </div>
+            <div className="text-right text-2xl tabular-nums">{fmt(row.baseload)}</div>
+          </div>
+        ))
+      ) : (
+        <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 text-xl text-muted-foreground">
+          No regional price data
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeatmap"] }) {
+  const compactRows = rows.slice(-8);
+
+  if (!compactRows.length) {
+    return (
+      <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-5 text-xl text-muted-foreground">
+        No Serbia hourly data
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5">
+      <div
+        className="grid gap-1"
+        style={{ gridTemplateColumns: "84px repeat(24, minmax(0, 1fr))" }}
+      >
+        <div />
+        {Array.from({ length: 24 }, (_, hour) => (
+          <div key={hour} className="text-center text-[10px] font-semibold text-muted-foreground">
+            {hour % 3 === 0 ? String(hour).padStart(2, "0") : ""}
+          </div>
+        ))}
+        {compactRows.map((row) => (
+          <div key={row.date} className="contents">
+            <div className="pr-2 text-xs font-semibold text-muted-foreground">{row.date}</div>
+            {Array.from({ length: 24 }, (_, hour) => {
+              const value = row.hours[String(hour)];
+              return (
+                <div
+                  key={`${row.date}-${hour}`}
+                  className="h-5 rounded-[5px] border border-background/60"
+                  style={{ backgroundColor: heatCellFill(value) }}
+                  title={`${row.date} ${String(hour).padStart(2, "0")}:00 - ${fmt(value)} EUR/MWh`}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+        {[
+          ["negative", "#ef4444"],
+          ["low", "#99bfa4"],
+          ["mid", "#c7c6bb"],
+          ["high", "#e8c982"],
+        ].map(([label, color]) => (
+          <div key={label} className="inline-flex items-center gap-2">
+            <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
+            {label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LinkedInMiniMetric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <div className="font-display text-2xl">{value}</div>
+        {unit ? <div className="text-xs text-muted-foreground">{unit}</div> : null}
       </div>
     </div>
   );
