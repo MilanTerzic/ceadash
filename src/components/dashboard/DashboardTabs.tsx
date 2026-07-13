@@ -12,7 +12,7 @@ export function DashboardTabs() {
     { to: "/dashboard/cbam", label: t("CBAM Export Calculator", "CBAM izvozni kalkulator") },
 
     { to: "/dashboard/weekly", label: t("Weekly Intelligence", "Nedeljna analiza") },
-    { to: "/dashboard/report", label: t("Trader Report", "Traderski izvestaj") },
+    { to: "/dashboard/report", label: t("CEA Report", "CEA izvestaj") },
     {
       to: "/dashboard/calculator",
       label: t("Solar Project Calculator", "Kalkulator solarnog projekta"),

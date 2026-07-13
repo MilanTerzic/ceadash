@@ -196,7 +196,7 @@ function TraderReportPage() {
         <DateRangeControl />
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
           <p className="text-sm text-muted-foreground">
-            {t("Building trader report...", "Priprema traderskog izvestaja...")}
+            {t("Building CEA report...", "Priprema CEA izvestaja...")}
           </p>
         </div>
       </div>
