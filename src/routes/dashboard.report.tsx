@@ -646,7 +646,7 @@ function LinkedInReportCard({
     <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
       <div
         ref={cardRef}
-        className="flex h-[1800px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-14 text-foreground"
+        className="flex h-[2050px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-14 text-foreground"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         <div>
