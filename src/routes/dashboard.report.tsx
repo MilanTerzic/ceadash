@@ -709,10 +709,7 @@ function LinkedInReportCard({
           </div>
 
           <div className="mt-7 grid grid-cols-[1.05fr_0.95fr] gap-7">
-            <div className="space-y-5">
-              <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
-              <LinkedInDeskSummary lines={report.deskSummary} />
-            </div>
+            <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
             <LinkedInFlowSnapshot
               rows={report.flows.latest24h}
               coverageFrom={report.flows.coverageFrom}
@@ -811,8 +808,12 @@ function LinkedInDailyPriceChart({
 }
 
 function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeatmap"] }) {
-  const compactRows = rows.slice(-7);
-  const domain = heatScaleDomain(compactRows);
+  const periodRows = rows;
+  const domain = heatScaleDomain(periodRows);
+  const dense = periodRows.length > 14;
+  const cellHeight = dense ? 12 : 24;
+  const cellRadius = dense ? 3 : 5;
+  const rowGap = dense ? 3 : 4;
 
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
@@ -825,24 +826,30 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
         </div>
       </div>
 
-      {compactRows.length ? (
-        <div className="mt-5">
+      {periodRows.length ? (
+        <div className={dense ? "mt-4" : "mt-5"}>
           <div
-            className="grid gap-1"
-            style={{ gridTemplateColumns: "82px repeat(24, minmax(0, 1fr))" }}
+            className="grid"
+            style={{
+              gridTemplateColumns: `${dense ? 56 : 82}px repeat(24, minmax(0, 1fr))`,
+              columnGap: 4,
+              rowGap,
+            }}
           >
             <div />
             {Array.from({ length: 24 }, (_, hour) => (
               <div
                 key={hour}
-                className="text-center text-[9px] font-semibold text-muted-foreground"
+                className={`${dense ? "text-[7px]" : "text-[9px]"} text-center font-semibold text-muted-foreground`}
               >
-                {hour % 3 === 0 ? String(hour).padStart(2, "0") : ""}
+                {hour % (dense ? 6 : 3) === 0 ? String(hour).padStart(2, "0") : ""}
               </div>
             ))}
-            {compactRows.map((row) => (
+            {periodRows.map((row) => (
               <div key={row.date} className="contents">
-                <div className="pr-2 text-[10px] font-semibold text-muted-foreground">
+                <div
+                  className={`${dense ? "text-[7px]" : "text-[10px]"} pr-2 font-semibold text-muted-foreground`}
+                >
                   {row.date.slice(5)}
                 </div>
                 {Array.from({ length: 24 }, (_, hour) => {
@@ -850,8 +857,12 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
                   return (
                     <div
                       key={`${row.date}-${hour}`}
-                      className="h-6 rounded-[5px] border border-background/60"
-                      style={{ backgroundColor: heatCellFill(value, domain) }}
+                      className="border border-background/60"
+                      style={{
+                        height: cellHeight,
+                        borderRadius: cellRadius,
+                        backgroundColor: heatCellFill(value, domain),
+                      }}
                       title={`${row.date} ${String(hour).padStart(2, "0")}:00 - ${fmt(value)} EUR/MWh`}
                     />
                   );
@@ -884,30 +895,6 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
   );
 }
 
-function LinkedInDeskSummary({ lines }: { lines: string[] }) {
-  const compactLines = lines.slice(0, 3);
-
-  return (
-    <div className="rounded-3xl border border-border bg-card p-6">
-      <div className="text-sm uppercase tracking-widest text-muted-foreground">Desk Signals</div>
-      {compactLines.length ? (
-        <div className="mt-4 space-y-3">
-          {compactLines.map((line) => (
-            <div key={line} className="grid grid-cols-[12px_1fr] gap-3 text-base leading-snug">
-              <span className="mt-2 h-2 w-2 rounded-full bg-primary" />
-              <span>{line}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-          No desk summary available for this period.
-        </div>
-      )}
-    </div>
-  );
-}
-
 function LinkedInFlowSnapshot({
   rows,
   coverageFrom,
@@ -918,17 +905,19 @@ function LinkedInFlowSnapshot({
   coverageTo: string | null;
 }) {
   const flowRows = rows.slice(0, 7);
+  const periodLabel =
+    coverageFrom && coverageTo
+      ? `${coverageFrom.slice(0, 10)} -> ${coverageTo.slice(0, 10)}`
+      : "available period";
 
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
-      <div>
+      <div className="flex items-start justify-between gap-4">
         <div className="text-sm uppercase tracking-widest text-muted-foreground">
           Serbia Physical-Flow Period Average
         </div>
-        <div className="mt-2 text-sm leading-snug text-muted-foreground">
-          {coverageFrom && coverageTo
-            ? `Average by Serbia border from ${coverageFrom.slice(0, 10)} to ${coverageTo.slice(0, 10)}. Positive values indicate RS exports.`
-            : "Average by Serbia border for available data. Positive values indicate RS exports."}
+        <div className="text-right text-[10px] uppercase tracking-widest text-muted-foreground">
+          {periodLabel}
         </div>
       </div>
 
