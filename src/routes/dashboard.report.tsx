@@ -36,7 +36,7 @@ export const Route = createFileRoute("/dashboard/report")({
       {
         property: "og:description",
         content:
-          "Serbia day-ahead, regional spreads, RES capture, BESS spreads and physical-flow snapshot.",
+          "Serbia day-ahead, regional spreads, RES capture, BESS spreads and physical-flow period averages.",
       },
     ],
   }),
@@ -79,7 +79,7 @@ function exportReportCsv(report: CeaTraderReport) {
     "# Daily RES Capture",
     tableToCsv(report.capture.daily as unknown as Array<Record<string, unknown>>),
     "",
-    "# Latest 24h Flow Snapshot",
+    "# Physical Flow Period Average",
     tableToCsv(report.flows.latest24h as unknown as Array<Record<string, unknown>>),
     "",
     "# Coverage",
@@ -237,8 +237,8 @@ function TraderReportPage() {
             <h2 className="font-display text-3xl">{t("CEA Report", "CEA izvestaj")}</h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               {t(
-                "CEA-style market brief combining Serbia day-ahead prices, regional spreads, RES capture signals, BESS spreads and a latest physical-flow snapshot.",
-                "CEA market brief koji spaja Serbia day-ahead cene, regionalne spreadove, RES capture signale, BESS spreadove i poslednji snapshot fizickih tokova.",
+                "CEA-style market brief combining Serbia day-ahead prices, regional spreads, RES capture signals, BESS spreads and physical-flow period averages.",
+                "CEA market brief koji spaja Serbia day-ahead cene, regionalne spreadove, RES capture signale, BESS spreadove i proseke fizickih tokova za period.",
               )}
             </p>
           </div>
@@ -535,8 +535,8 @@ function TraderReportPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
           title={t(
-            "Latest Serbia Physical-Flow Snapshot",
-            "Poslednji snapshot fizickih tokova Srbije",
+            "Serbia Physical-Flow Period Average",
+            "Prosek fizickih tokova Srbije za period",
           )}
           description={report.flows.note}
         >
@@ -562,7 +562,10 @@ function TraderReportPage() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {t("No physical-flow snapshot available.", "Nema snapshota fizickih tokova.")}
+              {t(
+                "No physical-flow data available for this period.",
+                "Nema podataka o fizickim tokovima za ovaj period.",
+              )}
             </p>
           )}
         </ChartCard>
@@ -710,7 +713,11 @@ function LinkedInReportCard({
               <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
               <LinkedInDeskSummary lines={report.deskSummary} />
             </div>
-            <LinkedInFlowSnapshot rows={report.flows.latest24h} />
+            <LinkedInFlowSnapshot
+              rows={report.flows.latest24h}
+              coverageFrom={report.flows.coverageFrom}
+              coverageTo={report.flows.coverageTo}
+            />
           </div>
         </div>
 
@@ -901,17 +908,27 @@ function LinkedInDeskSummary({ lines }: { lines: string[] }) {
   );
 }
 
-function LinkedInFlowSnapshot({ rows }: { rows: CeaTraderReport["flows"]["latest24h"] }) {
+function LinkedInFlowSnapshot({
+  rows,
+  coverageFrom,
+  coverageTo,
+}: {
+  rows: CeaTraderReport["flows"]["latest24h"];
+  coverageFrom: string | null;
+  coverageTo: string | null;
+}) {
   const flowRows = rows.slice(0, 7);
 
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
       <div>
         <div className="text-sm uppercase tracking-widest text-muted-foreground">
-          Latest Serbia Physical-Flow Snapshot
+          Serbia Physical-Flow Period Average
         </div>
         <div className="mt-2 text-sm leading-snug text-muted-foreground">
-          Latest 24h average by Serbia border. Positive values indicate RS exports.
+          {coverageFrom && coverageTo
+            ? `Average by Serbia border from ${coverageFrom.slice(0, 10)} to ${coverageTo.slice(0, 10)}. Positive values indicate RS exports.`
+            : "Average by Serbia border for available data. Positive values indicate RS exports."}
         </div>
       </div>
 
@@ -948,7 +965,7 @@ function LinkedInFlowSnapshot({ rows }: { rows: CeaTraderReport["flows"]["latest
           })
         ) : (
           <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 text-sm text-muted-foreground">
-            No physical-flow snapshot
+            No physical-flow data
           </div>
         )}
       </div>

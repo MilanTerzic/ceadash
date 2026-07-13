@@ -353,7 +353,7 @@ export function buildDeskSummary(args: {
   }
   if (args.flows[0]) {
     out.push(
-      `Latest 24h physical-flow snapshot is strongest on ${args.flows[0].direction} at ${args.flows[0].absMw.toFixed(0)} MW average.`,
+      `Physical-flow period average is strongest on ${args.flows[0].direction} at ${args.flows[0].absMw.toFixed(0)} MW.`,
     );
   }
   return out.slice(0, 8);

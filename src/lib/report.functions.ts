@@ -5,7 +5,10 @@ import { fetchCaptureSeries, type CapturePoint } from "@/lib/capture.functions";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import {
   fetchRegionalSnapshot,
+  RS_NEIGHBOURS,
+  type FlowSummary,
   type RegionalSnapshot,
+  type ZoneCode,
   type ZonePrice,
 } from "@/lib/regional.functions";
 import {
@@ -52,6 +55,8 @@ export type CeaTraderReport = {
   flows: {
     latest24h: FlowSnapshotRow[];
     note: string;
+    coverageFrom: string | null;
+    coverageTo: string | null;
   };
   coverage: ReportCoverageItem[];
 };
@@ -64,6 +69,17 @@ function firstLast(points: Array<{ ts: string }>): {
   return {
     firstTimestamp: sorted[0]?.ts ?? null,
     lastTimestamp: sorted[sorted.length - 1]?.ts ?? null,
+  };
+}
+
+function firstLastTimestamps(points: Array<{ datetime: string }>): {
+  firstTimestamp: string | null;
+  lastTimestamp: string | null;
+} {
+  const sorted = [...points].sort((a, b) => a.datetime.localeCompare(b.datetime));
+  return {
+    firstTimestamp: sorted[0]?.datetime ?? null,
+    lastTimestamp: sorted[sorted.length - 1]?.datetime ?? null,
   };
 }
 
@@ -103,6 +119,24 @@ function addDaysISO(dayISO: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function belgradeOffsetHours(dayISO: string): number {
+  const noonUtc = new Date(`${dayISO}T12:00:00Z`);
+  const part =
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Belgrade",
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts(noonUtc)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const match = /GMT([+-]\d+)/.exec(part);
+  return match ? Number(match[1]) : 1;
+}
+
+function belgradeDayBoundaryUtc(dayISO: string): Date {
+  const [year, month, day] = dayISO.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, -belgradeOffsetHours(dayISO), 0, 0, 0));
+}
+
 function resolveSevenDayReportRange(
   requested: { from: string; to: string; preset?: string },
   serbiaPoints: Array<{ ts: string; price: number }>,
@@ -119,6 +153,73 @@ function resolveSevenDayReportRange(
     from: addDaysISO(to, -6),
     to,
     usedTomorrow: hasTomorrow,
+  };
+}
+
+type FlowPeriodResult = {
+  flows: FlowSummary[];
+  rows: number;
+  firstTimestamp: string | null;
+  lastTimestamp: string | null;
+};
+
+async function fetchSerbiaFlowPeriodAverage(from: string, to: string): Promise<FlowPeriodResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const fromUtc = belgradeDayBoundaryUtc(from);
+  const toUtc = belgradeDayBoundaryUtc(addDaysISO(to, 1));
+  const flowRows = await supabaseAdmin
+    .from("cross_border_flows_hourly")
+    .select("datetime, from_zone, to_zone, flow_mw")
+    .gte("datetime", fromUtc.toISOString())
+    .lt("datetime", toUtc.toISOString())
+    .order("datetime", { ascending: true });
+
+  const rows = (flowRows.data ?? []) as Array<{
+    datetime: string;
+    from_zone: string;
+    to_zone: string;
+    flow_mw: number | string | null;
+  }>;
+  const usedRows: typeof rows = [];
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const row of rows) {
+    const fromZone = row.from_zone as ZoneCode;
+    const toZone = row.to_zone as ZoneCode;
+    if (!(
+      (fromZone === "RS" && RS_NEIGHBOURS.includes(toZone)) ||
+      (toZone === "RS" && RS_NEIGHBOURS.includes(fromZone))
+    )) {
+      continue;
+    }
+    const value = Number(row.flow_mw);
+    if (!Number.isFinite(value)) continue;
+    usedRows.push(row);
+    const key = `${fromZone}|${toZone}`;
+    const next = acc.get(key) ?? { sum: 0, n: 0 };
+    next.sum += value;
+    next.n += 1;
+    acc.set(key, next);
+  }
+
+  const flows = RS_NEIGHBOURS.map((neighbour) => {
+    const exportAcc = acc.get(`RS|${neighbour}`);
+    const importAcc = acc.get(`${neighbour}|RS`);
+    if (!exportAcc && !importAcc) return null;
+    const exportAvg = exportAcc ? exportAcc.sum / exportAcc.n : 0;
+    const importAvg = importAcc ? importAcc.sum / importAcc.n : 0;
+    const netMw = exportAvg - importAvg;
+    return {
+      from: "RS" as ZoneCode,
+      to: neighbour,
+      netMw: Math.round(netMw),
+      absMw: Math.round(Math.abs(netMw)),
+    };
+  }).filter((flow): flow is FlowSummary => flow != null && flow.absMw > 0);
+
+  return {
+    flows: flows.sort((a, b) => b.absMw - a.absMw),
+    rows: usedRows.length,
+    ...firstLastTimestamps(usedRows),
   };
 }
 
@@ -213,7 +314,8 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
     const capturePoints = capture.points ?? [];
     const captureStats = capturePoints.length ? captureSummary(capturePoints) : null;
     const captureDaily = capturePoints.length ? dailyCaptureRows(capturePoints) : [];
-    const latestFlows = flowSnapshotRows(regional.flows ?? []);
+    const flowPeriod = await fetchSerbiaFlowPeriodAverage(effectiveRange.from, effectiveRange.to);
+    const latestFlows = flowSnapshotRows(flowPeriod.flows);
 
     const coverage: ReportCoverageItem[] = [];
     const regionalComparisonRows = (regional.prices ?? [])
@@ -268,13 +370,15 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
         captureResult.status === "rejected" ? errorMessage(captureResult.reason) : capture.reason,
     });
     coverage.push({
-      dataset: "Serbia physical-flow snapshot",
-      status: latestFlows.length ? (regional.source === "live" ? "live" : "cache") : "empty",
-      rows: latestFlows.length,
-      firstTimestamp: null,
-      lastTimestamp: null,
+      dataset: "Serbia physical-flow period average",
+      status: flowPeriod.rows ? (regional.source === "live" ? "live" : "cache") : "empty",
+      rows: flowPeriod.rows,
+      firstTimestamp: flowPeriod.firstTimestamp,
+      lastTimestamp: flowPeriod.lastTimestamp,
       message:
-        "Existing CEA regional data exposes latest 24h average physical flows, not full-period flow energy.",
+        flowPeriod.rows > 0
+          ? "Average physical flow by Serbia border over available cached rows in the selected period. Positive values indicate RS exports."
+          : "No cached physical-flow rows found inside the selected period.",
     });
 
     return {
@@ -301,7 +405,12 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
       },
       flows: {
         latest24h: latestFlows,
-        note: "Physical flows use the current CEA regional snapshot: latest 24h average by Serbia border.",
+        note:
+          flowPeriod.firstTimestamp && flowPeriod.lastTimestamp
+            ? `Physical flows are averaged over available data from ${flowPeriod.firstTimestamp} to ${flowPeriod.lastTimestamp}. Positive values indicate RS exports.`
+            : "No cached physical-flow rows found inside the selected period.",
+        coverageFrom: flowPeriod.firstTimestamp,
+        coverageTo: flowPeriod.lastTimestamp,
       },
       coverage,
     };
