@@ -94,30 +94,32 @@ function exportReportCsv(report: CeaTraderReport) {
   URL.revokeObjectURL(url);
 }
 
-function heatCellColor(value: number | undefined) {
-  if (value == null || !Number.isFinite(value)) return "bg-muted/30";
-  if (value < 0) return "bg-red-500/45";
-  if (value < 40) return "bg-positive/30";
-  if (value < 90) return "bg-primary/25";
-  if (value < 150) return "bg-warning/35";
-  return "bg-critical/35";
-}
-
-function heatCellFill(value: number | undefined) {
-  if (value == null || !Number.isFinite(value)) return "#e6e3d6";
-  if (value < 0) return "#ef4444";
-  if (value < 40) return "#99bfa4";
-  if (value < 90) return "#c7c6bb";
-  if (value < 150) return "#e8c982";
-  return "#d87870";
-}
-
 function finiteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function heatScaleDomain(rows: CeaTraderReport["prices"]["serbiaHeatmap"]) {
+  const values = rows.flatMap((row) =>
+    Object.values(row.hours).filter((value): value is number => finiteNumber(value) && value >= 0),
+  );
+  return {
+    min: values.length ? Math.min(...values) : 0,
+    max: values.length ? Math.max(...values) : 1,
+  };
+}
+
+function heatCellFill(value: number | undefined, domain: { min: number; max: number }) {
+  if (value == null || !Number.isFinite(value)) return "#e6e3d6";
+  if (value < 0) return "#ef4444";
+  const ratio =
+    domain.max > domain.min ? clamp((value - domain.min) / (domain.max - domain.min), 0, 1) : 0;
+  const saturation = 34 + ratio * 18;
+  const lightness = 88 - ratio * 48;
+  return `hsl(145 ${saturation.toFixed(0)}% ${lightness.toFixed(0)}%)`;
 }
 
 function sparklinePath(values: number[], width: number, height: number, padding = 16) {
@@ -218,6 +220,7 @@ function TraderReportPage() {
   const rsDailyBaseload = report.prices.dailyBaseload.filter(
     (row) => typeof row.RS === "number" && Number.isFinite(row.RS),
   );
+  const heatDomain = heatScaleDomain(report.prices.serbiaHeatmap);
 
   return (
     <div className="space-y-6 print:bg-white">
@@ -394,7 +397,8 @@ function TraderReportPage() {
                       return (
                         <div
                           key={`${row.date}-${h}`}
-                          className={`h-6 rounded-sm border border-border/40 ${heatCellColor(value)}`}
+                          className="h-6 rounded-sm border border-border/40"
+                          style={{ backgroundColor: heatCellFill(value, heatDomain) }}
                           title={`${row.date} ${String(h).padStart(2, "0")}:00 - ${fmt(value)} EUR/MWh`}
                         />
                       );
@@ -407,13 +411,13 @@ function TraderReportPage() {
                   <span className="h-3 w-3 rounded-sm bg-red-500/45" /> negative
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-positive/30" /> low
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-warning/35" /> high
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-critical/35" /> extreme
+                  <span
+                    className="h-3 w-16 rounded-sm"
+                    style={{
+                      background: "linear-gradient(90deg, hsl(145 34% 88%), hsl(145 52% 40%))",
+                    }}
+                  />{" "}
+                  non-negative: lowest lightest
                 </span>
               </div>
             </div>
@@ -863,6 +867,7 @@ function LinkedInRegionalBars({ rows }: { rows: MarketPriceSummary[] }) {
 
 function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeatmap"] }) {
   const compactRows = rows.slice(-8);
+  const domain = heatScaleDomain(compactRows);
 
   if (!compactRows.length) {
     return (
@@ -893,7 +898,7 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
                 <div
                   key={`${row.date}-${hour}`}
                   className="h-5 rounded-[5px] border border-background/60"
-                  style={{ backgroundColor: heatCellFill(value) }}
+                  style={{ backgroundColor: heatCellFill(value, domain) }}
                   title={`${row.date} ${String(hour).padStart(2, "0")}:00 - ${fmt(value)} EUR/MWh`}
                 />
               );
@@ -902,17 +907,19 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
         ))}
       </div>
       <div className="mt-4 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-        {[
-          ["negative", "#ef4444"],
-          ["low", "#99bfa4"],
-          ["mid", "#c7c6bb"],
-          ["high", "#e8c982"],
-        ].map(([label, color]) => (
-          <div key={label} className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
-            {label}
-          </div>
-        ))}
+        <div className="inline-flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />
+          negative
+        </div>
+        <div className="col-span-3 inline-flex items-center gap-2">
+          <span
+            className="h-3 w-24 rounded-sm"
+            style={{
+              background: "linear-gradient(90deg, hsl(145 34% 88%), hsl(145 52% 40%))",
+            }}
+          />
+          non-negative: lowest lightest
+        </div>
       </div>
     </div>
   );
