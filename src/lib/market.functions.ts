@@ -62,12 +62,13 @@ function addDaysISO(dayISO: string, n: number): string {
 /** Europe/Belgrade UTC offset (hours) for the given ISO day. 1 in winter, 2 in DST. */
 function cetOffsetHours(dayISO: string): number {
   const noonUtc = new Date(dayISO + "T12:00:00Z");
-  const part = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Belgrade",
-    timeZoneName: "shortOffset",
-  })
-    .formatToParts(noonUtc)
-    .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const part =
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Belgrade",
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts(noonUtc)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
   const m = /([+-]?\d+)/.exec(part);
   return m ? parseInt(m[1], 10) : 1;
 }
@@ -125,10 +126,7 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
         : 60;
       for (const pt of tagAll(period, "Point")) {
         const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
-        const valS =
-          tagOne(pt, "price.amount") ??
-          tagOne(pt, "quantity") ??
-          tagOne(pt, "value");
+        const valS = tagOne(pt, "price.amount") ?? tagOne(pt, "quantity") ?? tagOne(pt, "value");
         if (valS == null) continue;
         const value = parseFloat(valS);
         if (!Number.isFinite(value)) continue;
@@ -137,10 +135,16 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
       }
     }
   }
-  const byTs = new Map<string, number>();
-  for (const r of out) byTs.set(r.ts, r.value);
-  return [...byTs.entries()]
-    .map(([ts, value]) => ({ ts, value }))
+  const byHour = new Map<string, { sum: number; n: number }>();
+  for (const r of out) {
+    const hourTs = normalizeHourIso(r.ts);
+    const bucket = byHour.get(hourTs) ?? { sum: 0, n: 0 };
+    bucket.sum += r.value;
+    bucket.n += 1;
+    byHour.set(hourTs, bucket);
+  }
+  return [...byHour.entries()]
+    .map(([ts, value]) => ({ ts, value: value.sum / value.n }))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
@@ -172,7 +176,11 @@ function classifyStatus(status: number, body: string): { reason: string; message
   if (status === 401) return { reason: "entsoe_unauthorized", message };
   if (status === 429) return { reason: "entsoe_rate_limited", message };
   if (status === 400) {
-    if (b.includes("no matching data") || b.includes("no data available") || b.includes("matching data not found")) {
+    if (
+      b.includes("no matching data") ||
+      b.includes("no data available") ||
+      b.includes("matching data not found")
+    ) {
       return { reason: "entsoe_no_data", message };
     }
     return { reason: "entsoe_bad_request", message };
@@ -181,9 +189,9 @@ function classifyStatus(status: number, body: string): { reason: string; message
   return { reason: `entsoe_http_${status}`, message };
 }
 
-async function entsoeRaw(params: Record<string, string>): Promise<
-  { ok: true; xml: string } | EntsoeError
-> {
+async function entsoeRaw(
+  params: Record<string, string>,
+): Promise<{ ok: true; xml: string } | EntsoeError> {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
   if (!token) return { ok: false, reason: "missing_token", params };
   const qs = new URLSearchParams({ securityToken: token, ...params });
@@ -193,7 +201,11 @@ async function entsoeRaw(params: Record<string, string>): Promise<
       const res = await fetch(url, { headers: { Accept: "application/xml" } });
       if (res.status === 200) return { ok: true, xml: await res.text() };
       let body = "";
-      try { body = await res.text(); } catch { /* ignore */ }
+      try {
+        body = await res.text();
+      } catch {
+        /* ignore */
+      }
       const { reason, message } = classifyStatus(res.status, body);
       if (res.status >= 500 && attempt === 0) {
         await new Promise((r) => setTimeout(r, 400));
@@ -202,7 +214,12 @@ async function entsoeRaw(params: Record<string, string>): Promise<
       return { ok: false, reason, status: res.status, message, params };
     } catch (e) {
       if (attempt === 1) {
-        return { ok: false, reason: "network_error", message: sanitizeMessage((e as Error).message), params };
+        return {
+          ok: false,
+          reason: "network_error",
+          message: sanitizeMessage((e as Error).message),
+          params,
+        };
       }
       await new Promise((r) => setTimeout(r, 400));
     }
@@ -236,7 +253,14 @@ async function fetchDayPrices(dayISO: string): Promise<DayFetchResult> {
   };
   const r = await entsoeRaw(reqParams);
   if (!r.ok) {
-    return { ok: false, reason: r.reason, status: r.status, message: r.message, params: reqParams, points: [] };
+    return {
+      ok: false,
+      reason: r.reason,
+      status: r.status,
+      message: r.message,
+      params: reqParams,
+      points: [],
+    };
   }
   const startMs = start.getTime();
   const endMs = end.getTime();
@@ -256,15 +280,18 @@ async function fetchDayPrices(dayISO: string): Promise<DayFetchResult> {
 function normalizeCachedRows(
   rows: Array<{ datetime: string; price_eur_mwh: number | string | null }>,
 ) {
-  const byTs = new Map<string, number>();
+  const byTs = new Map<string, { sum: number; n: number }>();
   for (const row of rows) {
     const ts = normalizeHourIso(row.datetime);
     const price = Number(row.price_eur_mwh);
     if (!Number.isFinite(price)) continue;
-    byTs.set(ts, price);
+    const bucket = byTs.get(ts) ?? { sum: 0, n: 0 };
+    bucket.sum += price;
+    bucket.n += 1;
+    byTs.set(ts, bucket);
   }
   return [...byTs.entries()]
-    .map(([ts, price]) => ({ ts, price }))
+    .map(([ts, price]) => ({ ts, price: price.sum / price.n }))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
@@ -288,7 +315,10 @@ async function readAllCachedRows(
       .lte("datetime", toIso)
       .order("datetime", { ascending: true })
       .range(offset, offset + PAGE - 1);
-    const rows = (res.data ?? []) as Array<{ datetime: string; price_eur_mwh: number | string | null }>;
+    const rows = (res.data ?? []) as Array<{
+      datetime: string;
+      price_eur_mwh: number | string | null;
+    }>;
     out.push(...rows);
     if (rows.length < PAGE) break;
     if (offset > 500_000) break; // hard safety
@@ -296,16 +326,13 @@ async function readAllCachedRows(
   return out;
 }
 
-
 // ---------------------------------------------------------------------------
 // Public server function
 // ---------------------------------------------------------------------------
 
 export const fetchMarketPrices = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    z
-      .object({ from: z.string().optional(), to: z.string().optional() })
-      .parse(data ?? {}),
+    z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -319,16 +346,11 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
           ? maxPast
           : data.from
         : addDaysISO(today, -30);
-    const requestedTo =
-      data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to) ? data.to : tomorrow;
+    const requestedTo = data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to) ? data.to : tomorrow;
     // Extend to at least tomorrow so SDAC publication (~13:00 CET) is picked
     // up whenever the selected range touches today; never let `to` precede `from`.
     const windowTo =
-      requestedTo < windowFrom
-        ? windowFrom
-        : requestedTo > tomorrow
-          ? requestedTo
-          : tomorrow;
+      requestedTo < windowFrom ? windowFrom : requestedTo > tomorrow ? requestedTo : tomorrow;
 
     // One-day buffer on each side so cached UTC rows fully cover the local range.
     const cacheFrom = addDaysISO(windowFrom, -1);
@@ -397,7 +419,12 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
       if (!last || !last.ok) {
         const reason = last?.reason ?? "unknown";
         failedFetches.push({
-          day, reason, status: last?.status, message: last?.message, attempts, params: last?.params,
+          day,
+          reason,
+          status: last?.status,
+          message: last?.message,
+          attempts,
+          params: last?.params,
         });
         reasons.push(`${day}: ${reason}${last?.status ? ` (http_${last.status})` : ""}`);
         return;
@@ -428,13 +455,23 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
         .gte("datetime", minTs)
         .lte("datetime", maxTs);
       if (del.error) {
-        failedFetches.push({ day, reason: "supabase_delete_error", attempts, message: sanitizeMessage(del.error.message) });
+        failedFetches.push({
+          day,
+          reason: "supabase_delete_error",
+          attempts,
+          message: sanitizeMessage(del.error.message),
+        });
         reasons.push(`${day}: supabase_delete_error`);
         return;
       }
       const ins = await supabaseAdmin.from("market_prices_hourly").insert(rows);
       if (ins.error) {
-        failedFetches.push({ day, reason: "supabase_insert_error", attempts, message: sanitizeMessage(ins.error.message) });
+        failedFetches.push({
+          day,
+          reason: "supabase_insert_error",
+          attempts,
+          message: sanitizeMessage(ins.error.message),
+        });
         reasons.push(`${day}: supabase_insert_error`);
         return;
       }
@@ -484,7 +521,9 @@ export const fetchMarketPrices = createServerFn({ method: "POST" })
       `ENTSO-E debug: selected ${windowFrom} → ${windowTo}; ` +
       `total ${allDays.length} d; complete ${completeDays.length}; incomplete ${incompleteDays.length}; ` +
       `missing ${missingDays.length}; attempted ${capped.length}` +
-      (capReached ? ` (cap ${MAX_FETCH_PER_CALL}, +${daysToFetch.length - capped.length} deferred)` : "") +
+      (capReached
+        ? ` (cap ${MAX_FETCH_PER_CALL}, +${daysToFetch.length - capped.length} deferred)`
+        : "") +
       `; fetched ${fetchedDaysCount}; failed ${failedFetches.length}` +
       (topFailure ? `; top reason: ${topFailure[0]} (${topFailure[1]})` : "") +
       (firstFailed
