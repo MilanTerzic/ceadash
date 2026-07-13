@@ -704,7 +704,7 @@ function LinkedInReportCard({
 
           <div className="mt-7 grid grid-cols-[1.05fr_0.95fr] gap-7">
             <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
-            <LinkedInFlowMap rows={report.flows.latest24h} />
+            <LinkedInFlowSnapshot rows={report.flows.latest24h} />
           </div>
         </div>
 
@@ -871,135 +871,56 @@ function LinkedInHeatmap({ rows }: { rows: CeaTraderReport["prices"]["serbiaHeat
   );
 }
 
-function LinkedInFlowMap({ rows }: { rows: CeaTraderReport["flows"]["latest24h"] }) {
-  const topFlows = rows.slice(0, 4);
-  const strongest = topFlows[0]?.absMw ?? 1;
-  const positions: Record<string, { x: number; y: number }> = {
-    HU: { x: 220, y: 54 },
-    RO: { x: 354, y: 150 },
-    BG: { x: 284, y: 276 },
-    BA: { x: 76, y: 172 },
-    HR: { x: 112, y: 74 },
-    ME: { x: 118, y: 276 },
-    MK: { x: 228, y: 314 },
-  };
+function LinkedInFlowSnapshot({ rows }: { rows: CeaTraderReport["flows"]["latest24h"] }) {
+  const flowRows = rows.slice(0, 7);
 
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between gap-4">
+      <div>
         <div className="text-sm uppercase tracking-widest text-muted-foreground">
-          Serbia Power Flow Snapshot
+          Latest Serbia Physical-Flow Snapshot
         </div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-          latest 24h avg MW
+        <div className="mt-2 text-sm leading-snug text-muted-foreground">
+          Latest 24h average by Serbia border. Positive values indicate RS exports.
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-[1fr_0.9fr] gap-4">
-        <svg className="h-[260px] w-full" viewBox="0 0 430 340" role="img">
-          <defs>
-            <marker
-              id="linkedin-arrow-export"
-              markerHeight="7"
-              markerWidth="7"
-              orient="auto-start-reverse"
-              refX="6"
-              refY="3.5"
-            >
-              <path d="M0,0 L7,3.5 L0,7 Z" fill="#0f9f8f" />
-            </marker>
-            <filter id="linkedin-map-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow
-                dx="0"
-                dy="8"
-                floodColor="#283022"
-                floodOpacity="0.16"
-                stdDeviation="8"
-              />
-            </filter>
-          </defs>
-
-          <path
-            d="M214 44 C252 58 278 88 286 124 C313 137 328 168 316 197 C333 227 314 255 280 263 C267 299 225 315 193 294 C157 305 121 282 118 242 C89 223 83 183 110 157 C101 122 126 91 161 86 C171 61 192 45 214 44 Z"
-            fill="#f8f8ee"
-            filter="url(#linkedin-map-shadow)"
-            stroke="#263126"
-            strokeWidth="3"
-          />
-          <text
-            x="214"
-            y="175"
-            fill="#13170f"
-            fontFamily="var(--font-sans)"
-            fontSize="36"
-            fontWeight="700"
-            textAnchor="middle"
-          >
-            RS
-          </text>
-
-          {topFlows.map((flow) => {
-            const neighbor = flow.border.replace("RS-", "");
-            const pos = positions[neighbor] ?? { x: 350, y: 88 };
+      <div className="mt-4 space-y-2">
+        {flowRows.length ? (
+          flowRows.map((flow) => {
             const exportFlow = flow.netMw >= 0;
-            const from = exportFlow ? { x: 214, y: 170 } : pos;
-            const to = exportFlow ? pos : { x: 214, y: 170 };
-            const width = 3 + (flow.absMw / strongest) * 7;
             return (
-              <g key={flow.border}>
-                <line
-                  x1={from.x}
-                  x2={to.x}
-                  y1={from.y}
-                  y2={to.y}
-                  stroke="#0f9f8f"
-                  strokeLinecap="round"
-                  strokeWidth={width}
-                  markerEnd="url(#linkedin-arrow-export)"
-                />
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  fill="#fffef4"
-                  r="24"
-                  stroke="#263126"
-                  strokeWidth="2"
-                />
-                <text
-                  x={pos.x}
-                  y={pos.y + 7}
-                  fill="#13170f"
-                  fontFamily="var(--font-sans)"
-                  fontSize="18"
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  {neighbor}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-
-        <div className="space-y-3">
-          {topFlows.length ? (
-            topFlows.map((flow) => (
               <div
                 key={flow.border}
-                className="rounded-2xl border border-border/70 bg-muted/20 p-3"
+                className="grid grid-cols-[1fr_auto] items-center gap-4 rounded-2xl border border-border/70 bg-muted/20 px-4 py-3"
               >
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {flow.direction}
+                <div>
+                  <div className="font-display text-2xl leading-none">{flow.border}</div>
+                  <div className="mt-1 text-sm font-semibold text-muted-foreground">
+                    {flow.direction}
+                  </div>
                 </div>
-                <div className="mt-1 font-display text-2xl">{fmt(flow.absMw, 0)} MW</div>
+                <div className="text-right">
+                  <div
+                    className={`font-display text-2xl leading-none ${
+                      exportFlow ? "text-positive" : "text-warning"
+                    }`}
+                  >
+                    {exportFlow ? "" : "-"}
+                    {fmt(flow.absMw, 0)} MW
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-muted-foreground">
+                    abs {fmt(flow.absMw, 0)} MW
+                  </div>
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-              No physical-flow snapshot
-            </div>
-          )}
-        </div>
+            );
+          })
+        ) : (
+          <div className="rounded-2xl border border-border/70 bg-muted/20 p-5 text-sm text-muted-foreground">
+            No physical-flow snapshot
+          </div>
+        )}
       </div>
     </div>
   );
