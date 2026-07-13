@@ -151,8 +151,11 @@ function TraderReportPage() {
   const requested = useRequestedRangeKeys();
   const reportQuery = useQuery({
     queryKey: ["cea-trader-report", requested.fromKey, requested.toKey, requested.preset],
-    queryFn: () => getCeaTraderReport({ data: { from: requested.fromKey, to: requested.toKey } }),
-    staleTime: 30 * 60_000,
+    queryFn: () =>
+      getCeaTraderReport({
+        data: { from: requested.fromKey, to: requested.toKey, preset: requested.preset },
+      }),
+    staleTime: requested.preset === "7d" ? 15 * 60_000 : 30 * 60_000,
   });
 
   const report = reportQuery.data;

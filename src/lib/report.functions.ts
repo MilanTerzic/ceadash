@@ -88,6 +88,40 @@ function average(values: number[]): number | null {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
+function todayBelgradeISO(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function addDaysISO(dayISO: string, n: number): string {
+  const d = new Date(`${dayISO}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function resolveSevenDayReportRange(
+  requested: { from: string; to: string; preset?: string },
+  serbiaPoints: Array<{ ts: string; price: number }>,
+): { from: string; to: string; usedTomorrow: boolean } {
+  if (requested.preset !== "7d") {
+    return { from: requested.from, to: requested.to, usedTomorrow: false };
+  }
+
+  const today = todayBelgradeISO();
+  const tomorrow = addDaysISO(today, 1);
+  const hasTomorrow = serbiaPoints.some((point) => belgradeDayKey(new Date(point.ts)) === tomorrow);
+  const to = hasTomorrow ? tomorrow : today;
+  return {
+    from: addDaysISO(to, -6),
+    to,
+    usedTomorrow: hasTomorrow,
+  };
+}
+
 function serbiaZoneFromMarket(points: Array<{ ts: string; price: number }>): ZonePrice | null {
   const clean = points
     .filter((point) => Number.isFinite(point.price))
@@ -128,14 +162,29 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
       .object({
         from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        preset: z.enum(["7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
       })
       .parse(data),
   )
   .handler(async ({ data }): Promise<CeaTraderReport> => {
-    const [regionalResult, captureResult, serbiaMarketResult] = await Promise.allSettled([
-      fetchRegionalSnapshot({ data }),
-      fetchCaptureSeries({ data }),
-      fetchMarketPrices({ data }),
+    const [serbiaMarketResult] = await Promise.allSettled([fetchMarketPrices({ data })]);
+
+    const serbiaMarket =
+      serbiaMarketResult.status === "fulfilled"
+        ? serbiaMarketResult.value
+        : {
+            ok: false,
+            source: "none" as const,
+            points: [] as Array<{ ts: string; price: number }>,
+            reason: errorMessage(serbiaMarketResult.reason),
+          };
+
+    const effectiveRange = resolveSevenDayReportRange(data, serbiaMarket.points ?? []);
+    const effectiveData = { from: effectiveRange.from, to: effectiveRange.to };
+
+    const [regionalResult, captureResult] = await Promise.allSettled([
+      fetchRegionalSnapshot({ data: effectiveData }),
+      fetchCaptureSeries({ data: effectiveData }),
     ]);
 
     const regional = regionalResult.status === "fulfilled" ? regionalResult.value : emptyRegional();
@@ -149,19 +198,10 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
             points: [] as CapturePoint[],
             solarSource: "none" as const,
           };
-    const serbiaMarket =
-      serbiaMarketResult.status === "fulfilled"
-        ? serbiaMarketResult.value
-        : {
-            ok: false,
-            source: "none" as const,
-            points: [] as Array<{ ts: string; price: number }>,
-            reason: errorMessage(serbiaMarketResult.reason),
-          };
 
     const serbiaPoints = (serbiaMarket.points ?? []).filter((point) => {
       const day = belgradeDayKey(new Date(point.ts));
-      return day >= data.from && day <= data.to;
+      return day >= effectiveRange.from && day <= effectiveRange.to;
     });
     const serbiaFullRange = serbiaZoneFromMarket(serbiaPoints);
     const priceMarkets = mergeSerbiaFullRange(regional.prices ?? [], serbiaFullRange);
@@ -194,7 +234,11 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
       message:
         serbiaMarketResult.status === "rejected"
           ? errorMessage(serbiaMarketResult.reason)
-          : "Range-aware Serbia fetch; 15-minute MTUs are averaged into hourly prices.",
+          : effectiveRange.usedTomorrow
+            ? "Last 7 days includes tomorrow because published Serbia DA prices are available; 15-minute MTUs are averaged into hourly prices."
+            : data.preset === "7d"
+              ? "Last 7 days includes today because tomorrow Serbia DA prices are not available yet; 15-minute MTUs are averaged into hourly prices."
+              : "Range-aware Serbia fetch; 15-minute MTUs are averaged into hourly prices.",
     });
     coverage.push({
       dataset: "Regional comparison prices",
@@ -235,8 +279,8 @@ export const getCeaTraderReport = createServerFn({ method: "POST" })
 
     return {
       period: {
-        from: data.from,
-        to: data.to,
+        from: effectiveRange.from,
+        to: effectiveRange.to,
         timezone: "Europe/Belgrade",
         generatedAt: new Date().toISOString(),
       },
