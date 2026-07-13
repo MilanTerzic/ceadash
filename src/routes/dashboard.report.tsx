@@ -638,10 +638,8 @@ function LinkedInReportCard({
   capture: CaptureSummary | null;
   bestSpread: MarketPriceSummary | undefined;
 }) {
-  const rsVsHu =
-    rs?.baseload != null && hu?.baseload != null
-      ? `${fmt(rs.baseload - hu.baseload)} EUR/MWh`
-      : "N/A";
+  const rsVsHuValue =
+    rs?.baseload != null && hu?.baseload != null ? fmt(rs.baseload - hu.baseload) : "N/A";
   const topRows = report.prices.marketSummary
     .filter((row) => finiteNumber(row.baseload))
     .sort((a, b) => (b.baseload ?? 0) - (a.baseload ?? 0))
@@ -655,41 +653,43 @@ function LinkedInReportCard({
     <div className="fixed left-[-10000px] top-0 z-[-1] print:hidden" aria-hidden="true">
       <div
         ref={cardRef}
-        className="flex h-[1200px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-16 text-foreground"
+        className="flex h-[1500px] w-[1200px] flex-col justify-between overflow-hidden bg-background p-14 text-foreground"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         <div>
-          <div className="flex items-start justify-between gap-8 border-b border-border pb-8">
+          <div className="flex items-start justify-between gap-8 border-b border-border pb-6">
             <div>
-              <div className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
+              <div className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
                 CEA Power Dashboard
               </div>
-              <h1 className="mt-5 font-display text-7xl leading-none">Trader Report</h1>
-              <p className="mt-4 max-w-3xl text-2xl leading-snug text-muted-foreground">
+              <h1 className="mt-4 font-display text-6xl leading-none">Trader Report</h1>
+              <p className="mt-3 max-w-3xl text-xl leading-snug text-muted-foreground">
                 Serbia day-ahead prices, regional spreads, RES capture and BESS market signals.
               </p>
             </div>
-            <div className="rounded-2xl border border-border bg-card px-6 py-4 text-right">
+            <div className="w-[330px] shrink-0 rounded-2xl border border-border bg-card px-6 py-4 text-right">
               <div className="text-xs uppercase tracking-widest text-muted-foreground">
                 Europe/Belgrade
               </div>
-              <div className="mt-1 font-display text-3xl">
-                {report.period.from} {"->"} {report.period.to}
+              <div className="mt-2 font-display text-2xl leading-tight">
+                <div>{report.period.from}</div>
+                <div className="text-base text-muted-foreground">to</div>
+                <div>{report.period.to}</div>
               </div>
             </div>
           </div>
 
-          <div className="mt-10 grid grid-cols-4 gap-5">
+          <div className="mt-8 grid grid-cols-4 gap-4">
             <LinkedInMetric label="RS baseload" value={fmt(rs?.baseload)} unit="EUR/MWh" />
             <LinkedInMetric label="RS peakload" value={fmt(rs?.peakload)} unit="EUR/MWh" />
             <LinkedInMetric label="Negative hours" value={String(rs?.negativeHours ?? "N/A")} />
-            <LinkedInMetric label="RS vs HU" value={rsVsHu} />
+            <LinkedInMetric label="RS vs HU" value={rsVsHuValue} unit="EUR/MWh" />
           </div>
 
-          <div className="mt-10 grid grid-cols-[1.15fr_0.85fr] gap-8">
+          <div className="mt-8 grid grid-cols-[1.15fr_0.85fr] gap-7">
             <LinkedInDailyPriceChart rows={rsDailyRows} />
 
-            <div className="rounded-3xl border border-border bg-card p-7">
+            <div className="rounded-3xl border border-border bg-card p-6">
               <div className="text-sm uppercase tracking-widest text-muted-foreground">
                 Regional Baseload
               </div>
@@ -697,8 +697,8 @@ function LinkedInReportCard({
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-[1.1fr_0.9fr] gap-8">
-            <div className="rounded-3xl border border-border bg-card p-7">
+          <div className="mt-7 grid grid-cols-[1.1fr_0.9fr] gap-7">
+            <div className="rounded-3xl border border-border bg-card p-6">
               <div className="flex items-center justify-between">
                 <div className="text-sm uppercase tracking-widest text-muted-foreground">
                   Serbia Hourly Price Heatmap
@@ -710,11 +710,11 @@ function LinkedInReportCard({
               <LinkedInHeatmap rows={report.prices.serbiaHeatmap} />
             </div>
 
-            <div className="rounded-3xl border border-border bg-card p-7">
+            <div className="rounded-3xl border border-border bg-card p-6">
               <div className="text-sm uppercase tracking-widest text-muted-foreground">
                 Desk Signals
               </div>
-              <div className="mt-5 space-y-4 text-xl leading-snug">
+              <div className="mt-5 space-y-4 text-lg leading-snug">
                 {summaryLines.map((line) => (
                   <div key={line} className="flex gap-3">
                     <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
@@ -748,7 +748,7 @@ function LinkedInReportCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-border pt-7 text-lg text-muted-foreground">
+        <div className="flex items-center justify-between border-t border-border pt-6 text-base text-muted-foreground">
           <span>Source: ENTSO-E / CEA calculations. No demo data substituted.</span>
           <span>ceadash.lovable.app</span>
         </div>
