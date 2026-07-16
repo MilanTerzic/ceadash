@@ -90,18 +90,14 @@ const HOT_TTL_MS = 30 * 60 * 1000;
 
 export const fetchHupxPrices = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    z
-      .object({ from: z.string().optional(), to: z.string().optional() })
-      .parse(data ?? {}),
+    z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
   )
   .handler(async ({ data }): Promise<HupxResponse> => {
     const nowUtc = new Date();
     nowUtc.setUTCMinutes(0, 0, 0);
     const defaultFrom = new Date(nowUtc.getTime() - 30 * 24 * 3600_000);
     const fromDate =
-      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
-        ? parseDayKey(data.from)
-        : defaultFrom;
+      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from) ? parseDayKey(data.from) : defaultFrom;
     const toDate =
       data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to)
         ? new Date(parseDayKey(data.to).getTime() + 24 * 3600_000)

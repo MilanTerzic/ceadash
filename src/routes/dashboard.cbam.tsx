@@ -180,8 +180,7 @@ function CbamPage() {
     return m;
   }, [hupx.data]);
 
-  const useHupx =
-    settings.destinationCountry === "HU" && hupxMap.size > 0;
+  const useHupx = settings.destinationCountry === "HU" && hupxMap.size > 0;
 
   const rawPoints = live.data?.points ?? [];
   const lastTs = rawPoints[rawPoints.length - 1]?.ts
@@ -215,15 +214,13 @@ function CbamPage() {
       lossAdj: number;
       margin: number;
     }[] = [];
-    const otherPerMwh =
-      settings.capacityCost + settings.exportFees + settings.tradingCost;
+    const otherPerMwh = settings.capacityCost + settings.exportFees + settings.tradingCost;
     for (const p of inRange) {
       if (!Number.isFinite(p.price)) continue;
       const d = new Date(p.ts);
       const q = quarterOf(d);
       const cbamPrice = settings.quarterlyPrices[q] ?? 0;
-      const cbamCost =
-        settings.emissionFactor * (cbamPrice - settings.carbonPricePaid);
+      const cbamCost = settings.emissionFactor * (cbamPrice - settings.carbonPricePaid);
       let eu = settings.destinationPrice;
       if (useHupx) {
         const hourKey = new Date(p.ts);
@@ -264,8 +261,7 @@ function CbamPage() {
       settings.volumeMwh *
       settings.emissionFactor *
       avg(hourly.map((r) => settings.quarterlyPrices[r.quarter] ?? 0));
-    const carbonDeduction =
-      settings.volumeMwh * settings.emissionFactor * settings.carbonPricePaid;
+    const carbonDeduction = settings.volumeMwh * settings.emissionFactor * settings.carbonPricePaid;
     const netCbamTotal = grossCbam - carbonDeduction;
     const breakevenEu =
       seepexAvg + cbamAvg + hourly[0].otherCosts + (settings.lossesPct / 100) * euAvg;
@@ -308,7 +304,8 @@ function CbamPage() {
         const profitable = rows.filter((r) => r.margin > 0).length;
         const nonProfitable = rows.length - profitable;
         const cbamTotal =
-          settings.volumeMwh * settings.emissionFactor *
+          settings.volumeMwh *
+          settings.emissionFactor *
           avg(rows.map((r) => settings.quarterlyPrices[r.quarter] ?? 0));
         return {
           month,
@@ -345,10 +342,7 @@ function CbamPage() {
 
   return (
     <div className="space-y-6">
-      <DateRangeControl
-        firstAvailable={firstAvailable}
-        latestAvailable={lastTs}
-      />
+      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={lastTs} />
 
       <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground space-y-1.5">
         <p>
@@ -483,7 +477,11 @@ function CbamPage() {
               { label: t("EU price", "EU cena"), value: period.euAvg, sign: "+" },
               { label: t("− SEEPEX", "− SEEPEX"), value: -period.seepexAvg, sign: "−" },
               { label: t("− CBAM", "− CBAM"), value: -period.cbamAvg, sign: "−" },
-              { label: t("− Other costs", "− Ostali troškovi"), value: -period.otherAvg, sign: "−" },
+              {
+                label: t("− Other costs", "− Ostali troškovi"),
+                value: -period.otherAvg,
+                sign: "−",
+              },
               { label: t("= Net margin", "= Neto marža"), value: period.marginAvg, sign: "=" },
             ].map((c) => (
               <div
@@ -509,7 +507,10 @@ function CbamPage() {
       {/* Line chart */}
       {chartLineDs.length > 0 && (
         <ChartCard
-          title={t("SEEPEX vs EU destination, before and after CBAM", "SEEPEX vs EU cena, pre i nakon CBAM")}
+          title={t(
+            "SEEPEX vs EU destination, before and after CBAM",
+            "SEEPEX vs EU cena, pre i nakon CBAM",
+          )}
         >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -635,9 +636,7 @@ function CbamPage() {
         title={t("Inputs & assumptions", "Ulazi i pretpostavke")}
         right={
           <Button variant="outline" size="sm" onClick={() => setShowSettings((v) => !v)}>
-            {showSettings
-              ? t("Hide", "Sakrij")
-              : t("Edit inputs", "Izmeni ulaze")}
+            {showSettings ? t("Hide", "Sakrij") : t("Edit inputs", "Izmeni ulaze")}
           </Button>
         }
         description={t(
@@ -678,9 +677,7 @@ function CbamPage() {
             <Stat label={t("Losses", "Gubici")} value={`${fmt(settings.lossesPct)} %`} />
             <Stat
               label={t("CBAM Q current", "CBAM tekući Q")}
-              value={`${fmt(
-                settings.quarterlyPrices[quarterOf(new Date())] ?? 0,
-              )} €/tCO2`}
+              value={`${fmt(settings.quarterlyPrices[quarterOf(new Date())] ?? 0)} €/tCO2`}
             />
           </div>
         )}
@@ -735,7 +732,12 @@ function SettingsPanel({
             onChange={(e) => update("emissionFactor", num(e.target.value))}
           />
         </Field>
-        <Field label={t("Carbon price paid in Serbia (€/tCO2)", "Ugljena taksa plaćena u Srbiji (€/tCO2)")}>
+        <Field
+          label={t(
+            "Carbon price paid in Serbia (€/tCO2)",
+            "Ugljena taksa plaćena u Srbiji (€/tCO2)",
+          )}
+        >
           <Input
             type="number"
             step="0.01"
@@ -842,11 +844,7 @@ function SettingsPanel({
           >
             {t("Add next quarter", "Dodaj sledeći kvartal")}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSettings(() => DEFAULT_SETTINGS)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setSettings(() => DEFAULT_SETTINGS)}>
             {t("Reset to defaults", "Vrati podrazumevano")}
           </Button>
         </div>

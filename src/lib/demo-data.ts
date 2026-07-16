@@ -131,7 +131,20 @@ export function monthlyAvg(points: HourlyPoint[], key: "price" | "solar" | "wind
 }
 
 export function captureMetricsByMonth(points: HourlyPoint[]) {
-  const map = new Map<string, { sumP: number; nP: number; sumPS: number; sumS: number; sumPW: number; sumW: number; nNeg: number; sumSneg: number; sumWneg: number }>();
+  const map = new Map<
+    string,
+    {
+      sumP: number;
+      nP: number;
+      sumPS: number;
+      sumS: number;
+      sumPW: number;
+      sumW: number;
+      nNeg: number;
+      sumSneg: number;
+      sumWneg: number;
+    }
+  >();
   for (const p of points) {
     const k = p.ts.toISOString().slice(0, 7);
     let m = map.get(k);

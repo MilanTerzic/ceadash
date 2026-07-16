@@ -14,15 +14,32 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardWeeklyRouteImport } from './routes/dashboard.weekly'
+import { Route as DashboardWeatherRouteImport } from './routes/dashboard.weather'
+import { Route as DashboardUtilizationRouteImport } from './routes/dashboard.utilization'
+import { Route as DashboardSpreadsRouteImport } from './routes/dashboard.spreads'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardReportRouteImport } from './routes/dashboard.report'
 import { Route as DashboardRegionalRouteImport } from './routes/dashboard.regional'
+import { Route as DashboardPricesRouteImport } from './routes/dashboard.prices'
+import { Route as DashboardPowerOverviewRouteImport } from './routes/dashboard.power-overview'
+import { Route as DashboardOutagesRouteImport } from './routes/dashboard.outages'
 import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
 import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
+import { Route as DashboardMarketReportRouteImport } from './routes/dashboard.market-report'
 import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
+import { Route as DashboardMapRouteImport } from './routes/dashboard.map'
 import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
+import { Route as DashboardFuturesRouteImport } from './routes/dashboard.futures'
+import { Route as DashboardForecastRouteImport } from './routes/dashboard.forecast'
+import { Route as DashboardFlowsRouteImport } from './routes/dashboard.flows'
+import { Route as DashboardFlexibilityRouteImport } from './routes/dashboard.flexibility'
+import { Route as DashboardDanubeRouteImport } from './routes/dashboard.danube'
+import { Route as DashboardCbcRouteImport } from './routes/dashboard.cbc'
 import { Route as DashboardCbamRouteImport } from './routes/dashboard.cbam'
 import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
+import { Route as DashboardCapacityRouteImport } from './routes/dashboard.capacity'
 import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
+import { Route as DashboardBalanceRouteImport } from './routes/dashboard.balance'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -49,6 +66,26 @@ const DashboardWeeklyRoute = DashboardWeeklyRouteImport.update({
   path: '/weekly',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardWeatherRoute = DashboardWeatherRouteImport.update({
+  id: '/weather',
+  path: '/weather',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardUtilizationRoute = DashboardUtilizationRouteImport.update({
+  id: '/utilization',
+  path: '/utilization',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSpreadsRoute = DashboardSpreadsRouteImport.update({
+  id: '/spreads',
+  path: '/spreads',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardReportRoute = DashboardReportRouteImport.update({
   id: '/report',
   path: '/report',
@@ -57,6 +94,21 @@ const DashboardReportRoute = DashboardReportRouteImport.update({
 const DashboardRegionalRoute = DashboardRegionalRouteImport.update({
   id: '/regional',
   path: '/regional',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPricesRoute = DashboardPricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPowerOverviewRoute = DashboardPowerOverviewRouteImport.update({
+  id: '/power-overview',
+  path: '/power-overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOutagesRoute = DashboardOutagesRouteImport.update({
+  id: '/outages',
+  path: '/outages',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardNewsRoute = DashboardNewsRouteImport.update({
@@ -69,14 +121,54 @@ const DashboardMethodologyRoute = DashboardMethodologyRouteImport.update({
   path: '/methodology',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMarketReportRoute = DashboardMarketReportRouteImport.update({
+  id: '/market-report',
+  path: '/market-report',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardMarketRoute = DashboardMarketRouteImport.update({
   id: '/market',
   path: '/market',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMapRoute = DashboardMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFuturesRoute = DashboardFuturesRouteImport.update({
+  id: '/futures',
+  path: '/futures',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardForecastRoute = DashboardForecastRouteImport.update({
+  id: '/forecast',
+  path: '/forecast',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFlowsRoute = DashboardFlowsRouteImport.update({
+  id: '/flows',
+  path: '/flows',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFlexibilityRoute = DashboardFlexibilityRouteImport.update({
+  id: '/flexibility',
+  path: '/flexibility',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDanubeRoute = DashboardDanubeRouteImport.update({
+  id: '/danube',
+  path: '/danube',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCbcRoute = DashboardCbcRouteImport.update({
+  id: '/cbc',
+  path: '/cbc',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardCbamRoute = DashboardCbamRouteImport.update({
@@ -89,9 +181,19 @@ const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
   path: '/capture',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCapacityRoute = DashboardCapacityRouteImport.update({
+  id: '/capacity',
+  path: '/capacity',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
   id: '/calculator',
   path: '/calculator',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBalanceRoute = DashboardBalanceRouteImport.update({
+  id: '/balance',
+  path: '/balance',
   getParentRoute: () => DashboardRoute,
 } as any)
 
@@ -99,30 +201,64 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/balance': typeof DashboardBalanceRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
   '/dashboard/cbam': typeof DashboardCbamRoute
+  '/dashboard/cbc': typeof DashboardCbcRoute
+  '/dashboard/danube': typeof DashboardDanubeRoute
+  '/dashboard/flexibility': typeof DashboardFlexibilityRoute
+  '/dashboard/flows': typeof DashboardFlowsRoute
+  '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/map': typeof DashboardMapRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/market-report': typeof DashboardMarketReportRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/outages': typeof DashboardOutagesRoute
+  '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/spreads': typeof DashboardSpreadsRoute
+  '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/balance': typeof DashboardBalanceRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
   '/dashboard/cbam': typeof DashboardCbamRoute
+  '/dashboard/cbc': typeof DashboardCbcRoute
+  '/dashboard/danube': typeof DashboardDanubeRoute
+  '/dashboard/flexibility': typeof DashboardFlexibilityRoute
+  '/dashboard/flows': typeof DashboardFlowsRoute
+  '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/map': typeof DashboardMapRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/market-report': typeof DashboardMarketReportRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/outages': typeof DashboardOutagesRoute
+  '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/spreads': typeof DashboardSpreadsRoute
+  '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard': typeof DashboardIndexRoute
 }
@@ -131,15 +267,32 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/balance': typeof DashboardBalanceRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
+  '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
   '/dashboard/cbam': typeof DashboardCbamRoute
+  '/dashboard/cbc': typeof DashboardCbcRoute
+  '/dashboard/danube': typeof DashboardDanubeRoute
+  '/dashboard/flexibility': typeof DashboardFlexibilityRoute
+  '/dashboard/flows': typeof DashboardFlowsRoute
+  '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
+  '/dashboard/map': typeof DashboardMapRoute
   '/dashboard/market': typeof DashboardMarketRoute
+  '/dashboard/market-report': typeof DashboardMarketReportRoute
   '/dashboard/methodology': typeof DashboardMethodologyRoute
   '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/outages': typeof DashboardOutagesRoute
+  '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/spreads': typeof DashboardSpreadsRoute
+  '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
@@ -149,30 +302,64 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/sitemap.xml'
+    | '/dashboard/balance'
     | '/dashboard/calculator'
+    | '/dashboard/capacity'
     | '/dashboard/capture'
     | '/dashboard/cbam'
+    | '/dashboard/cbc'
+    | '/dashboard/danube'
+    | '/dashboard/flexibility'
+    | '/dashboard/flows'
+    | '/dashboard/forecast'
+    | '/dashboard/futures'
     | '/dashboard/insights'
+    | '/dashboard/map'
     | '/dashboard/market'
+    | '/dashboard/market-report'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/outages'
+    | '/dashboard/power-overview'
+    | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
+    | '/dashboard/settings'
+    | '/dashboard/spreads'
+    | '/dashboard/utilization'
+    | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sitemap.xml'
+    | '/dashboard/balance'
     | '/dashboard/calculator'
+    | '/dashboard/capacity'
     | '/dashboard/capture'
     | '/dashboard/cbam'
+    | '/dashboard/cbc'
+    | '/dashboard/danube'
+    | '/dashboard/flexibility'
+    | '/dashboard/flows'
+    | '/dashboard/forecast'
+    | '/dashboard/futures'
     | '/dashboard/insights'
+    | '/dashboard/map'
     | '/dashboard/market'
+    | '/dashboard/market-report'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/outages'
+    | '/dashboard/power-overview'
+    | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
+    | '/dashboard/settings'
+    | '/dashboard/spreads'
+    | '/dashboard/utilization'
+    | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard'
   id:
@@ -180,15 +367,32 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/sitemap.xml'
+    | '/dashboard/balance'
     | '/dashboard/calculator'
+    | '/dashboard/capacity'
     | '/dashboard/capture'
     | '/dashboard/cbam'
+    | '/dashboard/cbc'
+    | '/dashboard/danube'
+    | '/dashboard/flexibility'
+    | '/dashboard/flows'
+    | '/dashboard/forecast'
+    | '/dashboard/futures'
     | '/dashboard/insights'
+    | '/dashboard/map'
     | '/dashboard/market'
+    | '/dashboard/market-report'
     | '/dashboard/methodology'
     | '/dashboard/news'
+    | '/dashboard/outages'
+    | '/dashboard/power-overview'
+    | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
+    | '/dashboard/settings'
+    | '/dashboard/spreads'
+    | '/dashboard/utilization'
+    | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
@@ -236,6 +440,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardWeeklyRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/weather': {
+      id: '/dashboard/weather'
+      path: '/weather'
+      fullPath: '/dashboard/weather'
+      preLoaderRoute: typeof DashboardWeatherRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/utilization': {
+      id: '/dashboard/utilization'
+      path: '/utilization'
+      fullPath: '/dashboard/utilization'
+      preLoaderRoute: typeof DashboardUtilizationRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/spreads': {
+      id: '/dashboard/spreads'
+      path: '/spreads'
+      fullPath: '/dashboard/spreads'
+      preLoaderRoute: typeof DashboardSpreadsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/report': {
       id: '/dashboard/report'
       path: '/report'
@@ -248,6 +480,27 @@ declare module '@tanstack/react-router' {
       path: '/regional'
       fullPath: '/dashboard/regional'
       preLoaderRoute: typeof DashboardRegionalRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/prices': {
+      id: '/dashboard/prices'
+      path: '/prices'
+      fullPath: '/dashboard/prices'
+      preLoaderRoute: typeof DashboardPricesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/power-overview': {
+      id: '/dashboard/power-overview'
+      path: '/power-overview'
+      fullPath: '/dashboard/power-overview'
+      preLoaderRoute: typeof DashboardPowerOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/outages': {
+      id: '/dashboard/outages'
+      path: '/outages'
+      fullPath: '/dashboard/outages'
+      preLoaderRoute: typeof DashboardOutagesRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/news': {
@@ -264,6 +517,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMethodologyRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/market-report': {
+      id: '/dashboard/market-report'
+      path: '/market-report'
+      fullPath: '/dashboard/market-report'
+      preLoaderRoute: typeof DashboardMarketReportRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/market': {
       id: '/dashboard/market'
       path: '/market'
@@ -271,11 +531,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMarketRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/map': {
+      id: '/dashboard/map'
+      path: '/map'
+      fullPath: '/dashboard/map'
+      preLoaderRoute: typeof DashboardMapRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/insights': {
       id: '/dashboard/insights'
       path: '/insights'
       fullPath: '/dashboard/insights'
       preLoaderRoute: typeof DashboardInsightsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/futures': {
+      id: '/dashboard/futures'
+      path: '/futures'
+      fullPath: '/dashboard/futures'
+      preLoaderRoute: typeof DashboardFuturesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/forecast': {
+      id: '/dashboard/forecast'
+      path: '/forecast'
+      fullPath: '/dashboard/forecast'
+      preLoaderRoute: typeof DashboardForecastRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/flows': {
+      id: '/dashboard/flows'
+      path: '/flows'
+      fullPath: '/dashboard/flows'
+      preLoaderRoute: typeof DashboardFlowsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/flexibility': {
+      id: '/dashboard/flexibility'
+      path: '/flexibility'
+      fullPath: '/dashboard/flexibility'
+      preLoaderRoute: typeof DashboardFlexibilityRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/danube': {
+      id: '/dashboard/danube'
+      path: '/danube'
+      fullPath: '/dashboard/danube'
+      preLoaderRoute: typeof DashboardDanubeRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/cbc': {
+      id: '/dashboard/cbc'
+      path: '/cbc'
+      fullPath: '/dashboard/cbc'
+      preLoaderRoute: typeof DashboardCbcRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/cbam': {
@@ -292,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCaptureRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/capacity': {
+      id: '/dashboard/capacity'
+      path: '/capacity'
+      fullPath: '/dashboard/capacity'
+      preLoaderRoute: typeof DashboardCapacityRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/calculator': {
       id: '/dashboard/calculator'
       path: '/calculator'
@@ -299,33 +615,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCalculatorRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/balance': {
+      id: '/dashboard/balance'
+      path: '/balance'
+      fullPath: '/dashboard/balance'
+      preLoaderRoute: typeof DashboardBalanceRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 interface DashboardRouteChildren {
+  DashboardBalanceRoute: typeof DashboardBalanceRoute
   DashboardCalculatorRoute: typeof DashboardCalculatorRoute
+  DashboardCapacityRoute: typeof DashboardCapacityRoute
   DashboardCaptureRoute: typeof DashboardCaptureRoute
   DashboardCbamRoute: typeof DashboardCbamRoute
+  DashboardCbcRoute: typeof DashboardCbcRoute
+  DashboardDanubeRoute: typeof DashboardDanubeRoute
+  DashboardFlexibilityRoute: typeof DashboardFlexibilityRoute
+  DashboardFlowsRoute: typeof DashboardFlowsRoute
+  DashboardForecastRoute: typeof DashboardForecastRoute
+  DashboardFuturesRoute: typeof DashboardFuturesRoute
   DashboardInsightsRoute: typeof DashboardInsightsRoute
+  DashboardMapRoute: typeof DashboardMapRoute
   DashboardMarketRoute: typeof DashboardMarketRoute
+  DashboardMarketReportRoute: typeof DashboardMarketReportRoute
   DashboardMethodologyRoute: typeof DashboardMethodologyRoute
   DashboardNewsRoute: typeof DashboardNewsRoute
+  DashboardOutagesRoute: typeof DashboardOutagesRoute
+  DashboardPowerOverviewRoute: typeof DashboardPowerOverviewRoute
+  DashboardPricesRoute: typeof DashboardPricesRoute
   DashboardRegionalRoute: typeof DashboardRegionalRoute
   DashboardReportRoute: typeof DashboardReportRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardSpreadsRoute: typeof DashboardSpreadsRoute
+  DashboardUtilizationRoute: typeof DashboardUtilizationRoute
+  DashboardWeatherRoute: typeof DashboardWeatherRoute
   DashboardWeeklyRoute: typeof DashboardWeeklyRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardBalanceRoute: DashboardBalanceRoute,
   DashboardCalculatorRoute: DashboardCalculatorRoute,
+  DashboardCapacityRoute: DashboardCapacityRoute,
   DashboardCaptureRoute: DashboardCaptureRoute,
   DashboardCbamRoute: DashboardCbamRoute,
+  DashboardCbcRoute: DashboardCbcRoute,
+  DashboardDanubeRoute: DashboardDanubeRoute,
+  DashboardFlexibilityRoute: DashboardFlexibilityRoute,
+  DashboardFlowsRoute: DashboardFlowsRoute,
+  DashboardForecastRoute: DashboardForecastRoute,
+  DashboardFuturesRoute: DashboardFuturesRoute,
   DashboardInsightsRoute: DashboardInsightsRoute,
+  DashboardMapRoute: DashboardMapRoute,
   DashboardMarketRoute: DashboardMarketRoute,
+  DashboardMarketReportRoute: DashboardMarketReportRoute,
   DashboardMethodologyRoute: DashboardMethodologyRoute,
   DashboardNewsRoute: DashboardNewsRoute,
+  DashboardOutagesRoute: DashboardOutagesRoute,
+  DashboardPowerOverviewRoute: DashboardPowerOverviewRoute,
+  DashboardPricesRoute: DashboardPricesRoute,
   DashboardRegionalRoute: DashboardRegionalRoute,
   DashboardReportRoute: DashboardReportRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardSpreadsRoute: DashboardSpreadsRoute,
+  DashboardUtilizationRoute: DashboardUtilizationRoute,
+  DashboardWeatherRoute: DashboardWeatherRoute,
   DashboardWeeklyRoute: DashboardWeeklyRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
@@ -342,3 +699,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

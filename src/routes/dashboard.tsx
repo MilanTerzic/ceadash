@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
 const searchSchema = z.object({
@@ -28,32 +29,34 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardLayout() {
   const { t } = useLang();
   return (
-    <div>
-      <section className="border-b border-border/60 bg-surface/70">
-        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              {t("CEA Power Dashboard", "CEA Power Dashboard")}
+    <DateRangeProvider>
+      <div>
+        <section className="border-b border-border/60 bg-surface/70">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                {t("CEA Power Dashboard", "CEA Power Dashboard")}
+              </div>
+              <h1 className="mt-1 font-display text-3xl text-foreground md:text-4xl">
+                {t(
+                  "Serbia Electricity Market Intelligence",
+                  "Analitika tržišta električne energije Srbije",
+                )}
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                {t(
+                  "Prices, renewable capture, cross-border signals, project economics and CEA market intelligence in one workspace.",
+                  "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analitika u jednom radnom prostoru.",
+                )}
+              </p>
             </div>
-            <h1 className="mt-1 font-display text-3xl text-foreground md:text-4xl">
-              {t(
-                "Serbia Electricity Market Intelligence",
-                "Analitika tržišta električne energije Srbije",
-              )}
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              {t(
-                "Prices, renewable capture, cross-border signals, project economics and CEA market intelligence in one workspace.",
-                "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analitika u jednom radnom prostoru.",
-              )}
-            </p>
           </div>
+        </section>
+        <DashboardTabs />
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+          <Outlet />
         </div>
-      </section>
-      <DashboardTabs />
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <Outlet />
       </div>
-    </div>
+    </DateRangeProvider>
   );
 }

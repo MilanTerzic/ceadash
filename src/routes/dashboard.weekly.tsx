@@ -6,7 +6,11 @@ import { toPng } from "html-to-image";
 import { Copy, Download, Loader2, Sparkles, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import {
+  DateRangeControl,
+  useDashboardRange,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import {
   generateWeeklyReport,
@@ -15,20 +19,24 @@ import {
   type WeeklyReport,
   type WeeklyMetrics,
 } from "@/lib/weekly.functions";
-import {
-  bucketByBelgradeDay,
-  aggregatePeriod,
-  type HourlyPrice,
-} from "@/lib/baseload";
+import { bucketByBelgradeDay, aggregatePeriod, type HourlyPrice } from "@/lib/baseload";
 import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/weekly")({
   head: () => ({
     meta: [
       { title: "Weekly Market Intelligence — CEA Power Dashboard" },
-      { name: "description", content: "AI-generated weekly Serbia / SEE power market summary, RES capture analysis, news digest, and a ready-to-post LinkedIn update with visual export." },
+      {
+        name: "description",
+        content:
+          "AI-generated weekly Serbia / SEE power market summary, RES capture analysis, news digest, and a ready-to-post LinkedIn update with visual export.",
+      },
       { property: "og:title", content: "Weekly Market Intelligence — CEA Power Dashboard" },
-      { property: "og:description", content: "AI-generated weekly Serbia / SEE power market summary with LinkedIn-ready post and visual." },
+      {
+        property: "og:description",
+        content:
+          "AI-generated weekly Serbia / SEE power market summary with LinkedIn-ready post and visual.",
+      },
     ],
   }),
   component: WeeklyPage,
@@ -38,8 +46,14 @@ function WeeklyPage() {
   const { t } = useLang();
   const requestedRange = useRequestedRangeKeys();
   const live = useQuery({
-    queryKey: ["market-prices", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
-    queryFn: () => fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
+    queryKey: [
+      "market-prices",
+      requestedRange.fromKey,
+      requestedRange.toKey,
+      requestedRange.preset,
+    ],
+    queryFn: () =>
+      fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 60 * 60_000,
   });
 
@@ -113,7 +127,12 @@ function WeeklyPage() {
 
   const onGenerate = async () => {
     if (!metrics) {
-      toast.error(t("Select a range with at least one complete day.", "Izaberi opseg sa bar jednim kompletnim danom."));
+      toast.error(
+        t(
+          "Select a range with at least one complete day.",
+          "Izaberi opseg sa bar jednim kompletnim danom.",
+        ),
+      );
       return;
     }
     setGenLoading(true);
@@ -185,11 +204,19 @@ function WeeklyPage() {
           </div>
           <div className="flex gap-2">
             <Button onClick={onGenerate} disabled={genLoading || !metrics}>
-              {genLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              {genLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
               {t("Generate Weekly Market Update", "Generiši nedeljni izveštaj")}
             </Button>
             <Button onClick={onCreatePost} disabled={postLoading || !report} variant="outline">
-              {postLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Linkedin className="mr-2 h-4 w-4" />}
+              {postLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Linkedin className="mr-2 h-4 w-4" />
+              )}
               {t("Create LinkedIn Post", "Kreiraj LinkedIn post")}
             </Button>
           </div>
@@ -198,30 +225,64 @@ function WeeklyPage() {
 
       {metrics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-          <MiniKpi label={t("Baseload", "Baseload")} value={`${metrics.baseload} EUR/MWh`} delta={metrics.baseloadPrev != null ? metrics.baseload - metrics.baseloadPrev : undefined} />
-          <MiniKpi label={t("Peakload", "Peakload")} value={metrics.peakload != null ? `${metrics.peakload} EUR/MWh` : "—"} />
+          <MiniKpi
+            label={t("Baseload", "Baseload")}
+            value={`${metrics.baseload} EUR/MWh`}
+            delta={
+              metrics.baseloadPrev != null ? metrics.baseload - metrics.baseloadPrev : undefined
+            }
+          />
+          <MiniKpi
+            label={t("Peakload", "Peakload")}
+            value={metrics.peakload != null ? `${metrics.peakload} EUR/MWh` : "—"}
+          />
           <MiniKpi label={t("Negative hrs", "Neg. sati")} value={String(metrics.negHours)} />
-          <MiniKpi label={t("Volatility σ", "Volatilnost σ")} value={`${metrics.volatility} EUR/MWh`} />
+          <MiniKpi
+            label={t("Volatility σ", "Volatilnost σ")}
+            value={`${metrics.volatility} EUR/MWh`}
+          />
         </div>
       )}
 
       {report && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <ReportCard title={t("Headline", "Naslov")} body={<p className="text-lg font-medium">{report.headline}</p>} />
-          <ReportCard title={t("Takeaway for RES producers", "Zaključak za OIE proizvođače")} body={<p>{report.takeaway}</p>} />
-          <ReportCard title={t("A. Price moves", "A. Cenovni signali")} body={<BulletList items={report.priceMoves} />} />
-          <ReportCard title={t("B. RES capture analysis", "B. Analiza capture cena OIE")} body={<BulletList items={report.resAnalysis} />} />
-          <ReportCard title={t("C. Market signals", "C. Tržišni signali")} body={<BulletList items={report.marketSignals} />} />
+          <ReportCard
+            title={t("Headline", "Naslov")}
+            body={<p className="text-lg font-medium">{report.headline}</p>}
+          />
+          <ReportCard
+            title={t("Takeaway for RES producers", "Zaključak za OIE proizvođače")}
+            body={<p>{report.takeaway}</p>}
+          />
+          <ReportCard
+            title={t("A. Price moves", "A. Cenovni signali")}
+            body={<BulletList items={report.priceMoves} />}
+          />
+          <ReportCard
+            title={t("B. RES capture analysis", "B. Analiza capture cena OIE")}
+            body={<BulletList items={report.resAnalysis} />}
+          />
+          <ReportCard
+            title={t("C. Market signals", "C. Tržišni signali")}
+            body={<BulletList items={report.marketSignals} />}
+          />
           <ReportCard
             title={t("D. Energy news (last 7 days)", "D. Energetske vesti (7 dana)")}
             body={
               <ul className="space-y-3">
                 {report.news.map((n) => (
                   <li key={n.url} className="border-l-2 border-primary/40 pl-3">
-                    <a href={n.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                    <a
+                      href={n.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium hover:underline"
+                    >
                       {n.title}
                     </a>
-                    <div className="text-xs text-muted-foreground">{n.source} · {n.date}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {n.source} · {n.date}
+                    </div>
                     <div className="text-xs mt-1 italic">{n.whyItMatters}</div>
                   </li>
                 ))}
@@ -250,7 +311,9 @@ function WeeklyPage() {
       {report && metrics && (
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="font-display text-xl">{t("LinkedIn visual", "LinkedIn vizuelni post")}</h3>
+            <h3 className="font-display text-xl">
+              {t("LinkedIn visual", "LinkedIn vizuelni post")}
+            </h3>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => exportPng("square")}>
                 <Download className="mr-2 h-4 w-4" /> 1200×1200
@@ -261,7 +324,12 @@ function WeeklyPage() {
             </div>
           </div>
           <div className="overflow-auto">
-            <LinkedInCard ref={cardRef} metrics={metrics} report={report} weekLabel={metrics.weekLabel} />
+            <LinkedInCard
+              ref={cardRef}
+              metrics={metrics}
+              report={report}
+              weekLabel={metrics.weekLabel}
+            />
           </div>
         </div>
       )}
@@ -275,7 +343,9 @@ function MiniKpi({ label, value, delta }: { label: string; value: string; delta?
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 font-display text-2xl">{value}</div>
       {delta != null && isFinite(delta) && (
-        <div className={`text-xs ${delta > 0 ? "text-critical" : delta < 0 ? "text-positive" : "text-muted-foreground"}`}>
+        <div
+          className={`text-xs ${delta > 0 ? "text-critical" : delta < 0 ? "text-positive" : "text-muted-foreground"}`}
+        >
           {delta > 0 ? "▲" : delta < 0 ? "▼" : "·"} {Math.abs(delta).toFixed(2)} vs prev week
         </div>
       )}
@@ -325,7 +395,9 @@ const LinkedInCard = ({
     >
       <div>
         <div className="flex items-center justify-between">
-          <div className="text-sm uppercase tracking-widest text-muted-foreground">CEA Power Dashboard</div>
+          <div className="text-sm uppercase tracking-widest text-muted-foreground">
+            CEA Power Dashboard
+          </div>
           <div className="text-sm text-muted-foreground">{weekLabel}</div>
         </div>
         <h1 className="mt-8 font-display text-5xl leading-tight text-foreground">
@@ -335,14 +407,16 @@ const LinkedInCard = ({
 
       <div className="grid grid-cols-3 gap-6">
         <CardKpi label="Baseload" value={`${metrics.baseload}`} unit="EUR/MWh" />
-        <CardKpi label="Peakload" value={metrics.peakload != null ? `${metrics.peakload}` : "—"} unit="EUR/MWh" />
+        <CardKpi
+          label="Peakload"
+          value={metrics.peakload != null ? `${metrics.peakload}` : "—"}
+          unit="EUR/MWh"
+        />
         <CardKpi label="Neg. hours" value={String(metrics.negHours)} unit="hours" accent />
       </div>
 
       <div>
-        <p className="text-xl leading-relaxed text-foreground">
-          {report.takeaway}
-        </p>
+        <p className="text-xl leading-relaxed text-foreground">{report.takeaway}</p>
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-4">
           <span>Source: ENTSO-E DA · Serbia SEEPEX · Europe/Belgrade</span>
           <span>dashboard.cea.org.rs</span>
@@ -352,9 +426,21 @@ const LinkedInCard = ({
   );
 };
 
-function CardKpi({ label, value, unit, accent }: { label: string; value: string; unit: string; accent?: boolean }) {
+function CardKpi({
+  label,
+  value,
+  unit,
+  accent,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  accent?: boolean;
+}) {
   return (
-    <div className={`rounded-2xl p-6 ${accent ? "bg-primary/10 border border-primary/30" : "bg-muted/40 border border-border"}`}>
+    <div
+      className={`rounded-2xl p-6 ${accent ? "bg-primary/10 border border-primary/30" : "bg-muted/40 border border-border"}`}
+    >
       <div className="text-sm uppercase tracking-widest text-muted-foreground">{label}</div>
       <div className="mt-2 font-display text-5xl text-foreground">{value}</div>
       <div className="text-sm text-muted-foreground mt-1">{unit}</div>

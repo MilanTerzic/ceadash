@@ -20,14 +20,19 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 
-
 export const Route = createFileRoute("/dashboard/news")({
   head: () => ({
     meta: [
       { title: "News & Policy Monitor — CEA Power Dashboard" },
-      { name: "description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
+      {
+        name: "description",
+        content: "Curated Serbian and regional renewable energy news, policy and market updates.",
+      },
       { property: "og:title", content: "News & Policy Monitor — CEA Power Dashboard" },
-      { property: "og:description", content: "Curated Serbian and regional renewable energy news, policy and market updates." },
+      {
+        property: "og:description",
+        content: "Curated Serbian and regional renewable energy news, policy and market updates.",
+      },
       { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/news" },
       { property: "og:type", content: "article" },
     ],
@@ -68,7 +73,8 @@ const DEMO_ITEMS: NewsItem[] = [
     source: "SEEPEX",
     title: "Negative prices recorded on SEEPEX day-ahead market",
     original_url: "https://seepex-spot.rs",
-    summary_en: "SEEPEX reported negative clearing prices during midday hours, the first time in Serbia. Market participants warn of growing curtailment risk for merchant solar.",
+    summary_en:
+      "SEEPEX reported negative clearing prices during midday hours, the first time in Serbia. Market participants warn of growing curtailment risk for merchant solar.",
     ai_generated: true,
     region: "Serbia",
     category: "Market",
@@ -80,7 +86,8 @@ const DEMO_ITEMS: NewsItem[] = [
     source: "Ministry of Mining and Energy",
     title: "New RES auction framework published for public consultation",
     original_url: "https://mre.gov.rs",
-    summary_en: "Draft secondary legislation outlines volume caps, indexation rules and offtake structure for the upcoming auction round.",
+    summary_en:
+      "Draft secondary legislation outlines volume caps, indexation rules and offtake structure for the upcoming auction round.",
     ai_generated: true,
     region: "Serbia",
     category: "Regulation",
@@ -92,7 +99,8 @@ const DEMO_ITEMS: NewsItem[] = [
     source: "Balkan Green Energy News",
     title: "First aggregator licences expected in Q3 2026",
     original_url: "https://balkangreenenergynews.com",
-    summary_en: "Aggregators are expected to begin operations later this year, opening up flexibility markets for distributed RES and prosumers.",
+    summary_en:
+      "Aggregators are expected to begin operations later this year, opening up flexibility markets for distributed RES and prosumers.",
     ai_generated: true,
     region: "Region",
     category: "Market",
@@ -121,7 +129,7 @@ function NewsPage() {
       .order("date", { ascending: false })
       .limit(100)
       .then(({ data }) => {
-        setDbItems((data && data.length ? (data as NewsItem[]) : []));
+        setDbItems(data && data.length ? (data as NewsItem[]) : []);
         setLoading(false);
       });
   }, []);
@@ -136,8 +144,7 @@ function NewsPage() {
 
   const filtered = merged.filter(
     (i) =>
-      (region === "all" || i.region === region) &&
-      (category === "all" || i.category === category),
+      (region === "all" || i.region === region) && (category === "all" || i.category === category),
   );
 
   const usingDemo = dbItems.length === 0 && (ekapija?.items?.length ?? 0) === 0;
@@ -164,7 +171,9 @@ function NewsPage() {
     >
       <div className="grid gap-3 md:grid-cols-2 mb-4">
         <Select value={region} onValueChange={setRegion}>
-          <SelectTrigger><SelectValue placeholder="Region" /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue placeholder="Region" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All regions</SelectItem>
             <SelectItem value="Serbia">Serbia</SelectItem>
@@ -173,7 +182,9 @@ function NewsPage() {
           </SelectContent>
         </Select>
         <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
             <SelectItem value="Market">Market</SelectItem>
@@ -183,7 +194,6 @@ function NewsPage() {
           </SelectContent>
         </Select>
       </div>
-
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -199,17 +209,26 @@ function NewsPage() {
                 <span>·</span>
                 <Badge variant="outline">{i.region}</Badge>
                 <Badge variant="outline">{i.category}</Badge>
-                {i.ai_generated && <Badge className="bg-accent text-accent-foreground">AI summary</Badge>}
+                {i.ai_generated && (
+                  <Badge className="bg-accent text-accent-foreground">AI summary</Badge>
+                )}
               </div>
               <h4 className="mt-1 font-display text-lg">
-                <a href={i.original_url} target="_blank" rel="noreferrer" className="hover:underline">
+                <a
+                  href={i.original_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline"
+                >
                   {i.title}
                 </a>
               </h4>
               {i.summary_en && <p className="mt-1 text-sm text-muted-foreground">{i.summary_en}</p>}
               <div className="mt-2 flex flex-wrap gap-1">
                 {i.tags.map((t) => (
-                  <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+                  <Badge key={t} variant="secondary" className="text-[10px]">
+                    {t}
+                  </Badge>
                 ))}
               </div>
             </article>
@@ -236,7 +255,10 @@ function AddNewsForm({ userId, onAdded }: { userId?: string; onAdded: (i: NewsIt
     if (!userId) return;
     const payload = {
       ...form,
-      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
       created_by: userId,
     };
     const { data, error } = await supabase.from("news_items").insert(payload).select().single();
@@ -255,11 +277,16 @@ function AddNewsForm({ userId, onAdded }: { userId?: string; onAdded: (i: NewsIt
           {k === "summary_en" ? (
             <Textarea value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
           ) : (
-            <Input value={form[k] as string} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+            <Input
+              value={form[k] as string}
+              onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+            />
           )}
         </div>
       ))}
-      <Button onClick={submit} className="w-full">Add</Button>
+      <Button onClick={submit} className="w-full">
+        Add
+      </Button>
     </div>
   );
 }

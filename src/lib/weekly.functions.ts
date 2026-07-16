@@ -15,7 +15,8 @@ async function callAI(messages: { role: string; content: string }[], json = true
     }),
   });
   if (res.status === 429) throw new Error("AI rate limit reached. Please retry in a minute.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
+  if (res.status === 402)
+    throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
   if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
   const json2 = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return json2.choices?.[0]?.message?.content ?? "";
@@ -81,7 +82,10 @@ Pick 4-6 most relevant news items. Do not invent prices, sources, or URLs.`;
       { role: "system", content: SYSTEM },
       { role: "user", content: prompt },
     ]);
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const cleaned = text
+      .replace(/^```json\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
     const parsed = JSON.parse(cleaned) as WeeklyReport;
 
     // Persist used news URLs to dedupe future runs
@@ -125,7 +129,10 @@ Return ONLY a JSON object:
       { role: "system", content: SYSTEM },
       { role: "user", content: prompt },
     ]);
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const cleaned = text
+      .replace(/^```json\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
     return JSON.parse(cleaned) as { post: string; hashtags: string[] };
   });
 

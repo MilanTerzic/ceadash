@@ -25,7 +25,7 @@ function modelledSolarWeight(tsISO: string): number {
   if (Number.isNaN(d.getTime())) return 0;
   const startYear = Date.UTC(d.getUTCFullYear(), 0, 0);
   const N = Math.floor((d.getTime() - startYear) / 86_400_000);
-  const decl = (23.45 * Math.PI) / 180 * Math.sin((2 * Math.PI * (N - 81)) / 365);
+  const decl = ((23.45 * Math.PI) / 180) * Math.sin((2 * Math.PI * (N - 81)) / 365);
   const utcHours = d.getUTCHours() + d.getUTCMinutes() / 60;
   // Equation-of-time skipped; solar time ≈ UTC + lon/15.
   const solarTime = utcHours + SERBIA_LON / 15;
@@ -36,7 +36,6 @@ function modelledSolarWeight(tsISO: string): number {
   // Simple atmospheric attenuation ~ air-mass exponent.
   return Math.pow(cosZ, 1.15);
 }
-
 
 function ymdh(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -66,12 +65,13 @@ function addDaysISO(dayISO: string, n: number): string {
 
 function cetOffsetHours(dayISO: string): number {
   const noonUtc = new Date(dayISO + "T12:00:00Z");
-  const part = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Belgrade",
-    timeZoneName: "shortOffset",
-  })
-    .formatToParts(noonUtc)
-    .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const part =
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Belgrade",
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts(noonUtc)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
   const m = /([+-]?\d+)/.exec(part);
   return m ? parseInt(m[1], 10) : 1;
 }
@@ -112,10 +112,7 @@ function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }
       const raw: { position: number; value: number }[] = [];
       for (const pt of tagAll(period, "Point")) {
         const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
-        const valS =
-          tagOne(pt, "price.amount") ??
-          tagOne(pt, "quantity") ??
-          tagOne(pt, "value");
+        const valS = tagOne(pt, "price.amount") ?? tagOne(pt, "quantity") ?? tagOne(pt, "value");
         if (valS == null) continue;
         const value = parseFloat(valS);
         if (!Number.isFinite(value)) continue;
@@ -175,23 +172,24 @@ export type GenerationDiagnostics = {
 
 function classify400(body: string): { reason: EntsoeReason; apiMessage?: string } {
   const clean = stripNs(body);
-  const msg =
-    tagOne(clean, "text") ??
-    tagOne(clean, "Reason") ??
-    tagOne(clean, "message") ??
-    "";
+  const msg = tagOne(clean, "text") ?? tagOne(clean, "Reason") ?? tagOne(clean, "message") ?? "";
   const sanitized = msg.replace(/\s+/g, " ").trim().slice(0, 240);
   const low = sanitized.toLowerCase();
   if (!low) return { reason: "bad_request" };
-  if (low.includes("no matching data") || low.includes("no data")) return { reason: "no_data", apiMessage: sanitized };
+  if (low.includes("no matching data") || low.includes("no data"))
+    return { reason: "no_data", apiMessage: sanitized };
   if (low.includes("psrtype") || low.includes("domain") || low.includes("in_domain"))
     return { reason: "invalid_psrtype_or_domain", apiMessage: sanitized };
-  if (low.includes("token") || low.includes("unauthorized")) return { reason: "unauthorized", apiMessage: sanitized };
+  if (low.includes("token") || low.includes("unauthorized"))
+    return { reason: "unauthorized", apiMessage: sanitized };
   return { reason: "bad_request", apiMessage: sanitized };
 }
 
-async function entsoeRaw(params: Record<string, string>): Promise<
-  { ok: true; xml: string; httpStatus: number } | { ok: false; reason: EntsoeReason; apiMessage?: string; httpStatus?: number }
+async function entsoeRaw(
+  params: Record<string, string>,
+): Promise<
+  | { ok: true; xml: string; httpStatus: number }
+  | { ok: false; reason: EntsoeReason; apiMessage?: string; httpStatus?: number }
 > {
   const token = process.env.ENTSOE_SECURITY_TOKEN;
   if (!token) return { ok: false, reason: "missing_token" };
@@ -212,7 +210,8 @@ async function entsoeRaw(params: Record<string, string>): Promise<
       if (res.status < 500 || attempt === 1)
         return { ok: false, reason: `http_${res.status}`, httpStatus: res.status };
     } catch (e) {
-      if (attempt === 1) return { ok: false, reason: "network_error", apiMessage: (e as Error).message };
+      if (attempt === 1)
+        return { ok: false, reason: "network_error", apiMessage: (e as Error).message };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
@@ -284,7 +283,6 @@ async function fetchGenerationRange(
   };
 }
 
-
 function belgradeDayOf(iso: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Belgrade",
@@ -321,7 +319,8 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const today = todayBelgradeISO();
-    const fromISO = data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from) ? data.from : addDaysISO(today, -30);
+    const fromISO =
+      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from) ? data.from : addDaysISO(today, -30);
     const toISO = data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to) ? data.to : addDaysISO(today, 1);
 
     const market = await fetchMarketPrices({ data: { from: fromISO, to: toISO } });
@@ -354,16 +353,12 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     // If ENTSO-E does not publish Serbia B16 solar, fall back to a modelled
     // clear-sky PV shape so capture-price weighting is possible. This is
     // labelled as "modelled" in the response so the UI can flag it.
-    const solarSource: "entsoe" | "modelled" | "none" =
-      solarH.size > 0 ? "entsoe" : "modelled";
+    const solarSource: "entsoe" | "modelled" | "none" = solarH.size > 0 ? "entsoe" : "modelled";
 
     const points: CapturePoint[] = marketPoints.map((p) => ({
       ts: p.ts,
       price: p.price,
-      solar:
-        solarSource === "entsoe"
-          ? solarH.get(p.ts) ?? 0
-          : modelledSolarWeight(p.ts),
+      solar: solarSource === "entsoe" ? (solarH.get(p.ts) ?? 0) : modelledSolarWeight(p.ts),
       wind: windH.get(p.ts) ?? 0,
     }));
 
@@ -385,7 +380,7 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       reason:
         matchedHours > 0
           ? undefined
-          : solarR.reason ?? windOnR.reason ?? windOffR.reason ?? "no_generation_data",
+          : (solarR.reason ?? windOnR.reason ?? windOffR.reason ?? "no_generation_data"),
       windowFrom: fromISO,
       windowTo: toISO,
       points,
@@ -409,5 +404,3 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       },
     };
   });
-
-

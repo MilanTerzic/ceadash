@@ -1,12 +1,23 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  Activity,
   BarChart3,
   BookOpen,
+  Briefcase,
   Calculator,
+  CandlestickChart,
   ChevronDown,
+  CloudSun,
   FileChartColumn,
+  Gauge,
   LayoutDashboard,
+  Map,
   Menu,
+  MoveRight,
+  Plug,
+  Settings,
+  TrendingUp,
+  Waves,
 } from "lucide-react";
 
 import {
@@ -59,58 +70,170 @@ export function DashboardTabs() {
   const { t } = useLang();
 
   const groups: NavGroup[] = [
-    { to: "/dashboard", label: t("Overview", "Pregled"), icon: LayoutDashboard },
     {
-      label: t("Markets", "Tržišta"),
-      icon: BarChart3,
+      label: t("Overview", "Pregled"),
+      icon: LayoutDashboard,
       items: [
         {
-          to: "/dashboard/regional",
-          label: t("Prices & Flows", "Cene i tokovi"),
-          description: t(
-            "Regional DA prices and physical-flow snapshot",
-            "Regionalne day-ahead cene i fizički tokovi",
-          ),
+          to: "/dashboard",
+          label: t("CEA Overview", "CEA pregled"),
+          description: t("CEA renewable and Serbian market KPIs", "CEA OIE i KPI tržišta Srbije"),
         },
         {
-          to: "/dashboard/capture",
-          label: t("RES Capture Prices", "Capture cene OIE"),
+          to: "/dashboard/power-overview",
+          label: t("Market Signal Overview", "Pregled tržišnih signala"),
           description: t(
-            "Solar, wind and baseload capture analytics",
-            "Analitika capture cena za solar, vetar i baznu cenu",
-          ),
-        },
-        {
-          to: "/dashboard/market",
-          label: t("Serbia Market Position", "Pozicija tržišta Srbije"),
-          description: t(
-            "Serbian prices, spreads and market statistics",
-            "Cene, spreadovi i statistika Srbije",
-          ),
-        },
-        {
-          to: "/dashboard/report",
-          label: t("Flexibility & Storage", "Fleksibilnost i skladištenje"),
-          description: t(
-            "BESS spreads and daily trading signals",
-            "BESS spreadovi i dnevni tržišni signali",
+            "Regional price, spread and route-economics overview",
+            "Regionalne cene, spreadovi i ekonomika ruta",
           ),
         },
       ],
     },
     {
-      label: t("Intelligence", "Analitika"),
+      label: t("Markets", "Tržišta"),
+      icon: BarChart3,
+      items: [
+        {
+          to: "/dashboard/prices",
+          label: t("Regional Prices", "Regionalne cene"),
+          description: t(
+            "Multi-market day-ahead price analytics",
+            "Analitika day-ahead cena po tržištima",
+          ),
+        },
+        {
+          to: "/dashboard/regional",
+          label: t("Regional Snapshot", "Regionalni pregled"),
+          description: t(
+            "CEA regional prices and physical-flow view",
+            "CEA regionalne cene i fizički tokovi",
+          ),
+        },
+        {
+          to: "/dashboard/spreads",
+          label: t("Spreads", "Spreadovi"),
+          description: t(
+            "Market-to-Serbia spreads and route economics",
+            "Spreadovi prema Srbiji i ekonomika ruta",
+          ),
+        },
+        {
+          to: "/dashboard/map",
+          label: t("Route Map", "Mapa ruta"),
+          description: t(
+            "Import/export route status and source coverage",
+            "Status uvoznih/izvoznih ruta i izvora",
+          ),
+        },
+        {
+          to: "/dashboard/capacity",
+          label: t("Cross-Border Capacity", "Prekogranični kapacitet"),
+          description: t(
+            "Explicit allocation products and prices",
+            "Eksplicitne aukcije, proizvodi i cene",
+          ),
+        },
+        {
+          to: "/dashboard/flows",
+          label: t("Physical Flows", "Fizički tokovi"),
+          description: t(
+            "Cross-border import/export flow analytics",
+            "Analitika prekograničnih uvoznih/izvoznih tokova",
+          ),
+        },
+        {
+          to: "/dashboard/utilization",
+          label: t("Border Utilization", "Iskorišćenost granica"),
+          description: t(
+            "Flow relative to labelled capacity denominators",
+            "Tokovi u odnosu na jasno označen kapacitet",
+          ),
+        },
+        {
+          to: "/dashboard/balance",
+          label: t("Power Balance", "Energetski bilans"),
+          description: t("Country net-position analytics", "Analitika neto pozicije zemlje"),
+        },
+        {
+          to: "/dashboard/market",
+          label: t("Serbia Market Analytics", "Analitika tržišta Srbije"),
+          description: t(
+            "Existing CEA Serbia market statistics",
+            "Postojeća CEA statistika tržišta Srbije",
+          ),
+        },
+      ],
+    },
+    {
+      label: t("Forward Market", "Forward tržište"),
+      icon: CandlestickChart,
+      items: [
+        {
+          to: "/dashboard/futures",
+          label: t("Futures", "Fjučersi"),
+          description: t(
+            "Forward curves, products and public snapshot status",
+            "Forward krive, proizvodi i status javnog snimka",
+          ),
+        },
+        {
+          to: "/dashboard/forecast",
+          label: t("Forecast", "Prognoza"),
+          description: t(
+            "Observed data, model output and assumptions",
+            "Posmatrani podaci, model i pretpostavke",
+          ),
+        },
+        {
+          to: "/dashboard/outages",
+          label: t("Outages", "Ispadi"),
+          description: t(
+            "Generation and transmission outage availability",
+            "Dostupnost podataka o ispadima",
+          ),
+        },
+        {
+          to: "/dashboard/weather",
+          label: t("Weather", "Vreme"),
+          description: t(
+            "Temperature, wind, cloud and precipitation context",
+            "Temperatura, vetar, oblačnost i padavine",
+          ),
+        },
+        {
+          to: "/dashboard/danube",
+          label: t("Danube Hydrology", "Hidrologija Dunava"),
+          description: t(
+            "River discharge context for hydro conditions",
+            "Protok reke kao kontekst hidro uslova",
+          ),
+        },
+      ],
+    },
+    {
+      label: t("Market Intelligence", "Tržišna analitika"),
       icon: FileChartColumn,
       items: [
         {
-          to: "/dashboard/weekly",
-          label: t("Market Brief", "Tržišni pregled"),
-          description: t("Weekly CEA market intelligence", "Nedeljna CEA analiza tržišta"),
+          to: "/dashboard/market-report",
+          label: t("CEA Market Report", "CEA tržišni izveštaj"),
+          description: t(
+            "CEA-branded report, CSV, print and JPEG exports",
+            "CEA izveštaj, CSV, štampa i JPEG izvoz",
+          ),
         },
         {
-          to: "/dashboard/report",
-          label: t("CEA Report", "CEA izveštaj"),
-          description: t("LinkedIn-ready CEA market report", "CEA izveštaj spreman za LinkedIn"),
+          to: "/dashboard/cbc",
+          label: t("CBC Resale", "CBC preprodaja"),
+          description: t(
+            "Capacity resale scenarios and commercial assumptions",
+            "Scenariji preprodaje kapaciteta i komercijalne pretpostavke",
+          ),
+        },
+        {
+          to: "/dashboard/weekly",
+          label: t("Weekly Market Brief", "Nedeljni pregled"),
+          description: t("Weekly CEA market intelligence", "Nedeljna CEA analiza tržišta"),
         },
         {
           to: "/dashboard/insights",
@@ -122,15 +245,31 @@ export function DashboardTabs() {
         },
         {
           to: "/dashboard/news",
-          label: t("News & Policy", "Vesti i regulativa"),
+          label: t("News and Policy", "Vesti i regulativa"),
           description: t("Policy and market updates", "Regulatorne i tržišne vesti"),
         },
       ],
     },
     {
-      label: t("Calculators", "Kalkulatori"),
-      icon: Calculator,
+      label: t("Renewables", "OIE i ekonomika"),
+      icon: TrendingUp,
       items: [
+        {
+          to: "/dashboard/capture",
+          label: t("RES Capture Prices", "Capture cene OIE"),
+          description: t(
+            "Solar, wind and BESS capture analytics",
+            "Analitika capture cena za solar, vetar i BESS",
+          ),
+        },
+        {
+          to: "/dashboard/flexibility",
+          label: t("Flexibility and Storage", "Fleksibilnost i skladištenje"),
+          description: t(
+            "Storage arbitrage signals and methodology",
+            "Signali skladištenja i metodologija",
+          ),
+        },
         {
           to: "/dashboard/calculator",
           label: t("Solar Project Calculator", "Kalkulator solarnog projekta"),
@@ -149,7 +288,28 @@ export function DashboardTabs() {
         },
       ],
     },
-    { to: "/dashboard/methodology", label: t("Methodology", "Metodologija"), icon: BookOpen },
+    {
+      label: t("Documentation", "Dokumentacija"),
+      icon: BookOpen,
+      items: [
+        {
+          to: "/dashboard/methodology",
+          label: t("Methodology", "Metodologija"),
+          description: t(
+            "CEA calculation and data methodology",
+            "CEA metodologija proračuna i podataka",
+          ),
+        },
+        {
+          to: "/dashboard/settings",
+          label: t("Data Sources and Status", "Izvori podataka i status"),
+          description: t(
+            "Provider, cache and configuration state",
+            "Stanje provajdera, keša i konfiguracije",
+          ),
+        },
+      ],
+    },
   ];
 
   return (
@@ -303,3 +463,14 @@ export function DashboardTabs() {
     </div>
   );
 }
+
+void Activity;
+void Briefcase;
+void Calculator;
+void CloudSun;
+void Gauge;
+void Map;
+void MoveRight;
+void Plug;
+void Settings;
+void Waves;

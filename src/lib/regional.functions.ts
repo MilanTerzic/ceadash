@@ -1,9 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-
 export type ZoneCode =
-  | "RS" | "HU" | "RO" | "BG" | "MK" | "AL" | "ME" | "BA" | "HR" | "SI" | "GR" | "IT";
+  "RS" | "HU" | "RO" | "BG" | "MK" | "AL" | "ME" | "BA" | "HR" | "SI" | "GR" | "IT";
 
 export const ZONES: Record<ZoneCode, { name: string; eic: string; lat: number; lng: number }> = {
   RS: { name: "Serbia", eic: "10YCS-SERBIATSOV", lat: 44.0, lng: 20.9 },
@@ -144,7 +143,6 @@ function captureFrom(prices: Map<string, number>, gen: Map<string, number>) {
 // In-memory hot cache (per warm worker) — 30 min
 const HOT_TTL_MS = 30 * 60 * 1000;
 
-
 export type ZonePrice = {
   zone: ZoneCode;
   name: string;
@@ -160,7 +158,6 @@ export type ZonePrice = {
   negHours: number;
   points: { ts: string; price: number }[];
 };
-
 
 export type FlowSummary = {
   from: ZoneCode;
@@ -180,9 +177,7 @@ export type RegionalSnapshot = {
   reason?: string;
 };
 
-type SupabaseAdmin =
-  typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
-
+type SupabaseAdmin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
 
 // Build snapshot from DB rows only (used as fallback / pre-warm)
 async function snapshotFromCache(
@@ -235,7 +230,6 @@ async function snapshotFromCache(
     };
   });
 
-
   // Flows: pull last 24h, average per neighbour (signed RS -> n)
   const flowFrom = new Date(windowTo.getTime() - 24 * 3600_000);
   const flowRows = await supabaseAdmin
@@ -258,9 +252,13 @@ async function snapshotFromCache(
     const expAvg = exp ? exp.sum / exp.n : 0;
     const impAvg = imp ? imp.sum / imp.n : 0;
     const net = expAvg - impAvg;
-    return { from: "RS" as ZoneCode, to: n, netMw: Math.round(net), absMw: Math.round(Math.abs(net)) };
+    return {
+      from: "RS" as ZoneCode,
+      to: n,
+      netMw: Math.round(net),
+      absMw: Math.round(Math.abs(net)),
+    };
   }).filter((f) => f.absMw > 0);
-
 
   const hasAnyPrice = prices.some((p) => p.avg24h != null || p.latest != null);
   return {
@@ -300,9 +298,7 @@ const HOT_MAP = new Map<CacheKey, { ts: number; data: RegionalSnapshot }>();
 
 export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    z
-      .object({ from: z.string().optional(), to: z.string().optional() })
-      .parse(data ?? {}),
+    z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
   )
   .handler(async ({ data }): Promise<RegionalSnapshot> => {
     const now = Date.now();
@@ -313,9 +309,7 @@ export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
     nowUtc.setUTCMinutes(0, 0, 0);
     const defaultFrom = new Date(nowUtc.getTime() - 30 * 24 * 3600_000);
     const fromDate =
-      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from)
-        ? parseDayKey(data.from)
-        : defaultFrom;
+      data.from && /^\d{4}-\d{2}-\d{2}$/.test(data.from) ? parseDayKey(data.from) : defaultFrom;
     const rawTo =
       data.to && /^\d{4}-\d{2}-\d{2}$/.test(data.to)
         ? new Date(parseDayKey(data.to).getTime() + 24 * 3600_000)
@@ -414,7 +408,12 @@ export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
     // cached hourly prices in the same window.
     const captureByZone = new Map<
       ZoneCode,
-      { wind: number | null; solar: number | null; windRatio: number | null; solarRatio: number | null }
+      {
+        wind: number | null;
+        solar: number | null;
+        windRatio: number | null;
+        solarRatio: number | null;
+      }
     >();
     if (hasToken) {
       // Build price hourly maps per zone from the cached snapshot.
@@ -487,4 +486,3 @@ export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
     HOT_MAP.set(cacheKey, { ts: now, data: snap });
     return snap;
   });
-

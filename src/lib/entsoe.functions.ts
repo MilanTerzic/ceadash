@@ -47,7 +47,8 @@ function parsePoints(xml: string): { ts: Date; value: number }[] {
     const resStr = resMatch[1]; // e.g. PT60M
     const minMatch = /PT(\d+)M/.exec(resStr);
     const stepMs = minMatch ? Number(minMatch[1]) * 60_000 : 3_600_000;
-    const pointRegex = /<Point>\s*<position>(\d+)<\/position>\s*<(?:price\.amount|quantity)>([\d.\-eE+]+)<\/(?:price\.amount|quantity)>\s*<\/Point>/g;
+    const pointRegex =
+      /<Point>\s*<position>(\d+)<\/position>\s*<(?:price\.amount|quantity)>([\d.\-eE+]+)<\/(?:price\.amount|quantity)>\s*<\/Point>/g;
     let p: RegExpExecArray | null;
     while ((p = pointRegex.exec(block))) {
       const position = Number(p[1]);
@@ -76,7 +77,8 @@ export const fetchDayAheadPrices = createServerFn({ method: "POST" })
       periodStart: fmtUtc(new Date(data.from)),
       periodEnd: fmtUtc(new Date(data.to)),
     });
-    if (!r.ok) return { ok: false, reason: r.reason, points: [] as { ts: string; price: number }[] };
+    if (!r.ok)
+      return { ok: false, reason: r.reason, points: [] as { ts: string; price: number }[] };
     const pts = parsePoints(r.xml).map((p) => ({ ts: p.ts.toISOString(), price: p.value }));
     return { ok: true, points: pts };
   });

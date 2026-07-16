@@ -1,21 +1,61 @@
-# ceadash
+# CEA Power Dashboard
 
-Initial bootstrap of the CEA dashboard repository.
+CEA Power Dashboard is a public Serbia and regional electricity-market analytics application.
 
-This repo now contains the current Flask dashboard improvement work, including:
+It combines the original CEA dashboard features with market-intelligence modules ported and adapted from Power Pulse Serbia:
 
-- a plain-Python dashboard launcher
-- the improved Flask dashboard view logic
-- dashboard requirements and offline config
-- a Windows launcher script
+- Serbia and regional day-ahead prices
+- futures snapshots and forward-curve analytics
+- spreads, route economics, capacity, flows, utilization and balance
+- outages, weather, Danube hydrology and forecast context
+- CBC resale analysis
+- CEA Market Report with CSV, print and JPEG export
+- RES capture prices, flexibility/storage signals, CBAM and solar-project calculators
+- bilingual English/Serbian UI through `useLang()` / `t()`
 
-Recent dashboard improvements included here:
+## Setup
 
-- working daily/monthly granularity behavior
-- view-aware chart and table titles
-- refresh returning to the dashboard instead of a plain text page
-- visible cache build timestamp in the UI
+1. Install dependencies.
 
-Important note:
+   ```bash
+   pnpm install
+   ```
 
-This repository started empty. I initialized it with the dashboard core files first so `main` is no longer blank. The larger project assets and remaining modules can be imported next in follow-up commits.
+2. Copy `.env.example` to `.env` and configure the required server variables.
+
+3. Apply Supabase migrations if database-backed caching, futures snapshots or report persistence are needed.
+
+4. Run locally.
+
+   ```bash
+   pnpm dev
+   ```
+
+## Verification
+
+```bash
+pnpm run test:calculations
+pnpm run lint
+pnpm run build
+```
+
+In the Codex Windows runtime used for this migration, `npm` was not on PATH, so verification was run directly with bundled Node:
+
+```powershell
+node --test tests\trading-calculations.test.mjs tests\futures.test.mjs
+node node_modules\eslint\bin\eslint.js .
+node node_modules\vite\bin\vite.js build
+```
+
+## Documentation
+
+See `docs/POWER_PULSE_PARITY.md` for:
+
+- repository audit summary
+- feature-parity matrix
+- source-to-target file mapping
+- new routes
+- Supabase migrations
+- environment variables
+- external-data limitations
+- deployment and post-deployment checklist

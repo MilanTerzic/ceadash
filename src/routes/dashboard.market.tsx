@@ -26,7 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLang } from "@/lib/i18n";
-import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import {
+  DateRangeControl,
+  useDashboardRange,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import {
   bucketByBelgradeDay,
@@ -40,9 +44,17 @@ export const Route = createFileRoute("/dashboard/market")({
   head: () => ({
     meta: [
       { title: "Market Prices — CEA Power Dashboard" },
-      { name: "description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
+      {
+        name: "description",
+        content:
+          "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia.",
+      },
       { property: "og:title", content: "Market Prices — CEA Power Dashboard" },
-      { property: "og:description", content: "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia." },
+      {
+        property: "og:description",
+        content:
+          "SEEPEX day-ahead prices, baseload, peakload, volatility and negative-price analytics for Serbia.",
+      },
       { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/market" },
     ],
     links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/market" }],
@@ -55,8 +67,14 @@ function MarketPage() {
 
   const requestedRange = useRequestedRangeKeys();
   const live = useQuery({
-    queryKey: ["market-prices", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
-    queryFn: () => fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
+    queryKey: [
+      "market-prices",
+      requestedRange.fromKey,
+      requestedRange.toKey,
+      requestedRange.preset,
+    ],
+    queryFn: () =>
+      fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -96,9 +114,7 @@ function MarketPage() {
     ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
     : "—";
 
-  const rangeDays = range
-    ? Math.max(1, Math.round((+range.to - +range.from) / 86400000) + 1)
-    : 1;
+  const rangeDays = range ? Math.max(1, Math.round((+range.to - +range.from) / 86400000) + 1) : 1;
   const useDaily = view === "baseload" || view === "peakload" || rangeDays > 14;
 
   const series = useMemo(() => {
@@ -173,12 +189,19 @@ function MarketPage() {
   }, [inRangePoints]);
 
   if (live.isLoading) {
-    return <p className="text-sm text-muted-foreground">{t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("Fetching live ENTSO-E day-ahead prices…", "Učitavanje uživo ENTSO-E day-ahead cena…")}
+      </p>
+    );
   }
   if (!hasReal) {
     return (
       <p className="text-sm text-muted-foreground">
-        {t("Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.", "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.")}
+        {t(
+          "Live ENTSO-E day-ahead data is currently unavailable. Please retry shortly.",
+          "Day-ahead podaci sa ENTSO-E trenutno nisu dostupni. Pokušajte ponovo uskoro.",
+        )}
         {live.isError && <span className="block mt-1 text-critical">{String(live.error)}</span>}
       </p>
     );
@@ -209,45 +232,80 @@ function MarketPage() {
         debugSummary={live.data?.debugSummary}
       />
 
-
       <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
 
       <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
         <div className="grid gap-4 md:grid-cols-12 items-end">
           <div className="md:col-span-4">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("View", "Prikaz")}</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t("View", "Prikaz")}
+            </Label>
             <Select value={view} onValueChange={(v) => setView(v as typeof view)}>
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="hourly">{t("Hourly / daily auto", "Satno / dnevno auto")}</SelectItem>
-                <SelectItem value="baseload">{t("Baseload (daily avg)", "Baseload (dnevni prosek)")}</SelectItem>
-                <SelectItem value="peakload">{t("Peakload (weekday 08–20)", "Peakload (radni dan 08–20)")}</SelectItem>
+                <SelectItem value="hourly">
+                  {t("Hourly / daily auto", "Satno / dnevno auto")}
+                </SelectItem>
+                <SelectItem value="baseload">
+                  {t("Baseload (daily avg)", "Baseload (dnevni prosek)")}
+                </SelectItem>
+                <SelectItem value="peakload">
+                  {t("Peakload (weekday 08–20)", "Peakload (radni dan 08–20)")}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="md:col-span-4 flex items-center gap-2">
             <Switch checked={negOnly} onCheckedChange={setNegOnly} id="neg" />
-            <Label htmlFor="neg" className="text-sm">{t("Negative only", "Samo negativne")}</Label>
+            <Label htmlFor="neg" className="text-sm">
+              {t("Negative only", "Samo negativne")}
+            </Label>
           </div>
           <div className="md:col-span-4 flex items-center gap-2">
             <Switch checked={highOnly} onCheckedChange={setHighOnly} id="high" />
-            <Label htmlFor="high" className="text-sm">{t("High (>150) only", "Samo visoke (>150)")}</Label>
+            <Label htmlFor="high" className="text-sm">
+              {t("High (>150) only", "Samo visoke (>150)")}
+            </Label>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label={t("Baseload (period)", "Baseload (period)")} value={isFinite(period.baseload) ? period.baseload.toFixed(1) : "—"} unit="EUR/MWh" />
-        <KpiCard label={t("Peakload (period)", "Peakload (period)")} value={period.peakload != null ? period.peakload.toFixed(1) : "—"} unit="EUR/MWh" />
-        <KpiCard label={t("Volatility (σ)", "Volatilnost (σ)")} value={isFinite(period.sd) ? period.sd.toFixed(1) : "—"} unit="EUR/MWh" />
-        <KpiCard label={t("Min / Max", "Min / Max")} value={`${isFinite(period.minHour) ? period.minHour.toFixed(0) : "—"} / ${isFinite(period.maxHour) ? period.maxHour.toFixed(0) : "—"}`} unit="EUR/MWh" />
+        <KpiCard
+          label={t("Baseload (period)", "Baseload (period)")}
+          value={isFinite(period.baseload) ? period.baseload.toFixed(1) : "—"}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Peakload (period)", "Peakload (period)")}
+          value={period.peakload != null ? period.peakload.toFixed(1) : "—"}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Volatility (σ)", "Volatilnost (σ)")}
+          value={isFinite(period.sd) ? period.sd.toFixed(1) : "—"}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          label={t("Min / Max", "Min / Max")}
+          value={`${isFinite(period.minHour) ? period.minHour.toFixed(0) : "—"} / ${isFinite(period.maxHour) ? period.maxHour.toFixed(0) : "—"}`}
+          unit="EUR/MWh"
+        />
         <KpiCard label={t("Hours < 0 EUR", "Sati < 0 EUR")} value={period.negHours} />
         <KpiCard label={t("Hours < 10 EUR", "Sati < 10 EUR")} value={period.lowHours} />
         <KpiCard label={t("Hours > 150 EUR", "Sati > 150 EUR")} value={period.highHours} />
-        <KpiCard label={t("Weekday / Weekend", "Radni dan / Vikend")} value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`} unit="EUR/MWh" />
+        <KpiCard
+          label={t("Weekday / Weekend", "Radni dan / Vikend")}
+          value={`${wdAvg.toFixed(0)} / ${weAvg.toFixed(0)}`}
+          unit="EUR/MWh"
+        />
       </div>
 
-      <ChartCard title={`${t("Day-ahead price", "Day-ahead cena")} — ${rangeLabel}${useDaily ? t(" (daily avg)", " (dnevni prosek)") : ""}`}>
+      <ChartCard
+        title={`${t("Day-ahead price", "Day-ahead cena")} — ${rangeLabel}${useDaily ? t(" (daily avg)", " (dnevni prosek)") : ""}`}
+      >
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={series}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -259,7 +317,13 @@ function MarketPage() {
             <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
             <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
             <RTooltip />
-            <Line type="monotone" dataKey="price" stroke="var(--color-chart-1)" strokeWidth={1.5} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="price"
+              stroke="var(--color-chart-1)"
+              strokeWidth={1.5}
+              dot={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -275,7 +339,11 @@ function MarketPage() {
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={pdc}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="pct" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} unit="%" />
+              <XAxis
+                dataKey="pct"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                unit="%"
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
               <RTooltip />
@@ -286,9 +354,17 @@ function MarketPage() {
 
         <ChartCard title={t("Weekday vs weekend average", "Prosek radni dan vs vikend")}>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={[{ name: t("Weekday", "Radni dan"), value: +wdAvg.toFixed(1) }, { name: t("Weekend", "Vikend"), value: +weAvg.toFixed(1) }]}>
+            <BarChart
+              data={[
+                { name: t("Weekday", "Radni dan"), value: +wdAvg.toFixed(1) },
+                { name: t("Weekend", "Vikend"), value: +weAvg.toFixed(1) },
+              ]}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Bar dataKey="value" fill="var(--color-chart-2)" />
@@ -299,7 +375,10 @@ function MarketPage() {
 
       <ChartCard
         title={t("Heatmap — hour of day × day", "Mapa toplote — sat dana × dan")}
-        description={t("Average hourly price per cell across the selected period.", "Prosečna satna cena po ćeliji za izabrani period.")}
+        description={t(
+          "Average hourly price per cell across the selected period.",
+          "Prosečna satna cena po ćeliji za izabrani period.",
+        )}
       >
         <Heatmap cells={heat.cells} days={heat.dayOrder} />
       </ChartCard>
@@ -307,26 +386,52 @@ function MarketPage() {
   );
 }
 
-function Heatmap({ cells, days }: { cells: { h: number; day: string; v: number }[]; days: string[] }) {
-  if (!cells.length) return <div className="text-sm text-muted-foreground">No data in selected range</div>;
+function Heatmap({
+  cells,
+  days,
+}: {
+  cells: { h: number; day: string; v: number }[];
+  days: string[];
+}) {
+  if (!cells.length)
+    return <div className="text-sm text-muted-foreground">No data in selected range</div>;
   const min = Math.min(...cells.map((c) => c.v));
   const max = Math.max(...cells.map((c) => c.v));
   const cellMap = new Map(cells.map((c) => [`${c.h}-${c.day}`, c.v]));
   const colW = days.length > 60 ? 10 : days.length > 31 ? 14 : 18;
   return (
     <div className="overflow-x-auto">
-      <div className="inline-grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, ${colW}px)` }}>
+      <div
+        className="inline-grid"
+        style={{ gridTemplateColumns: `48px repeat(${days.length}, ${colW}px)` }}
+      >
         <div />
         {days.map((d) => (
-          <div key={d} className="text-[9px] text-center text-muted-foreground truncate">{d}</div>
+          <div key={d} className="text-[9px] text-center text-muted-foreground truncate">
+            {d}
+          </div>
         ))}
         {Array.from({ length: 24 }, (_, h) => (
-          <ContiguousRow key={h} h={h} days={days} min={min} max={max} cellMap={cellMap} colW={colW} />
+          <ContiguousRow
+            key={h}
+            h={h}
+            days={days}
+            min={min}
+            max={max}
+            cellMap={cellMap}
+            colW={colW}
+          />
         ))}
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
         <span>{min.toFixed(0)}</span>
-        <div className="h-2 w-40 rounded" style={{ background: "linear-gradient(90deg, var(--color-chart-1), var(--color-chart-3), var(--color-critical))" }} />
+        <div
+          className="h-2 w-40 rounded"
+          style={{
+            background:
+              "linear-gradient(90deg, var(--color-chart-1), var(--color-chart-3), var(--color-critical))",
+          }}
+        />
         <span>{max.toFixed(0)} EUR/MWh</span>
       </div>
     </div>
@@ -350,10 +455,13 @@ function ContiguousRow({
 }) {
   return (
     <>
-      <div className="text-[10px] pr-2 text-right text-muted-foreground">{h.toString().padStart(2, "0")}</div>
+      <div className="text-[10px] pr-2 text-right text-muted-foreground">
+        {h.toString().padStart(2, "0")}
+      </div>
       {days.map((d) => {
         const v = cellMap.get(`${h}-${d}`);
-        if (v == null) return <div key={d} style={{ width: colW, height: colW }} className="bg-muted/30" />;
+        if (v == null)
+          return <div key={d} style={{ width: colW, height: colW }} className="bg-muted/30" />;
         const t = (v - min) / Math.max(0.001, max - min);
         const hue = 130 - t * 130;
         return (

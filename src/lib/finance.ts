@@ -114,7 +114,7 @@ export function runCalc(input: CalcInputs): CalcResults {
   const baseYear = new Date(Date.UTC(2026, 0, 1));
   for (let i = 0; i < n; i++) {
     const profile = hourlyProfilePerMw[i]; // MWh/MW
-    let mw = capacityMwp;
+    const mw = capacityMwp;
     // Grid clipping (DC/AC oversizing)
     let mwh = profile * mw;
     if (mwh > gridMwac) mwh = gridMwac;
@@ -223,7 +223,7 @@ export function runCalc(input: CalcInputs): CalcResults {
     const cf = (merchantRevenue + ppaRevenue) * deg - opexYr;
     cum += cf;
     if (cum >= 0 && payback === null) {
-      payback = y - (cum - cf < 0 ? (cum / cf) : 0);
+      payback = y - (cum - cf < 0 ? cum / cf : 0);
       break;
     }
   }

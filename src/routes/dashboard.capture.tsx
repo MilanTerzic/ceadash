@@ -18,7 +18,11 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import {
+  DateRangeControl,
+  useDashboardRange,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey, bucketByBelgradeDay, type HourlyPrice } from "@/lib/baseload";
@@ -28,9 +32,17 @@ export const Route = createFileRoute("/dashboard/capture")({
   head: () => ({
     meta: [
       { title: "Capture Prices — CEA Power Dashboard" },
-      { name: "description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
+      {
+        name: "description",
+        content:
+          "Solar and wind capture prices, capture rates and negative-price exposure for Serbia.",
+      },
       { property: "og:title", content: "Capture Prices — CEA Power Dashboard" },
-      { property: "og:description", content: "Solar and wind capture prices, capture rates and negative-price exposure for Serbia." },
+      {
+        property: "og:description",
+        content:
+          "Solar and wind capture prices, capture rates and negative-price exposure for Serbia.",
+      },
       { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/capture" },
     ],
     links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/capture" }],
@@ -146,8 +158,7 @@ function bessDaily(points: CapturePoint[]): BessDayMetrics[] {
 }
 
 function aggregateBess(days: BessDayMetrics[]): BessAggregate {
-  const mean = (xs: number[]) =>
-    xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const has4 = days.filter((d) => Number.isFinite(d.gross4));
   return {
     days: days.length,
@@ -268,8 +279,6 @@ function captureMetricsByMonth(points: CapturePoint[]): MonthlyCaptureRow[] {
     .map(([month, pts]) => ({ month, ...computeMetrics(pts) }));
 }
 
-
-
 function hourlyProfile(points: CapturePoint[]) {
   const buckets: { p: number[]; s: number[]; w: number[] }[] = Array.from({ length: 24 }, () => ({
     p: [],
@@ -312,8 +321,14 @@ function CapturePage() {
   const requestedRange = useRequestedRangeKeys();
 
   const live = useQuery({
-    queryKey: ["capture-series", requestedRange.fromKey, requestedRange.toKey, requestedRange.preset],
-    queryFn: () => fetchCaptureSeries({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
+    queryKey: [
+      "capture-series",
+      requestedRange.fromKey,
+      requestedRange.toKey,
+      requestedRange.preset,
+    ],
+    queryFn: () =>
+      fetchCaptureSeries({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
     staleTime: 60 * 60_000,
   });
 
@@ -344,7 +359,10 @@ function CapturePage() {
   const hourly = useMemo(() => hourlyProfile(inRange), [inRange]);
   const solarHoursInRange = useMemo(() => inRange.filter((p) => p.solar > 0).length, [inRange]);
   const windHoursInRange = useMemo(() => inRange.filter((p) => p.wind > 0).length, [inRange]);
-  const matchedHoursInRange = useMemo(() => inRange.filter((p) => p.solar > 0 || p.wind > 0).length, [inRange]);
+  const matchedHoursInRange = useMemo(
+    () => inRange.filter((p) => p.solar > 0 || p.wind > 0).length,
+    [inRange],
+  );
 
   const rangeLabel = range
     ? `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
@@ -365,7 +383,14 @@ function CapturePage() {
   );
 
   if (live.isLoading) {
-    return <p className="text-sm text-muted-foreground">{t("Fetching Serbia capture-price inputs…", "Učitavanje ulaznih podataka za capture price Srbije…")}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t(
+          "Fetching Serbia capture-price inputs…",
+          "Učitavanje ulaznih podataka za capture price Srbije…",
+        )}
+      </p>
+    );
   }
 
   if (!inRange.length) {
@@ -395,21 +420,26 @@ function CapturePage() {
 
       <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
 
-      <ChartCard
-        title={t("Methodology", "Metodologija")}
-        description={methodologyHint}
-      >
+      <ChartCard title={t("Methodology", "Metodologija")} description={methodologyHint}>
         <div className="grid gap-3 md:grid-cols-3 text-sm">
           <div className="rounded-xl border border-border/60 p-4">
             <div className="text-muted-foreground">{t("Price reference", "Referentna cena")}</div>
-            <div className="mt-1 font-medium">{t("Serbia day-ahead hourly market", "Hourly Serbia day-ahead tržište")}</div>
+            <div className="mt-1 font-medium">
+              {t("Serbia day-ahead hourly market", "Hourly Serbia day-ahead tržište")}
+            </div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Generation weighting", "Ponderisanje proizvodnjom")}</div>
-            <div className="mt-1 font-medium">{t("ENTSO-E solar (B16) and wind (B18+B19)", "ENTSO-E solar (B16) i wind (B18+B19)")}</div>
+            <div className="text-muted-foreground">
+              {t("Generation weighting", "Ponderisanje proizvodnjom")}
+            </div>
+            <div className="mt-1 font-medium">
+              {t("ENTSO-E solar (B16) and wind (B18+B19)", "ENTSO-E solar (B16) i wind (B18+B19)")}
+            </div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Coverage in selected range", "Pokrivenost u izabranom opsegu")}</div>
+            <div className="text-muted-foreground">
+              {t("Coverage in selected range", "Pokrivenost u izabranom opsegu")}
+            </div>
             <div className="mt-1 font-medium">{(coverageRatio * 100).toFixed(0)}%</div>
           </div>
         </div>
@@ -469,7 +499,6 @@ function CapturePage() {
         </div>
       )}
 
-
       <GenerationDiagnostics
         diagnostics={live.data?.diagnostics}
         priceHours={live.data?.priceHours}
@@ -480,17 +509,22 @@ function CapturePage() {
         t={t}
       />
 
-
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("Baseload average price", "Baseload prosečna cena")}
-          hint={t("Simple mean of hourly Serbia day-ahead prices in the selected period.", "Prosek satnih day-ahead cena za Srbiju u izabranom periodu.")}
+          hint={t(
+            "Simple mean of hourly Serbia day-ahead prices in the selected period.",
+            "Prosek satnih day-ahead cena za Srbiju u izabranom periodu.",
+          )}
           value={fmtValue(period.baseload)}
           unit="EUR/MWh"
         />
         <KpiCard
           label={t("Negative-price hours", "Negativni sati")}
-          hint={t("Number of hours in the selected period with day-ahead price < 0 EUR/MWh.", "Broj sati u izabranom periodu sa day-ahead cenom < 0 EUR/MWh.")}
+          hint={t(
+            "Number of hours in the selected period with day-ahead price < 0 EUR/MWh.",
+            "Broj sati u izabranom periodu sa day-ahead cenom < 0 EUR/MWh.",
+          )}
           value={period.negHours}
         />
         <KpiCard
@@ -533,20 +567,25 @@ function CapturePage() {
         />
         <KpiCard
           label={t("Solar output in negative-price hours", "Solar output u negativnim satima")}
-          hint={t("Share and absolute MWh of solar generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh solarne proizvodnje u satima sa cenom < 0 EUR/MWh.")}
+          hint={t(
+            "Share and absolute MWh of solar generation produced during hours with price < 0 EUR/MWh.",
+            "Udeo i apsolutni MWh solarne proizvodnje u satima sa cenom < 0 EUR/MWh.",
+          )}
           value={veryLowCoverage ? "N/A" : fmtPct(period.solarNegShare, 2)}
           unit={veryLowCoverage ? undefined : `${period.solarNegMwh.toFixed(0)} MWh`}
         />
         <KpiCard
           label={t("Wind output in negative-price hours", "Wind output u negativnim satima")}
-          hint={t("Share and absolute MWh of wind generation produced during hours with price < 0 EUR/MWh.", "Udeo i apsolutni MWh vetro proizvodnje u satima sa cenom < 0 EUR/MWh.")}
+          hint={t(
+            "Share and absolute MWh of wind generation produced during hours with price < 0 EUR/MWh.",
+            "Udeo i apsolutni MWh vetro proizvodnje u satima sa cenom < 0 EUR/MWh.",
+          )}
           value={veryLowCoverage ? "N/A" : fmtPct(period.windNegShare, 2)}
           unit={veryLowCoverage ? undefined : `${period.windNegMwh.toFixed(0)} MWh`}
         />
       </div>
 
       <MonthlyCaptureTable rows={monthly} rangeLabel={rangeLabel} />
-
 
       <ChartCard
         title={t("Monthly capture price vs baseload", "Mesečni capture price vs baseload")}
@@ -571,13 +610,22 @@ function CapturePage() {
             <Legend />
             <Bar dataKey="solar" fill="var(--color-chart-3)" name="Solar capture" />
             <Bar dataKey="wind" fill="var(--color-chart-2)" name="Wind capture" />
-            <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-5)" strokeWidth={2} name="Baseload" />
+            <Line
+              type="monotone"
+              dataKey="baseload"
+              stroke="var(--color-chart-5)"
+              strokeWidth={2}
+              name="Baseload"
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title={t("Capture rate trend", "Trend capture rate-a")} description={t("Capture price ÷ baseload price.", "Capture price ÷ baseload cena.")}>
+        <ChartCard
+          title={t("Capture rate trend", "Trend capture rate-a")}
+          description={t("Capture price ÷ baseload price.", "Capture price ÷ baseload cena.")}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <LineChart
               data={monthly.map((m) => ({
@@ -587,18 +635,29 @@ function CapturePage() {
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis unit="%" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Legend />
-              <Line type="monotone" dataKey="solar" stroke="var(--color-chart-3)" name="Solar rate" />
+              <Line
+                type="monotone"
+                dataKey="solar"
+                stroke="var(--color-chart-3)"
+                name="Solar rate"
+              />
               <Line type="monotone" dataKey="wind" stroke="var(--color-chart-2)" name="Wind rate" />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard
-          title={t("Generation share in negative-price hours", "Udeo proizvodnje u negativnim satima")}
+          title={t(
+            "Generation share in negative-price hours",
+            "Udeo proizvodnje u negativnim satima",
+          )}
           description={t(
             "Higher bars mean greater merchant downside exposure during negative-price hours.",
             "Više kolone znače veću downside izloženost u negativnim satima.",
@@ -613,7 +672,10 @@ function CapturePage() {
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis unit="%" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip />
               <Legend />
@@ -637,11 +699,29 @@ function CapturePage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="h" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis yAxisId="l" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <YAxis
+                yAxisId="r"
+                orientation="right"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <RTooltip />
               <Legend />
-              <Area yAxisId="r" type="monotone" dataKey="solar" stroke="var(--color-chart-3)" fill="var(--color-chart-3)" fillOpacity={0.25} name="Solar" />
-              <Line yAxisId="l" type="monotone" dataKey="price" stroke="var(--color-chart-1)" name="Price" />
+              <Area
+                yAxisId="r"
+                type="monotone"
+                dataKey="solar"
+                stroke="var(--color-chart-3)"
+                fill="var(--color-chart-3)"
+                fillOpacity={0.25}
+                name="Solar"
+              />
+              <Line
+                yAxisId="l"
+                type="monotone"
+                dataKey="price"
+                stroke="var(--color-chart-1)"
+                name="Price"
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -658,11 +738,29 @@ function CapturePage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="h" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis yAxisId="l" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <YAxis
+                yAxisId="r"
+                orientation="right"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <RTooltip />
               <Legend />
-              <Area yAxisId="r" type="monotone" dataKey="wind" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.2} name="Wind" />
-              <Line yAxisId="l" type="monotone" dataKey="price" stroke="var(--color-chart-1)" name="Price" />
+              <Area
+                yAxisId="r"
+                type="monotone"
+                dataKey="wind"
+                stroke="var(--color-chart-2)"
+                fill="var(--color-chart-2)"
+                fillOpacity={0.2}
+                name="Wind"
+              />
+              <Line
+                yAxisId="l"
+                type="monotone"
+                dataKey="price"
+                stroke="var(--color-chart-1)"
+                name="Price"
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -675,18 +773,26 @@ function CapturePage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div className="rounded-xl border border-border/60 p-4">
             <div className="text-muted-foreground">{t("Baseload", "Baseload")}</div>
-            <div className="mt-1 text-2xl font-display">{fmtValue(period.baseload)} <span className="text-xs">EUR/MWh</span></div>
+            <div className="mt-1 text-2xl font-display">
+              {fmtValue(period.baseload)} <span className="text-xs">EUR/MWh</span>
+            </div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Negative-price hours", "Negativni sati")}</div>
+            <div className="text-muted-foreground">
+              {t("Negative-price hours", "Negativni sati")}
+            </div>
             <div className="mt-1 text-2xl font-display">{period.negHours}</div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Hours with solar output", "Sati sa solarnom proizvodnjom")}</div>
+            <div className="text-muted-foreground">
+              {t("Hours with solar output", "Sati sa solarnom proizvodnjom")}
+            </div>
             <div className="mt-1 text-2xl font-display">{solarHoursInRange}</div>
           </div>
           <div className="rounded-xl border border-border/60 p-4">
-            <div className="text-muted-foreground">{t("Hours with wind output", "Sati sa vetro proizvodnjom")}</div>
+            <div className="text-muted-foreground">
+              {t("Hours with wind output", "Sati sa vetro proizvodnjom")}
+            </div>
             <div className="mt-1 text-2xl font-display">{windHoursInRange}</div>
           </div>
         </div>
@@ -695,17 +801,28 @@ function CapturePage() {
   );
 }
 
-function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; rangeLabel: string }) {
+function MonthlyCaptureTable({
+  rows,
+  rangeLabel,
+}: {
+  rows: MonthlyCaptureRow[];
+  rangeLabel: string;
+}) {
   const { t } = useLang();
   const todayMonth = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Belgrade",
     year: "numeric",
     month: "2-digit",
-  }).format(new Date()).replace("-", "-");
+  })
+    .format(new Date())
+    .replace("-", "-");
   if (!rows.length) return null;
   return (
     <ChartCard
-      title={t("Monthly capture, negative-price exposure and BESS spreads", "Mesečni capture, izloženost negativnim cenama i BESS spread-ovi")}
+      title={t(
+        "Monthly capture, negative-price exposure and BESS spreads",
+        "Mesečni capture, izloženost negativnim cenama i BESS spread-ovi",
+      )}
       description={t(
         `Selected range: ${rangeLabel}. Volume-weighted capture prices, negative-price exposure and daily BESS arbitrage spreads (2h and 4h, 85% round-trip efficiency, one cycle per day).`,
         `Izabrani opseg: ${rangeLabel}. Volumenski ponderisane capture cene, izloženost negativnim cenama i dnevni BESS arbitražni spread-ovi (2h i 4h, 85% round-trip efikasnost, jedan ciklus dnevno).`,
@@ -717,17 +834,33 @@ function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; 
             <tr className="text-left text-muted-foreground border-b border-border/60">
               <th className="py-2 pr-3 font-medium">{t("Month", "Mesec")}</th>
               <th className="py-2 pr-3 font-medium text-right">{t("Baseload", "Baseload")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("Solar capture", "Solar capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("Solar capture", "Solar capture")}
+              </th>
               <th className="py-2 pr-3 font-medium text-right">{t("Solar rate", "Solar rate")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("Wind capture", "Wind capture")}</th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("Wind capture", "Wind capture")}
+              </th>
               <th className="py-2 pr-3 font-medium text-right">{t("Wind rate", "Wind rate")}</th>
               <th className="py-2 pr-3 font-medium text-right">{t("Neg. hours", "Neg. sati")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("Solar neg. %", "Solar neg. %")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("Wind neg. %", "Wind neg. %")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h gross", "BESS 2h bruto")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("BESS 2h net (85%)", "BESS 2h neto (85%)")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h gross", "BESS 4h bruto")}</th>
-              <th className="py-2 pr-3 font-medium text-right">{t("BESS 4h net (85%)", "BESS 4h neto (85%)")}</th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("Solar neg. %", "Solar neg. %")}
+              </th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("Wind neg. %", "Wind neg. %")}
+              </th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("BESS 2h gross", "BESS 2h bruto")}
+              </th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("BESS 2h net (85%)", "BESS 2h neto (85%)")}
+              </th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("BESS 4h gross", "BESS 4h bruto")}
+              </th>
+              <th className="py-2 pr-3 font-medium text-right">
+                {t("BESS 4h net (85%)", "BESS 4h neto (85%)")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -744,17 +877,31 @@ function MonthlyCaptureTable({ rows, rangeLabel }: { rows: MonthlyCaptureRow[]; 
                     )}
                   </td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.baseload)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.solarCapture)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtValue(r.solarCapture)}
+                  </td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarRate)}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.windCapture)}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windRate)}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{r.negHours}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.solarNegShare, 2)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtPct(r.windNegShare, 2)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross2)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet2)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgGross4)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{fmtValue(r.bess.avgNet4)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtPct(r.solarNegShare, 2)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtPct(r.windNegShare, 2)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtValue(r.bess.avgGross2)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtValue(r.bess.avgNet2)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtValue(r.bess.avgGross4)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {fmtValue(r.bess.avgNet4)}
+                  </td>
                 </tr>
               );
             })}
@@ -807,7 +954,9 @@ function DiagBlock({
   const empty = !row.ok || row.parsedPoints === 0;
   return (
     <div className="rounded-xl border border-border/60 p-4 text-sm">
-      <div className="font-medium">{label} <span className="text-muted-foreground">({row.psrType})</span></div>
+      <div className="font-medium">
+        {label} <span className="text-muted-foreground">({row.psrType})</span>
+      </div>
       {empty ? (
         <p className="mt-1 text-muted-foreground">
           {emptyMessage}
@@ -822,7 +971,9 @@ function DiagBlock({
       ) : null}
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <dt>{t("Requested period", "Traženi period")}</dt>
-        <dd className="text-foreground">{row.periodStart} → {row.periodEnd}</dd>
+        <dd className="text-foreground">
+          {row.periodStart} → {row.periodEnd}
+        </dd>
         <dt>{t("Points returned", "Vraćeno tačaka")}</dt>
         <dd className="text-foreground">{row.parsedPoints}</dd>
         <dt>{t("Matched to price hours", "Uparano sa satima cene")}</dt>
@@ -851,11 +1002,13 @@ function GenerationDiagnostics({
   windowTo,
   t,
 }: {
-  diagnostics: {
-    solar: DiagRow;
-    windOnshore: DiagRow;
-    windOffshore: DiagRow;
-  } | undefined;
+  diagnostics:
+    | {
+        solar: DiagRow;
+        windOnshore: DiagRow;
+        windOffshore: DiagRow;
+      }
+    | undefined;
   priceHours: number | undefined;
   firstPriceTs: string | null;
   lastPriceTs: string | null;
@@ -872,7 +1025,9 @@ function GenerationDiagnostics({
       <div className="mt-3 space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 text-xs">
           <div className="text-muted-foreground">{t("Selected period", "Izabrani period")}</div>
-          <div className="text-foreground md:col-span-3">{windowFrom ?? "—"} → {windowTo ?? "—"}</div>
+          <div className="text-foreground md:col-span-3">
+            {windowFrom ?? "—"} → {windowTo ?? "—"}
+          </div>
           <div className="text-muted-foreground">{t("SEEPEX price hours", "SEEPEX sati cena")}</div>
           <div className="text-foreground">{priceHours ?? "—"}</div>
           <div className="text-muted-foreground">{t("First price ts", "Prvi ts cene")}</div>
@@ -913,5 +1068,3 @@ function GenerationDiagnostics({
     </details>
   );
 }
-
-

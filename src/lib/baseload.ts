@@ -40,7 +40,9 @@ export function dateFromBelgradeKey(key: string): Date {
 
 function belgradeHour(d: Date): number {
   // en-GB hour formatter returns "23" or "00"
-  return Number(BELGRADE_PARTS.formatToParts(d).find((p) => p.type === "hour")?.value ?? d.getUTCHours());
+  return Number(
+    BELGRADE_PARTS.formatToParts(d).find((p) => p.type === "hour")?.value ?? d.getUTCHours(),
+  );
 }
 
 function belgradeWeekday(d: Date): string {
@@ -92,9 +94,7 @@ export function bucketByBelgradeDay(
       const localHours = new Set(hrs.map((p) => belgradeHour(p.ts)));
       const peak = hrs.filter((p) => isBelgradePeakHour(p.ts));
       const baseload = hrs.reduce((a, b) => a + b.price, 0) / hrs.length;
-      const peakload = peak.length
-        ? peak.reduce((a, b) => a + b.price, 0) / peak.length
-        : null;
+      const peakload = peak.length ? peak.reduce((a, b) => a + b.price, 0) / peak.length : null;
       return {
         key,
         date: dateFromBelgradeKey(key),
@@ -105,7 +105,6 @@ export function bucketByBelgradeDay(
       };
     });
 }
-
 
 export type PeriodAggregate = {
   baseload: number; // mean of daily baseloads over completeDays in range
@@ -123,7 +122,11 @@ export type PeriodAggregate = {
   sd: number;
 };
 
-export function aggregatePeriod(buckets: DayBucket[], fromKey?: string, toKey?: string): PeriodAggregate {
+export function aggregatePeriod(
+  buckets: DayBucket[],
+  fromKey?: string,
+  toKey?: string,
+): PeriodAggregate {
   const inRange = buckets.filter(
     (b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey),
   );

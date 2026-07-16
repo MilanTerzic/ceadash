@@ -7,9 +7,17 @@ export const Route = createFileRoute("/dashboard/insights")({
   head: () => ({
     meta: [
       { title: "Market Insights — CEA Power Dashboard" },
-      { name: "description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
+      {
+        name: "description",
+        content:
+          "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia.",
+      },
       { property: "og:title", content: "Market Insights — CEA Power Dashboard" },
-      { property: "og:description", content: "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia." },
+      {
+        property: "og:description",
+        content:
+          "Analytical insights on renewable energy market signals, capture rates and storage opportunities in Serbia.",
+      },
       { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/insights" },
     ],
     links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard/insights" }],
@@ -107,13 +115,18 @@ function InsightsPage() {
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {insights.map((i) => (
-          <article key={i.title} className="rounded-xl border border-border/70 bg-background/40 p-4">
+          <article
+            key={i.title}
+            className="rounded-xl border border-border/70 bg-background/40 p-4"
+          >
             <div className="flex items-start justify-between gap-2">
               <h4 className="font-display text-lg leading-tight">{i.title}</h4>
               <SignalPill signal={i.signal} />
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{i.text}</p>
-            <div className="mt-3 text-xs uppercase tracking-wider text-foreground/80">{i.metric}</div>
+            <div className="mt-3 text-xs uppercase tracking-wider text-foreground/80">
+              {i.metric}
+            </div>
           </article>
         ))}
       </div>
