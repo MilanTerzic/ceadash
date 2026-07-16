@@ -15,7 +15,7 @@ export type EkapijaItem = {
 
 type CacheEntry = { ts: number; data: EkapijaItem[] };
 const CACHE: { current?: CacheEntry } = {};
-const TTL_MS = 30 * 60 * 1000;
+const TTL_MS = 10 * 60 * 1000;
 
 function parseSerbianDate(s: string): string {
   // "10.06.2026." -> "2026-06-10"

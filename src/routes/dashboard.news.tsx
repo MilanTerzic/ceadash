@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getEkapijaNews } from "@/lib/news.functions";
 import { ChartCard, DemoBadge } from "@/components/dashboard/atoms";
@@ -23,12 +24,12 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/dashboard/news")({
   head: () => ({
     meta: [
-      { title: "News & Policy Monitor — CEA Power Dashboard" },
+      { title: "News & Policy Monitor - CEA Power Dashboard" },
       {
         name: "description",
         content: "Curated Serbian and regional renewable energy news, policy and market updates.",
       },
-      { property: "og:title", content: "News & Policy Monitor — CEA Power Dashboard" },
+      { property: "og:title", content: "News & Policy Monitor - CEA Power Dashboard" },
       {
         property: "og:description",
         content: "Curated Serbian and regional renewable energy news, policy and market updates.",
@@ -65,6 +66,9 @@ type NewsItem = {
   category: string;
   tags: string[];
 };
+
+const EKAPIJA_REFRESH_MS = 10 * 60 * 1000;
+const DB_REFRESH_MS = 5 * 60 * 1000;
 
 const DEMO_ITEMS: NewsItem[] = [
   {
@@ -109,33 +113,56 @@ const DEMO_ITEMS: NewsItem[] = [
 ];
 
 function NewsPage() {
-  const [dbItems, setDbItems] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const queryClient = useQueryClient();
   const fetchEkapija = useServerFn(getEkapijaNews);
-  const { data: ekapija } = useQuery({
+
+  const ekapijaQuery = useQuery({
     queryKey: ["ekapija-news"],
     queryFn: () => fetchEkapija(),
-    staleTime: 30 * 60 * 1000,
+    staleTime: EKAPIJA_REFRESH_MS,
+    refetchInterval: EKAPIJA_REFRESH_MS,
+    refetchOnWindowFocus: true,
+  });
+
+  const dbNewsQuery = useQuery({
+    queryKey: ["news-items"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("news_items")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as NewsItem[];
+    },
+    staleTime: DB_REFRESH_MS,
+    refetchInterval: DB_REFRESH_MS,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ? { id: data.user.id } : null));
-    supabase
-      .from("news_items")
-      .select("*")
-      .order("date", { ascending: false })
-      .limit(100)
-      .then(({ data }) => {
-        setDbItems(data && data.length ? (data as NewsItem[]) : []);
-        setLoading(false);
-      });
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("news-items-auto-refresh")
+      .on("postgres_changes", { event: "*", schema: "public", table: "news_items" }, () => {
+        void queryClient.invalidateQueries({ queryKey: ["news-items"] });
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const dbItems = dbNewsQuery.data ?? [];
   const merged: NewsItem[] = (() => {
-    const ek = (ekapija?.items ?? []) as NewsItem[];
+    const ek = (ekapijaQuery.data?.items ?? []) as NewsItem[];
     const base = dbItems.length ? dbItems : DEMO_ITEMS;
     const seen = new Set(ek.map((i) => i.original_url));
     const combined = [...ek, ...base.filter((i) => !seen.has(i.original_url))];
@@ -147,29 +174,67 @@ function NewsPage() {
       (region === "all" || i.region === region) && (category === "all" || i.category === category),
   );
 
-  const usingDemo = dbItems.length === 0 && (ekapija?.items?.length ?? 0) === 0;
+  const usingDemo = dbItems.length === 0 && (ekapijaQuery.data?.items?.length ?? 0) === 0;
+  const loading = dbNewsQuery.isLoading && ekapijaQuery.isLoading;
+  const isRefreshing = dbNewsQuery.isFetching || ekapijaQuery.isFetching;
+  const lastUpdatedAt = Math.max(dbNewsQuery.dataUpdatedAt, ekapijaQuery.dataUpdatedAt);
 
   return (
     <ChartCard
-      title="News & Policy Monitor"
+      title="News & Policy"
       description="Curated renewable energy news for Serbia and the region, including live summaries from eKapija."
       right={
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button size="sm" variant="secondary" disabled={!user}>
-              {user ? "Add news item" : "Sign in to add"}
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Add news item</SheetTitle>
-            </SheetHeader>
-            <AddNewsForm userId={user?.id} onAdded={(it) => setDbItems((p) => [it, ...p])} />
-          </SheetContent>
-        </Sheet>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground">
+            {isRefreshing
+              ? "Refreshing..."
+              : lastUpdatedAt
+                ? `Updated ${formatRefreshTime(lastUpdatedAt)}`
+                : "Auto-refresh active"}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={isRefreshing}
+            onClick={() => {
+              void Promise.all([ekapijaQuery.refetch(), dbNewsQuery.refetch()]);
+            }}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh now
+          </Button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button size="sm" variant="secondary" disabled={!user}>
+                {user ? "Add news item" : "Sign in to add"}
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Add news item</SheetTitle>
+              </SheetHeader>
+              <AddNewsForm
+                userId={user?.id}
+                onAdded={(it) => {
+                  queryClient.setQueryData<NewsItem[]>(["news-items"], (previous) => [
+                    it,
+                    ...(previous ?? []),
+                  ]);
+                }}
+              />
+            </SheetContent>
+          </Sheet>
+        </div>
       }
     >
-      <div className="grid gap-3 md:grid-cols-2 mb-4">
+      {(dbNewsQuery.isError || ekapijaQuery.isError) && (
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+          Some news sources could not refresh. Existing cached items remain visible where available.
+        </div>
+      )}
+
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
         <Select value={region} onValueChange={setRegion}>
           <SelectTrigger>
             <SelectValue placeholder="Region" />
@@ -196,7 +261,7 @@ function NewsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       ) : (
         <div className="space-y-3">
           {usingDemo && <DemoBadge />}
@@ -204,9 +269,9 @@ function NewsPage() {
             <article key={i.id} className="rounded-xl border border-border/70 p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{i.date}</span>
-                <span>·</span>
+                <span>-</span>
                 <span className="font-medium text-foreground/80">{i.source}</span>
-                <span>·</span>
+                <span>-</span>
                 <Badge variant="outline">{i.region}</Badge>
                 <Badge variant="outline">{i.category}</Badge>
                 {i.ai_generated && (
@@ -233,10 +298,23 @@ function NewsPage() {
               </div>
             </article>
           ))}
+          {filtered.length === 0 && (
+            <div className="rounded-xl border border-border/70 p-6 text-sm text-muted-foreground">
+              No news items match the selected filters.
+            </div>
+          )}
         </div>
       )}
     </ChartCard>
   );
+}
+
+function formatRefreshTime(timestamp: number) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(timestamp));
 }
 
 function AddNewsForm({ userId, onAdded }: { userId?: string; onAdded: (i: NewsItem) => void }) {
