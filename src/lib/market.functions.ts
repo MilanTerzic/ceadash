@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DEFAULT_MIN_COMPLETE_HOURS } from "@/lib/baseload";
+import { getEntsoeToken } from "@/lib/entsoe-token";
 
 /**
  * SEEPEX Serbia day-ahead price fetcher (ENTSO-E Transparency Platform).
@@ -192,7 +193,7 @@ function classifyStatus(status: number, body: string): { reason: string; message
 async function entsoeRaw(
   params: Record<string, string>,
 ): Promise<{ ok: true; xml: string } | EntsoeError> {
-  const token = process.env.ENTSOE_SECURITY_TOKEN;
+  const token = getEntsoeToken();
   if (!token) return { ok: false, reason: "missing_token", params };
   const qs = new URLSearchParams({ securityToken: token, ...params });
   const url = `${API_BASE}?${qs.toString()}`;

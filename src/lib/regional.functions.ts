@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getEntsoeToken } from "@/lib/entsoe-token";
 
 export type ZoneCode =
   "RS" | "HU" | "RO" | "BG" | "MK" | "AL" | "ME" | "BA" | "HR" | "SI" | "GR" | "IT";
@@ -60,7 +61,7 @@ function parsePoints(xml: string): { ts: Date; value: number }[] {
 }
 
 async function callEntsoe(params: Record<string, string>) {
-  const token = process.env.ENTSOE_SECURITY_TOKEN;
+  const token = getEntsoeToken();
   if (!token) return { ok: false as const, xml: "" };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
@@ -320,7 +321,7 @@ export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
     const cached = HOT_MAP.get(cacheKey);
     if (cached && now - cached.ts < HOT_TTL_MS) return cached.data;
 
-    const hasToken = Boolean(process.env.ENTSOE_SECURITY_TOKEN);
+    const hasToken = Boolean(getEntsoeToken());
     let liveAny = false;
 
     // Refresh recent DA prices from ENTSO-E for the "latest" column and SDAC

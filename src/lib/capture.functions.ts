@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { fetchMarketPrices } from "@/lib/market.functions";
+import { getEntsoeToken } from "@/lib/entsoe-token";
 
 const SERBIA_ZONE = "10YCS-SERBIATSOV";
 
@@ -191,7 +192,7 @@ async function entsoeRaw(
   | { ok: true; xml: string; httpStatus: number }
   | { ok: false; reason: EntsoeReason; apiMessage?: string; httpStatus?: number }
 > {
-  const token = process.env.ENTSOE_SECURITY_TOKEN;
+  const token = getEntsoeToken();
   if (!token) return { ok: false, reason: "missing_token" };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);

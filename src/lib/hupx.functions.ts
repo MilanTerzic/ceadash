@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { entsoeTokenMissingMessage, getEntsoeToken } from "@/lib/entsoe-token";
 
 // HUPX = Hungarian day-ahead prices, sourced from ENTSO-E Transparency
 // Platform for the MAVIR bidding zone (10YHU-MAVIR----U).
@@ -60,7 +61,7 @@ function parseDayKey(k: string): Date {
 }
 
 async function fetchWindow(from: Date, to: Date) {
-  const token = process.env.ENTSOE_SECURITY_TOKEN;
+  const token = getEntsoeToken();
   if (!token) return [] as { ts: Date; value: number }[];
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
@@ -107,12 +108,12 @@ export const fetchHupxPrices = createServerFn({ method: "POST" })
     const cached = HOT.get(key);
     if (cached && Date.now() - cached.ts < HOT_TTL_MS) return cached.data;
 
-    if (!process.env.ENTSOE_SECURITY_TOKEN) {
+    if (!getEntsoeToken()) {
       return {
         ok: false,
         points: [],
         source: "none",
-        reason: "ENTSOE_SECURITY_TOKEN not configured",
+        reason: entsoeTokenMissingMessage(),
       };
     }
 

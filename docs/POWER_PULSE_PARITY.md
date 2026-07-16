@@ -71,10 +71,11 @@ These add futures contracts, EOD prices, public/manual futures snapshots, collec
 
 See `.env.example`.
 
-Required for live ENTSO-E:
+Required for live ENTSO-E. The server-side fetchers accept any one of these aliases:
 
 - `ENTSOE_SECURITY_TOKEN`
 - `ENTSOE_API_TOKEN`
+- `ENTSOE_API_KEY`
 
 Required for Supabase caching/database features:
 
@@ -114,7 +115,7 @@ Optional:
 
 1. Apply Supabase migrations.
 2. Configure `.env.example` variables in the deployment environment.
-3. Set both ENTSO-E token variable names unless the deployment standardizes on one and updates adapters.
+3. Set one ENTSO-E token variable: `ENTSOE_SECURITY_TOKEN`, `ENTSOE_API_TOKEN` or `ENTSOE_API_KEY`.
 4. Deploy the TanStack/Nitro build output.
 5. Verify `/dashboard/settings` shows provider statuses without exposing secrets.
 6. Refresh futures snapshots through the configured public/manual workflow before relying on futures pages.

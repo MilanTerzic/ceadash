@@ -9,6 +9,7 @@ import {
   type ProductType,
 } from "./markets";
 import { PRICE_MARKETS, type PriceMarketCode } from "./price-markets";
+import { entsoeTokenMissingMessage, getEntsoeToken } from "./entsoe-token";
 
 const API_BASE = "https://web-api.tp.entsoe.eu/api";
 const DEFAULT_TTL = 1800;
@@ -35,7 +36,7 @@ function ttlFor(today: number, past: number, dayISO: string): number {
 }
 
 function token(): string | null {
-  return process.env.ENTSOE_API_TOKEN ?? null;
+  return getEntsoeToken();
 }
 
 function ymdh(d: Date): string {
@@ -131,7 +132,7 @@ function isRetryableEntsoeStatus(status: number) {
 
 async function entsoeRaw(params: Record<string, string>): Promise<string> {
   const t = token();
-  if (!t) throw new Error("ENTSOE_API_TOKEN missing");
+  if (!t) throw new Error(entsoeTokenMissingMessage());
   const qs = new URLSearchParams({ securityToken: t, ...params });
   const url = `${API_BASE}?${qs.toString()}`;
   let lastStatus = 0;

@@ -108,8 +108,8 @@ function DataSourcesPage() {
                       {q.isLoading
                         ? t("Checking data sources...", "Provera izvora podataka...")
                         : t(
-                            "No status rows are available. Check ENTSOE_API_TOKEN or ENTSOE_SECURITY_TOKEN on the server.",
-                            "Nema dostupnih statusnih redova. Proverite ENTSOE_API_TOKEN ili ENTSOE_SECURITY_TOKEN na serveru.",
+                            "No status rows are available. Check ENTSOE_SECURITY_TOKEN, ENTSOE_API_TOKEN or ENTSOE_API_KEY on the server.",
+                            "Nema dostupnih statusnih redova. Proverite ENTSOE_SECURITY_TOKEN, ENTSOE_API_TOKEN ili ENTSOE_API_KEY na serveru.",
                           )}
                     </td>
                   </tr>

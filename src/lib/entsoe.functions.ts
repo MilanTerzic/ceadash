@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getEntsoeToken } from "@/lib/entsoe-token";
 
 // Minimal ENTSO-E Transparency Platform client.
 // Docs: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
@@ -22,7 +23,7 @@ function fmtUtc(d: Date) {
 }
 
 async function callEntsoe(params: Record<string, string>) {
-  const token = process.env.ENTSOE_SECURITY_TOKEN;
+  const token = getEntsoeToken();
   if (!token) return { ok: false as const, reason: "missing_token", xml: "" };
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.searchParams.set("securityToken", token);
