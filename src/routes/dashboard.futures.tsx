@@ -70,6 +70,7 @@ function FuturesPage() {
   );
   const [manualText, setManualText] = useState("");
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [refreshResult, setRefreshResult] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["futures_dashboard"],
@@ -148,12 +149,12 @@ function FuturesPage() {
         hideRange
       />
       <div className="space-y-5 p-4 md:p-6">
-        <Panel title="Public EEX Snapshot Mode">
+        <Panel title="EEX public snapshot">
           <div className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-start md:justify-between">
             <div className="flex gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-info" />
               <div>
-                <p className="font-medium text-foreground">Public EEX Snapshot Mode</p>
+                <p className="font-medium text-foreground">Public snapshot mode</p>
                 <p className="mt-1 max-w-4xl">
                   The dashboard uses periodic snapshots of publicly displayed EEX Market Data Hub
                   information. This is not a licensed real-time EEX DataSource feed.
@@ -173,7 +174,12 @@ function FuturesPage() {
                 className="gap-1.5"
                 disabled={q.isFetching}
                 onClick={async () => {
-                  await refreshPublicFn();
+                  setRefreshResult(null);
+                  const result = await refreshPublicFn();
+                  const summary = result.reason
+                    ? `${result.status}: ${result.reason}`
+                    : `${result.status}: fetched ${result.rows} public EEX rows`;
+                  setRefreshResult(summary);
                   await q.refetch();
                 }}
               >
@@ -182,6 +188,11 @@ function FuturesPage() {
               </Button>
             </div>
           </div>
+          {refreshResult && (
+            <div className="mt-3 rounded border border-border/60 bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
+              {refreshResult}
+            </div>
+          )}
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4">
             <Metric label="Provider" value={q.data?.provider ?? "eex-public-snapshot"} />
             <Metric label="Latest trading date" value={q.data?.latestTradingDate ?? "N/A"} />
