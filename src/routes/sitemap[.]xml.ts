@@ -14,6 +14,7 @@ const ENTRIES: SitemapEntry[] = [
   { path: "/dashboard/market", changefreq: "daily", priority: "0.9" },
   { path: "/dashboard/capture", changefreq: "daily", priority: "0.9" },
   { path: "/dashboard/regional", changefreq: "daily", priority: "0.9" },
+  { path: "/dashboard/wb6", changefreq: "daily", priority: "0.9" },
   { path: "/dashboard/insights", changefreq: "weekly", priority: "0.7" },
   { path: "/dashboard/calculator", changefreq: "monthly", priority: "0.8" },
   { path: "/dashboard/news", changefreq: "daily", priority: "0.8" },

@@ -110,6 +110,14 @@ export function DashboardTabs() {
           ),
         },
         {
+          to: "/dashboard/wb6",
+          label: "WB6",
+          description: t(
+            "Western Balkans 6 import, export and net-balance view",
+            "Uvoz, izvoz i neto bilans za Zapadni Balkan 6",
+          ),
+        },
+        {
           to: "/dashboard/spreads",
           label: t("Spreads", "Spreadovi"),
           description: t(

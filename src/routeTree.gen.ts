@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardWeeklyRouteImport } from './routes/dashboard.weekly'
 import { Route as DashboardWeatherRouteImport } from './routes/dashboard.weather'
+import { Route as DashboardWb6RouteImport } from './routes/dashboard.wb6'
 import { Route as DashboardUtilizationRouteImport } from './routes/dashboard.utilization'
 import { Route as DashboardSpreadsRouteImport } from './routes/dashboard.spreads'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
@@ -69,6 +70,11 @@ const DashboardWeeklyRoute = DashboardWeeklyRouteImport.update({
 const DashboardWeatherRoute = DashboardWeatherRouteImport.update({
   id: '/weather',
   path: '/weather',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWb6Route = DashboardWb6RouteImport.update({
+  id: '/wb6',
+  path: '/wb6',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardUtilizationRoute = DashboardUtilizationRouteImport.update({
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
@@ -445,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/weather'
       fullPath: '/dashboard/weather'
       preLoaderRoute: typeof DashboardWeatherRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/wb6': {
+      id: '/dashboard/wb6'
+      path: '/wb6'
+      fullPath: '/dashboard/wb6'
+      preLoaderRoute: typeof DashboardWb6RouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/utilization': {
@@ -651,6 +670,7 @@ interface DashboardRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSpreadsRoute: typeof DashboardSpreadsRoute
   DashboardUtilizationRoute: typeof DashboardUtilizationRoute
+  DashboardWb6Route: typeof DashboardWb6Route
   DashboardWeatherRoute: typeof DashboardWeatherRoute
   DashboardWeeklyRoute: typeof DashboardWeeklyRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -682,6 +702,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSpreadsRoute: DashboardSpreadsRoute,
   DashboardUtilizationRoute: DashboardUtilizationRoute,
+  DashboardWb6Route: DashboardWb6Route,
   DashboardWeatherRoute: DashboardWeatherRoute,
   DashboardWeeklyRoute: DashboardWeeklyRoute,
   DashboardIndexRoute: DashboardIndexRoute,
