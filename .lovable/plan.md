@@ -1,4 +1,3 @@
-
 # Dashboard Upgrade Plan
 
 This is a large request. I'll deliver it in **4 phases** so you can review after each. Tell me which phase to start with (or say "all" to proceed sequentially).

@@ -109,12 +109,12 @@
   --neutral: oklch(0.6 0.02 110);
 
   /* Chart palette — sage-tinted earthy */
-  --chart-1: oklch(0.5 0.05 120);   /* sage */
-  --chart-2: oklch(0.55 0.09 240);  /* sky */
-  --chart-3: oklch(0.65 0.13 70);   /* amber */
-  --chart-4: oklch(0.5 0.1 25);     /* clay */
-  --chart-5: oklch(0.45 0.04 200);  /* slate */
-  --chart-6: oklch(0.6 0.09 300);   /* mauve */
+  --chart-1: oklch(0.5 0.05 120); /* sage */
+  --chart-2: oklch(0.55 0.09 240); /* sky */
+  --chart-3: oklch(0.65 0.13 70); /* amber */
+  --chart-4: oklch(0.5 0.1 25); /* clay */
+  --chart-5: oklch(0.45 0.04 200); /* slate */
+  --chart-6: oklch(0.6 0.09 300); /* mauve */
 
   --sidebar: oklch(0.86 0.025 105);
   --sidebar-foreground: oklch(0.22 0.02 115);
@@ -124,7 +124,6 @@
   --sidebar-accent-foreground: oklch(0.22 0.03 115);
   --sidebar-border: oklch(0.78 0.025 105);
   --sidebar-ring: oklch(0.5 0.05 120);
-
 }
 
 .dark {
@@ -155,7 +154,8 @@
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -169,14 +169,20 @@
     line-height: 1.6;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.015em;
     color: var(--color-foreground);
     font-weight: 600;
   }
 
-  h1 { font-weight: 650; }
+  h1 {
+    font-weight: 650;
+  }
 
   label {
     font-weight: 550;
@@ -185,7 +191,8 @@
 }
 
 @media print {
-  html, body {
+  html,
+  body {
     background: white !important;
     color: #1f241f !important;
   }
