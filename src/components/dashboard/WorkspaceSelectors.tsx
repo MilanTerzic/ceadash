@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Database, Download, Bell } from "lucide-react";
+import { Database, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -215,10 +215,6 @@ export function HeaderActionButtons() {
           </div>
         </PopoverContent>
       </Popover>
-      <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5">
-        <Download className="h-3.5 w-3.5" />
-        {t("Export", "Izvoz")}
-      </Button>
     </div>
   );
 }
