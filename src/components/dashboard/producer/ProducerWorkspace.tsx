@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -260,6 +260,8 @@ type Diagnostic = {
 };
 
 function DataQualitySheet({
+  open,
+  onOpenChange,
   source,
   solarSource,
   coveragePct,
@@ -272,6 +274,8 @@ function DataQualitySheet({
   lastTimestamp,
   diagnostics,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   source: string;
   solarSource: string;
   coveragePct: number;
@@ -302,13 +306,7 @@ function DataQualitySheet({
     [t("Last timestamp", "Poslednji timestamp"), lastTimestamp ?? "N/A"],
   ];
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button type="button" size="sm" variant="outline" className="gap-2">
-          <Database className="h-4 w-4" />
-          {t("View diagnostics", "Dijagnostika")}
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>{t("Producer data quality", "Kvalitet producer podataka")}</SheetTitle>
@@ -873,6 +871,7 @@ export function ProducerWorkspace() {
   const requestedRange = useRequestedRangeKeys();
   const [technology, setTechnology] = useState<Technology>("both");
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("capture");
+  const [dataQualityOpen, setDataQualityOpen] = useState(false);
   const live = useQuery({
     queryKey: [
       "capture-series",
@@ -932,8 +931,22 @@ export function ProducerWorkspace() {
   const totalHours = data && "totalHours" in data ? Number(data.totalHours) : selectedPoints.length;
   const coveragePct = totalHours > 0 ? Math.min(100, (matchedHours / totalHours) * 100) : 0;
   const source = data?.source ?? "none";
-  const dataQuality = (
+  const dataQualityButton = (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="gap-2"
+      onClick={() => setDataQualityOpen(true)}
+    >
+      <Database className="h-4 w-4" />
+      {t("View diagnostics", "Dijagnostika")}
+    </Button>
+  );
+  const dataQualitySheet = (
     <DataQualitySheet
+      open={dataQualityOpen}
+      onOpenChange={setDataQualityOpen}
       source={source}
       solarSource={solarSource}
       coveragePct={coveragePct}
@@ -947,25 +960,57 @@ export function ProducerWorkspace() {
       diagnostics={diagnostics}
     />
   );
-  const exportRows = selectedPoints.map((point) => ({
-    timestamp_utc: point.ts,
-    day_ahead_price_eur_per_mwh: point.price,
-    solar_profile_value: point.solar,
-    solar_profile_source: solarSource,
-    wind_generation_mw: point.wind,
-  }));
+  const exportRows = useMemo(
+    () =>
+      selectedPoints.map((point) => ({
+        timestamp_utc: point.ts,
+        day_ahead_price_eur_per_mwh: point.price,
+        solar_profile_value: point.solar,
+        solar_profile_source: solarSource,
+        wind_generation_mw: point.wind,
+      })),
+    [selectedPoints, solarSource],
+  );
 
-  if (live.isLoading) return <PageLoadingSkeleton />;
+  useEffect(() => {
+    const openDataQuality = (event: Event) => {
+      event.preventDefault();
+      setDataQualityOpen(true);
+    };
+    const exportProducerData = (event: Event) => {
+      if (!exportRows.length) return;
+      event.preventDefault();
+      downloadCSV("serbia-producer-hourly.csv", exportRows);
+    };
+    window.addEventListener("cea:data-quality", openDataQuality);
+    window.addEventListener("cea:export", exportProducerData);
+    return () => {
+      window.removeEventListener("cea:data-quality", openDataQuality);
+      window.removeEventListener("cea:export", exportProducerData);
+    };
+  }, [exportRows]);
+
+  if (live.isLoading) {
+    return (
+      <>
+        <PageLoadingSkeleton />
+        {dataQualitySheet}
+      </>
+    );
+  }
   if (live.isError || !points.length) {
     return (
-      <DataUnavailableState
-        title={t("Producer data unavailable", "Producer podaci nisu dostupni")}
-        description={t(
-          "Serbia day-ahead prices or generation profiles could not be loaded for the selected period.",
-          "Dan-unapred cene Srbije ili profili proizvodnje nisu ucitani za izabrani period.",
-        )}
-        onRetry={() => void live.refetch()}
-      />
+      <>
+        <DataUnavailableState
+          title={t("Producer data unavailable", "Producer podaci nisu dostupni")}
+          description={t(
+            "Serbia day-ahead prices or generation profiles could not be loaded for the selected period.",
+            "Dan-unapred cene Srbije ili profili proizvodnje nisu ucitani za izabrani period.",
+          )}
+          onRetry={() => void live.refetch()}
+        />
+        {dataQualitySheet}
+      </>
     );
   }
 
@@ -984,7 +1029,7 @@ export function ProducerWorkspace() {
         refreshing={live.isFetching}
         onRefresh={() => void live.refetch()}
         onExport={() => downloadCSV("serbia-producer-hourly.csv", exportRows)}
-        dataQuality={dataQuality}
+        dataQuality={dataQualityButton}
       />
 
       {coveragePct < 90 || solarModelled ? (
@@ -1034,7 +1079,7 @@ export function ProducerWorkspace() {
           solarModelled={solarModelled}
           source={source}
           latestTimestamp={lastTimestamp}
-          dataQuality={dataQuality}
+          dataQuality={dataQualityButton}
         />
       </div>
 
@@ -1068,6 +1113,7 @@ export function ProducerWorkspace() {
       </section>
 
       <MonthlyCaptureTable rows={monthly} />
+      {dataQualitySheet}
     </div>
   );
 }

@@ -1,9 +1,9 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import {
-  DataQualityIndicator,
   HeaderActionButtons,
   PortfolioSelector,
   RoleSelector,
@@ -56,6 +56,7 @@ function yearStart(dayISO: string) {
 function GlobalDateRangeControl() {
   const { t } = useLang();
   const { range, setRange } = useDateRange();
+  const navigate = useNavigate();
   const today = belgradeDateISO();
   const presets = [
     { label: t("Today", "Danas"), range: { from: today, to: today } },
@@ -72,6 +73,19 @@ function GlobalDateRangeControl() {
     { label: t("Previous month", "Prethodni mesec"), range: previousMonthRange(today) },
     { label: "YTD", range: { from: yearStart(today), to: today } },
   ];
+  const applyRange = (nextRange: { from: string; to: string }) => {
+    setRange(nextRange);
+    void navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        preset: "custom",
+        from: nextRange.from,
+        to: nextRange.to,
+      }),
+      replace: true,
+    });
+  };
 
   return (
     <div className="flex flex-wrap items-end gap-2">
@@ -85,7 +99,7 @@ function GlobalDateRangeControl() {
               range.from === preset.range.from && range.to === preset.range.to ? "default" : "ghost"
             }
             className="h-8 shrink-0 px-2 text-[11px]"
-            onClick={() => setRange(preset.range)}
+            onClick={() => applyRange(preset.range)}
           >
             {preset.label}
           </Button>
@@ -97,7 +111,7 @@ function GlobalDateRangeControl() {
           type="date"
           value={range.from}
           max={range.to}
-          onChange={(event) => setRange({ ...range, from: event.target.value })}
+          onChange={(event) => applyRange({ ...range, from: event.target.value })}
           className="h-9 rounded-md border border-border/60 bg-surface-2 px-2 text-xs text-foreground"
         />
       </label>
@@ -107,7 +121,7 @@ function GlobalDateRangeControl() {
           type="date"
           value={range.to}
           min={range.from}
-          onChange={(event) => setRange({ ...range, to: event.target.value })}
+          onChange={(event) => applyRange({ ...range, to: event.target.value })}
           className="h-9 rounded-md border border-border/60 bg-surface-2 px-2 text-xs text-foreground"
         />
       </label>
@@ -115,11 +129,25 @@ function GlobalDateRangeControl() {
   );
 }
 
+function DateRangeUrlSync() {
+  const search = useSearch({ strict: false }) as { from?: string; to?: string };
+  const { range, setRange } = useDateRange();
+
+  useEffect(() => {
+    if (!search.from || !search.to) return;
+    if (range.from === search.from && range.to === search.to) return;
+    setRange({ from: search.from, to: search.to });
+  }, [range.from, range.to, search.from, search.to, setRange]);
+
+  return null;
+}
+
 function DashboardLayout() {
   const { t } = useLang();
   return (
     <DateRangeProvider>
       <WorkspaceProvider>
+        <DateRangeUrlSync />
         <div>
           <section className="border-b border-border/60 bg-surface/80">
             <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">

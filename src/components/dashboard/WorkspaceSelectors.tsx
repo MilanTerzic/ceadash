@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Database, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 import {
   DASHBOARD_ROLES,
@@ -23,10 +25,28 @@ import {
 export function RoleSelector() {
   const { t } = useLang();
   const { role, setRole } = useWorkspace();
+  const { range } = useDateRange();
+  const navigate = useNavigate();
+  const selectRole = (value: string) => {
+    const nextRole = value as DashboardRole;
+    const roleConfig = DASHBOARD_ROLES.find((item) => item.value === nextRole);
+    setRole(nextRole);
+    if (roleConfig) {
+      void navigate({
+        to: "/dashboard/portfolio",
+        search: {
+          view: roleConfig.defaultPortfolioView,
+          preset: "custom",
+          from: range.from,
+          to: range.to,
+        },
+      });
+    }
+  };
   return (
     <label className="grid gap-1 text-xs text-muted-foreground">
       <span>{t("View as", "Prikaz za")}</span>
-      <Select value={role} onValueChange={(value) => setRole(value as DashboardRole)}>
+      <Select value={role} onValueChange={selectRole}>
         <SelectTrigger className="h-9 min-w-[190px] bg-surface-2">
           <SelectValue />
         </SelectTrigger>
@@ -44,11 +64,36 @@ export function RoleSelector() {
 
 export function PortfolioSelector() {
   const { t } = useLang();
-  const { portfolio, setPortfolio } = useWorkspace();
+  const { portfolio, setPortfolio, selectedRole } = useWorkspace();
+  const { range } = useDateRange();
+  const navigate = useNavigate();
+  const selectPortfolio = (value: string) => {
+    const nextPortfolio = value as PortfolioProfile;
+    setPortfolio(nextPortfolio);
+    const view =
+      nextPortfolio === "industrial-consumer"
+        ? "consumer"
+        : nextPortfolio === "battery"
+          ? "battery"
+          : nextPortfolio === "aggregated-portfolio"
+            ? "vpp"
+            : selectedRole.value === "investor"
+              ? "project"
+              : "producer";
+    void navigate({
+      to: "/dashboard/portfolio",
+      search: {
+        view,
+        preset: "custom",
+        from: range.from,
+        to: range.to,
+      },
+    });
+  };
   return (
     <label className="grid gap-1 text-xs text-muted-foreground">
       <span>{t("Asset / portfolio", "Asset / portfolio")}</span>
-      <Select value={portfolio} onValueChange={(value) => setPortfolio(value as PortfolioProfile)}>
+      <Select value={portfolio} onValueChange={selectPortfolio}>
         <SelectTrigger className="h-9 min-w-[190px] bg-surface-2">
           <SelectValue />
         </SelectTrigger>
@@ -65,27 +110,32 @@ export function PortfolioSelector() {
 }
 
 export function DataQualityIndicator({
-  status = "Complete",
+  status,
   updatedAt,
 }: {
   status?: "Complete" | "Partial" | "Cached" | "Unavailable";
   updatedAt?: string;
 }) {
   const { t } = useLang();
+  const navigate = useNavigate();
   const statusLabel =
-    status === "Complete"
-      ? t("Complete", "Potpuno")
-      : status === "Partial"
-        ? t("Partial", "Delimicno")
-        : status === "Cached"
-          ? t("Cached", "Iz kesa")
-          : t("Unavailable", "Nedostupno");
+    status == null
+      ? t("Data status", "Status podataka")
+      : status === "Complete"
+        ? t("Complete", "Potpuno")
+        : status === "Partial"
+          ? t("Partial", "Delimicno")
+          : status === "Cached"
+            ? t("Cached", "Iz kesa")
+            : t("Unavailable", "Nedostupno");
   const dot =
-    status === "Complete"
-      ? "bg-success"
-      : status === "Partial" || status === "Cached"
-        ? "bg-warning"
-        : "bg-destructive";
+    status == null
+      ? "bg-muted-foreground"
+      : status === "Complete"
+        ? "bg-success"
+        : status === "Partial" || status === "Cached"
+          ? "bg-warning"
+          : "bg-destructive";
   const time = updatedAt
     ? new Date(updatedAt).toLocaleTimeString("en-GB", {
         hour: "2-digit",
@@ -101,6 +151,13 @@ export function DataQualityIndicator({
         "Open detailed data-quality diagnostics on individual pages.",
         "Detaljna dijagnostika kvaliteta podataka nalazi se na pojedinacnim stranicama.",
       )}
+      onClick={() => {
+        const event = new Event("cea:data-quality", { cancelable: true });
+        const unhandled = window.dispatchEvent(event);
+        if (unhandled) {
+          void navigate({ to: "/dashboard/more", search: { tab: "data" } });
+        }
+      }}
     >
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       <span>{statusLabel}</span>
