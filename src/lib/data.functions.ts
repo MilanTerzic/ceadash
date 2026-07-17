@@ -11,8 +11,10 @@ import {
 } from "./entsoe.server";
 import { fetchWeather, fetchRiverDischarge } from "./openmeteo.server";
 import { DANUBE_STATION_COORDS } from "./markets";
+import type { PricePoint } from "./trading-calculations";
 
 import { forecastPrices } from "./forecast";
+import { calculatePricePeriodStats } from "./price-analysis";
 import {
   IMPORT_ROUTES,
   EXPORT_ROUTES,
@@ -41,15 +43,6 @@ const offsetISO = (days: number) => {
   date.setUTCDate(date.getUTCDate() + days);
   return belgradeDateISO(date);
 };
-
-function belgradeHour(ts: string) {
-  const hour = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Belgrade",
-    hour: "2-digit",
-    hour12: false,
-  }).format(new Date(ts));
-  return Number(hour);
-}
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const clean = (v?: string) => (v && ISO_DATE_RE.test(v) ? v : undefined);
@@ -98,6 +91,46 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
 type RangeInput = { day?: string; from?: string; to?: string };
 
 const DA_ZONES = PRICE_MARKET_CODES;
+
+type CachedDaPriceRow = {
+  datetime: string;
+  price_eur_mwh: number | string | null;
+};
+
+async function readCachedDaPricePoints(
+  supabaseAdmin: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
+  zone: (typeof DA_ZONES)[number],
+  fromDay: string,
+  toDay: string,
+): Promise<PricePoint[]> {
+  const fromUtc = belgradeDayBoundaryUtc(fromDay).toISOString();
+  const toUtc = belgradeDayBoundaryUtc(addDaysISO(toDay, 1)).toISOString();
+  const market = `DA_${zone}`;
+  const pageSize = 1000;
+  const rows: CachedDaPriceRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const res = await supabaseAdmin
+      .from("market_prices_hourly")
+      .select("datetime, price_eur_mwh")
+      .eq("market", market)
+      .gte("datetime", fromUtc)
+      .lt("datetime", toUtc)
+      .order("datetime", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (res.error) return [];
+    const chunk = (res.data ?? []) as CachedDaPriceRow[];
+    rows.push(...chunk);
+    if (chunk.length < pageSize) break;
+  }
+  return rows
+    .map((row) => ({
+      ts: new Date(row.datetime).toISOString(),
+      price: Number(row.price_eur_mwh),
+      durationMinutes: 60 as const,
+    }))
+    .filter((point) => Number.isFinite(point.price))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+}
 
 async function allSettledBounded<T>(
   tasks: Array<() => Promise<T>>,
@@ -225,29 +258,40 @@ export const getDashboardSnapshot = createServerFn({ method: "GET" })
 export const getAverageDAProfile = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const days = expandRange(data?.from, data?.to, data?.day);
     const zones = DA_ZONES;
     const outResults = await allSettledBounded(
       zones.map((z) => async () => {
-        const all = [await fetchDayAheadPricesRange(z, days[0], days[days.length - 1])];
-        const sums = new Array<number>(24).fill(0);
-        const counts = new Array<number>(24).fill(0);
-        for (const r of all) {
-          for (const p of r.data.points) {
-            const h = belgradeHour(p.ts);
-            if (Number.isFinite(p.price)) {
-              sums[h] += p.price;
-              counts[h] += 1;
-            }
-          }
+        const cachedPoints = await readCachedDaPricePoints(
+          supabaseAdmin,
+          z,
+          days[0],
+          days[days.length - 1],
+        );
+        let points: PricePoint[] = cachedPoints;
+        let source: "live" | "cache" | "demo" | "empty" = cachedPoints.length ? "cache" : "empty";
+        let reason: string | undefined;
+        let fetchedAt = new Date().toISOString();
+        if (!points.length) {
+          const live = await fetchDayAheadPricesRange(z, days[0], days[days.length - 1]);
+          points = live.data.points.map((point) => ({
+            ts: point.ts,
+            price: point.price,
+            durationMinutes: point.durationMinutes,
+          }));
+          source = live.source;
+          reason = live.reason;
+          fetchedAt = live.fetched_at;
         }
-        const profile = sums.map((s, i) => (counts[i] ? s / counts[i] : null));
+        const stats = calculatePricePeriodStats(points, days);
         return {
           zone: z,
-          profile,
-          source: all[0]?.source ?? "empty",
-          reason: all[0]?.reason,
-          fetched_at: all[0]?.fetched_at ?? new Date().toISOString(),
+          profile: stats.hourlyProfile,
+          stats,
+          source,
+          reason,
+          fetched_at: fetchedAt,
         };
       }),
     );
@@ -258,6 +302,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
         : {
             zone: z,
             profile: new Array<number | null>(24).fill(null),
+            stats: calculatePricePeriodStats([], days),
             source: "empty" as const,
             reason: result.reason instanceof Error ? result.reason.message : "error",
             fetched_at: new Date().toISOString(),

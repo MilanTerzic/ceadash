@@ -225,6 +225,38 @@ test("15-minute price data is counted with the correct expected interval denomin
   assert.equal(completeness.receivedIntervals, 96);
 });
 
+test("period price stats use row-level hourly average instead of profile average", () => {
+  const stats = priceAnalysis.calculatePricePeriodStats(
+    [
+      { ts: "2025-12-31T23:00:00.000Z", price: 100, durationMinutes: 60 },
+      { ts: "2026-01-01T00:00:00.000Z", price: 200, durationMinutes: 60 },
+      { ts: "2026-01-01T23:00:00.000Z", price: 100, durationMinutes: 60 },
+    ],
+    ["2026-01-01", "2026-01-02"],
+  );
+
+  assert.equal(Number(stats.baseloadAverage.toFixed(2)), 133.33);
+  assert.equal(Number(stats.profileAverage.toFixed(2)), 150);
+  assert.equal(stats.receivedIntervals, 3);
+  assert.equal(stats.expectedIntervals, 48);
+});
+
+test("period price stats normalize 15-minute MTUs to hourly prices", () => {
+  const stats = priceAnalysis.calculatePricePeriodStats(
+    [
+      { ts: "2026-01-14T23:00:00.000Z", price: 100, durationMinutes: 15 },
+      { ts: "2026-01-14T23:15:00.000Z", price: 200, durationMinutes: 15 },
+      { ts: "2026-01-14T23:30:00.000Z", price: 300, durationMinutes: 15 },
+      { ts: "2026-01-14T23:45:00.000Z", price: 400, durationMinutes: 15 },
+      { ts: "2026-01-15T00:00:00.000Z", price: 500, durationMinutes: 60 },
+    ],
+    ["2026-01-15"],
+  );
+
+  assert.equal(stats.receivedIntervals, 2);
+  assert.equal(stats.baseloadAverage, 375);
+});
+
 test("DST days support 23-hour and 25-hour expected interval counts", () => {
   assert.equal(priceAnalysis.expectedIntervalsForDays(["2026-03-29"]), 23);
   assert.equal(priceAnalysis.expectedIntervalsForDays(["2026-10-25"]), 25);

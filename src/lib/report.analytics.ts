@@ -1,5 +1,6 @@
-import { belgradeDayKey, isBelgradePeakHour } from "@/lib/baseload";
+import { belgradeDayKey } from "@/lib/baseload";
 import type { CapturePoint } from "@/lib/capture.functions";
+import { calculatePricePeriodStats, normalizeToHourlyPrices } from "@/lib/price-analysis";
 import type { FlowSummary, ZonePrice } from "@/lib/regional.functions";
 
 export type MarketPriceSummary = {
@@ -69,12 +70,6 @@ function mean(xs: number[]): number | null {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 }
 
-function standardDeviation(xs: number[]): number | null {
-  const avg = mean(xs);
-  if (avg == null || !xs.length) return null;
-  return Math.sqrt(xs.reduce((sum, x) => sum + (x - avg) ** 2, 0) / xs.length);
-}
-
 function percentile(xs: number[], p: number): number | null {
   if (!xs.length) return null;
   const sorted = [...xs].sort((a, b) => a - b);
@@ -137,14 +132,15 @@ export function dailyBaseloadRows(
 
 export function marketSummaries(markets: ZonePrice[]): MarketPriceSummary[] {
   const rs = markets.find((m) => m.zone === "RS");
-  const rsByTs = new Map((rs?.points ?? []).map((p) => [p.ts, p.price]));
+  const rsHourly = normalizeToHourlyPrices(rs?.points ?? []);
+  const rsByTs = new Map(rsHourly.map((p) => [p.ts, p.price]));
 
   return markets
     .map((market) => {
-      const points = market.points.filter((p) => finite(p.price));
+      const points = normalizeToHourlyPrices(market.points).filter((p) => finite(p.price));
       const prices = points.map((p) => p.price);
-      const peak = points.filter((p) => isBelgradePeakHour(new Date(p.ts))).map((p) => p.price);
-      const offpeak = points.filter((p) => !isBelgradePeakHour(new Date(p.ts))).map((p) => p.price);
+      const days = [...new Set(points.map((p) => belgradeDayKey(new Date(p.ts))))].sort();
+      const periodStats = calculatePricePeriodStats(points, days);
 
       const overlaps: Array<{ rs: number; other: number }> = [];
       if (market.zone !== "RS") {
@@ -158,12 +154,12 @@ export function marketSummaries(markets: ZonePrice[]): MarketPriceSummary[] {
       return {
         zone: market.zone,
         name: market.name,
-        baseload: mean(prices),
-        peakload: mean(peak),
-        offpeak: mean(offpeak),
-        min: prices.length ? Math.min(...prices) : null,
-        max: prices.length ? Math.max(...prices) : null,
-        volatility: standardDeviation(prices),
+        baseload: periodStats.baseloadAverage,
+        peakload: periodStats.peakAverage,
+        offpeak: periodStats.offPeakAverage,
+        min: periodStats.minimum,
+        max: periodStats.maximum,
+        volatility: periodStats.volatility,
         p10: percentile(prices, 0.1),
         p90: percentile(prices, 0.9),
         negativeHours: prices.filter((p) => p < 0).length,

@@ -100,34 +100,23 @@ function PricesPage() {
   const stats = useMemo(
     () =>
       rows.map((r) => {
-        const profile = r.profile as Array<number | null>;
-        const valid = profile.filter((v): v is number => v != null && Number.isFinite(v));
-        const avg = mean(valid);
-        const peak = profile
-          .slice(8, 20)
-          .filter((v): v is number => v != null && Number.isFinite(v));
-        const off = [...profile.slice(0, 8), ...profile.slice(20, 24)].filter(
-          (v): v is number => v != null && Number.isFinite(v),
-        );
-        const peakAvg = mean(peak);
-        const offAvg = mean(off);
-        const min = valid.length ? Math.min(...valid) : null;
-        const max = valid.length ? Math.max(...valid) : null;
-        const vol =
-          avg != null && valid.length > 1
-            ? Math.sqrt(valid.reduce((s, x) => s + (x - avg) ** 2, 0) / valid.length)
-            : null;
+        const s = r.stats;
         return {
           zone: r.zone as PriceMarketCode,
-          avg,
-          peakAvg,
-          offAvg,
-          min,
-          max,
-          vol,
-          negativeIntervals: valid.filter((value) => value < 0).length,
-          receivedIntervals: valid.length,
-          expectedIntervals: 24,
+          avg: s.baseloadAverage,
+          dailyAvg: s.dailyBaseloadAverage,
+          profileAvg: s.profileAverage,
+          peakAvg: s.peakAverage,
+          offAvg: s.offPeakAverage,
+          min: s.minimum,
+          max: s.maximum,
+          vol: s.volatility,
+          negativeIntervals: s.negativePriceIntervals,
+          receivedIntervals: s.receivedIntervals,
+          expectedIntervals: s.expectedIntervals,
+          completeDays: s.completeDays,
+          daysWithData: s.daysWithData,
+          incompleteDays: s.incompleteDays,
           source: r.source,
           reason: r.reason,
         };
@@ -250,6 +239,7 @@ function PricesPage() {
                 <tr>
                   <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
                   <th className="text-right">Baseload</th>
+                  <th className="text-right">{t("Daily avg", "Dnevni prosek")}</th>
                   <th className="text-right">Peak</th>
                   <th className="text-right">Off-peak</th>
                   <th className="text-right">Min</th>
@@ -267,6 +257,7 @@ function PricesPage() {
                       {PRICE_MARKETS[s.zone]?.displayLabel ?? s.zone}
                     </td>
                     <td className="num text-right">{fmtPrice(s.avg)}</td>
+                    <td className="num text-right">{fmtPrice(s.dailyAvg)}</td>
                     <td className="num text-right">{fmtPrice(s.peakAvg)}</td>
                     <td className="num text-right">{fmtPrice(s.offAvg)}</td>
                     <td className="num text-right">{fmtPrice(s.min)}</td>
@@ -334,6 +325,7 @@ function PricesPage() {
                   <th className="text-right">Min</th>
                   <th className="text-right">Max</th>
                   <th className="text-right">{t("Completeness", "Kompletnost")}</th>
+                  <th className="text-right">{t("Complete days", "Kompletni dani")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -348,6 +340,9 @@ function PricesPage() {
                     <td className="num text-right">{fmtPrice(s.max)}</td>
                     <td className="num text-right">
                       {s.receivedIntervals}/{s.expectedIntervals}
+                    </td>
+                    <td className="num text-right">
+                      {s.completeDays}/{s.daysWithData}
                     </td>
                     <td className="text-right">
                       <DataBadge source={s.source} />
@@ -548,8 +543,4 @@ function SummaryCard({ label, value, sub }: { label: string; value: string; sub:
 
 function subtract(a: number | null | undefined, b: number | null | undefined) {
   return a == null || b == null ? null : a - b;
-}
-
-function mean(values: number[]) {
-  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
