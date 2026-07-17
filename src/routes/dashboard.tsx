@@ -9,6 +9,7 @@ const searchSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   preset: z.enum(["7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
+  asset: z.enum(["solar", "wind", "bess", "hybrid"]).optional(),
 });
 
 export const Route = createFileRoute("/dashboard")({

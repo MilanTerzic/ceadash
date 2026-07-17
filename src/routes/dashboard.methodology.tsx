@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ChartCard } from "@/components/dashboard/atoms";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/methodology")({
   head: () => ({
@@ -32,6 +33,7 @@ function Formula({ name, expr, note }: { name: string; expr: string; note?: stri
 }
 
 function MethPage() {
+  const { t } = useLang();
   return (
     <div className="space-y-6">
       <ChartCard title="Data sources">
@@ -115,15 +117,63 @@ function MethPage() {
             hourly market prices (no intra-hour resolution effects).
           </li>
           <li>
-            The Solar Project Calculator uses simplified financial mechanics: linear degradation,
-            single tariff escalation, no inflation adjustment for OPEX. It is intended for
-            indicative analysis, not bankable due diligence.
+            The multi-asset Project Economics module uses simplified financial mechanics and is
+            intended for indicative analysis, not bankable due diligence.
           </li>
           <li>
             This tool provides indicative analysis only and should not be interpreted as financial
             or investment advice.
           </li>
         </ul>
+      </ChartCard>
+
+      <ChartCard title={t("Project Economics methodology", "Metodologija ekonomike projekata")}>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Formula
+            name={t("Futures-anchored hourly scenario", "Futures-usidreni satni scenario")}
+            expr="expected_price_h = historical_shape_h + futures_month - historical_month_average"
+            note={t(
+              "Month contracts take priority, then quarter, then calendar year. Missing settlements are never fabricated; an explicit manual or demo fallback is labelled.",
+              "Mesecni ugovori imaju prioritet, zatim kvartalni i godisnji. Nedostajuca poravnanja se ne izmisljaju; eksplicitna rucna ili demo rezerva je oznacena.",
+            )}
+          />
+          <Formula
+            name={t("Renewable settlement", "Poravnanje OIE")}
+            expr="revenue = PPA_volume x PPA_price + merchant_volume x expected_hourly_price"
+            note={t(
+              "Fixed PPA volumes do not move with futures. Baseload PPA deviations settle hourly against the merchant scenario.",
+              "Fiksne PPA kolicine se ne menjaju sa futures cenama. Baseload PPA odstupanja se satno poravnavaju prema merchant scenariju.",
+            )}
+          />
+          <Formula
+            name={t("BESS dispatch", "BESS dispeciranje")}
+            expr="SOC_h = SOC_(h-1) + charge_h x eta_charge - discharge_h / eta_discharge"
+            note={t(
+              "A deterministic daily arbitrage heuristic enforces power, energy, SOC, efficiency, availability, cycle and grid limits. It is not mathematical optimisation.",
+              "Deterministicka dnevna arbitrazna heuristika primenjuje limite snage, energije, SOC-a, efikasnosti, raspolozivosti, ciklusa i mreze. Nije matematicka optimizacija.",
+            )}
+          />
+          <Formula
+            name="LCOS"
+            expr="LCOS = discounted(CAPEX + OPEX + charging_cost) / discounted_discharged_MWh"
+          />
+          <Formula
+            name={t("Hybrid allocation", "Hibridna alokacija")}
+            expr="renewable export -> clipped-energy charging -> optional grid charging -> constrained discharge"
+            note={t(
+              "All exports share one interconnection limit. Renewable energy that would otherwise be clipped is charged first when recovery is enabled.",
+              "Sav izvoz deli jedan limit prikljucka. OIE energija koja bi inace bila odsecena prva puni bateriju kada je povrat ukljucen.",
+            )}
+          />
+          <Formula
+            name={t("Terminal prices", "Terminalne cene")}
+            expr="terminal_price_y = last_covered_price x (1 + escalation)^(y-last_covered_year)"
+            note={t(
+              "Each year is calculated separately; year-one revenue is not blindly repeated over project life.",
+              "Svaka godina se racuna zasebno; prihod prve godine se ne ponavlja automatski kroz vek projekta.",
+            )}
+          />
+        </div>
       </ChartCard>
     </div>
   );

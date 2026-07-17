@@ -138,8 +138,8 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
         to: "/dashboard/calculator",
         label: { en: "Project Economics", sr: "Ekonomika projekata" },
         description: {
-          en: "Solar project economics and CBAM export impacts",
-          sr: "Ekonomika solara i CBAM uticaj na izvoz",
+          en: "Solar, wind, BESS and hybrid project economics",
+          sr: "Ekonomika solarnih, vetro, BESS i hibridnih projekata",
         },
       },
     ],
