@@ -108,14 +108,6 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 const ROLE_STORAGE_KEY = "cea.workspace.role";
 const PORTFOLIO_STORAGE_KEY = "cea.workspace.portfolio";
 
-function readRole(): DashboardRole {
-  if (typeof localStorage === "undefined") return "analyst";
-  const stored = localStorage.getItem(ROLE_STORAGE_KEY);
-  return DASHBOARD_ROLES.some((role) => role.value === stored)
-    ? (stored as DashboardRole)
-    : "analyst";
-}
-
 function readPortfolio(): PortfolioProfile {
   if (typeof localStorage === "undefined") return "serbia-market";
   const stored = localStorage.getItem(PORTFOLIO_STORAGE_KEY);
@@ -124,13 +116,22 @@ function readPortfolio(): PortfolioProfile {
     : "serbia-market";
 }
 
+function roleForPortfolio(portfolio: PortfolioProfile): DashboardRole {
+  if (portfolio === "industrial-consumer") return "consumer";
+  if (portfolio === "battery") return "battery";
+  if (portfolio === "aggregated-portfolio") return "vpp";
+  if (portfolio === "solar-project" || portfolio === "wind-project") return "producer";
+  return "analyst";
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<DashboardRole>("analyst");
   const [portfolio, setPortfolioState] = useState<PortfolioProfile>("serbia-market");
 
   useEffect(() => {
-    setRoleState(readRole());
-    setPortfolioState(readPortfolio());
+    const storedPortfolio = readPortfolio();
+    setPortfolioState(storedPortfolio);
+    setRoleState(roleForPortfolio(storedPortfolio));
   }, []);
 
   const setRole = useCallback((nextRole: DashboardRole) => {
@@ -146,9 +147,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setPortfolio = useCallback((nextPortfolio: PortfolioProfile) => {
+    const nextRole = roleForPortfolio(nextPortfolio);
     setPortfolioState(nextPortfolio);
+    setRoleState(nextRole);
     try {
       localStorage.setItem(PORTFOLIO_STORAGE_KEY, nextPortfolio);
+      localStorage.setItem(ROLE_STORAGE_KEY, nextRole);
     } catch {
       // Local storage is optional.
     }

@@ -1,15 +1,16 @@
-import { createFileRoute, Outlet, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
-import {
-  HeaderActionButtons,
-  PortfolioSelector,
-  RoleSelector,
-} from "@/components/dashboard/WorkspaceSelectors";
+import { HeaderActionButtons, PortfolioSelector } from "@/components/dashboard/WorkspaceSelectors";
 import { Button } from "@/components/ui/button";
-import { addDaysISO, belgradeDateISO, DateRangeProvider, useDateRange } from "@/lib/date-range";
+import {
+  addDaysISO,
+  belgradeDateISO,
+  DateRangeProvider,
+  type DateRange,
+  useDateRange,
+} from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 import { WorkspaceProvider } from "@/lib/workspace";
 
@@ -53,6 +54,40 @@ function yearStart(dayISO: string) {
   return `${dayISO.slice(0, 4)}-01-01`;
 }
 
+function isDayISO(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function rangeFromSearch(search: z.infer<typeof searchSchema>): DateRange | null {
+  if (isDayISO(search.from) && isDayISO(search.to) && search.from <= search.to) {
+    return { from: search.from, to: search.to };
+  }
+
+  const today = belgradeDateISO();
+  switch (search.preset) {
+    case "today":
+      return { from: today, to: today };
+    case "d1": {
+      const tomorrow = addDaysISO(today, 1);
+      return { from: tomorrow, to: tomorrow };
+    }
+    case "7d":
+      return { from: addDaysISO(today, -6), to: today };
+    case "30d":
+      return { from: addDaysISO(today, -29), to: today };
+    case "mtd":
+      return { from: monthStart(today), to: today };
+    case "prev_month":
+      return previousMonthRange(today);
+    case "ytd":
+      return { from: yearStart(today), to: today };
+    default:
+      return null;
+  }
+}
+
 function GlobalDateRangeControl() {
   const { t } = useLang();
   const { range, setRange } = useDateRange();
@@ -79,7 +114,7 @@ function GlobalDateRangeControl() {
       to: ".",
       search: (previous: Record<string, unknown>) => ({
         ...previous,
-        preset: "custom",
+        preset: "custom" as const,
         from: nextRange.from,
         to: nextRange.to,
       }),
@@ -111,7 +146,7 @@ function GlobalDateRangeControl() {
           type="date"
           value={range.from}
           max={range.to}
-          onChange={(event) => applyRange({ ...range, from: event.target.value })}
+          onInput={(event) => applyRange({ ...range, from: event.currentTarget.value })}
           className="h-9 rounded-md border border-border/60 bg-surface-2 px-2 text-xs text-foreground"
         />
       </label>
@@ -121,7 +156,7 @@ function GlobalDateRangeControl() {
           type="date"
           value={range.to}
           min={range.from}
-          onChange={(event) => applyRange({ ...range, to: event.target.value })}
+          onInput={(event) => applyRange({ ...range, to: event.currentTarget.value })}
           className="h-9 rounded-md border border-border/60 bg-surface-2 px-2 text-xs text-foreground"
         />
       </label>
@@ -129,25 +164,16 @@ function GlobalDateRangeControl() {
   );
 }
 
-function DateRangeUrlSync() {
-  const search = useSearch({ strict: false }) as { from?: string; to?: string };
-  const { range, setRange } = useDateRange();
-
-  useEffect(() => {
-    if (!search.from || !search.to) return;
-    if (range.from === search.from && range.to === search.to) return;
-    setRange({ from: search.from, to: search.to });
-  }, [range.from, range.to, search.from, search.to, setRange]);
-
-  return null;
-}
-
 function DashboardLayout() {
   const { t } = useLang();
+  const search = useRouterState({ select: (state) => state.location.search }) as z.infer<
+    typeof searchSchema
+  >;
+  const initialRange = rangeFromSearch(search) ?? undefined;
+  const dateRangeKey = initialRange ? `${initialRange.from}:${initialRange.to}` : "default";
   return (
-    <DateRangeProvider>
+    <DateRangeProvider key={dateRangeKey} initialRange={initialRange}>
       <WorkspaceProvider>
-        <DateRangeUrlSync />
         <div>
           <section className="border-b border-border/60 bg-surface/80">
             <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
@@ -164,13 +190,12 @@ function DashboardLayout() {
                   </h1>
                   <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                     {t(
-                      "Select your role and asset, then focus on the market, financial and operational signals that matter.",
-                      "Izaberite ulogu i asset, zatim pratite trziste, finansijske i operativne signale koji su vazni.",
+                      "Select an asset or portfolio, then focus on the market, financial and operational signals that matter.",
+                      "Izaberite asset ili portfolio, zatim pratite trziste, finansijske i operativne signale koji su vazni.",
                     )}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-end justify-start gap-3 xl:justify-end">
-                  <RoleSelector />
                   <PortfolioSelector />
                   <HeaderActionButtons />
                 </div>

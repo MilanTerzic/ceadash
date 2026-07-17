@@ -243,8 +243,16 @@ function PortfolioPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const { range } = useDateRange();
-  const { selectedRole } = useWorkspace();
-  const active = search.view ?? selectedRole.defaultPortfolioView;
+  const { portfolio } = useWorkspace();
+  const active =
+    search.view ??
+    (portfolio === "industrial-consumer"
+      ? "consumer"
+      : portfolio === "battery"
+        ? "battery"
+        : portfolio === "aggregated-portfolio"
+          ? "vpp"
+          : "producer");
   const [batteryAssumptions, setBatteryAssumptions] = useState<BatteryAssumptions>(batteryDefaults);
   const priceQuery = useQuery({
     queryKey: ["portfolio-battery-prices", range.from, range.to],

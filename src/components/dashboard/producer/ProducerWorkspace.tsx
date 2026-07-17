@@ -27,11 +27,6 @@ import {
 } from "recharts";
 
 import { ChartCard, DataUnavailableState, PageLoadingSkeleton } from "@/components/dashboard/atoms";
-import {
-  DateRangeControl,
-  useDashboardRange,
-  useRequestedRangeKeys,
-} from "@/components/dashboard/DateRangeControl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { belgradeDayKey } from "@/lib/baseload";
 import { fetchCaptureSeries, type CapturePoint } from "@/lib/capture.functions";
+import { useDateRange } from "@/lib/date-range";
 import { downloadCSV, fmtNum } from "@/lib/format";
 import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -370,8 +366,6 @@ function ProducerControlBar({
   setAnalysisMode,
   solarModelled,
   coveragePct,
-  firstAvailable,
-  latestAvailable,
   refreshing,
   onRefresh,
   onExport,
@@ -383,8 +377,6 @@ function ProducerControlBar({
   setAnalysisMode: (value: AnalysisMode) => void;
   solarModelled: boolean;
   coveragePct: number;
-  firstAvailable?: Date;
-  latestAvailable?: Date;
   refreshing: boolean;
   onRefresh: () => void;
   onExport: () => void;
@@ -393,7 +385,6 @@ function ProducerControlBar({
   const { t } = useLang();
   return (
     <section className="space-y-3">
-      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border/70 bg-card p-3 shadow-sm">
         <CompactSelect
           label={t("Technology", "Tehnologija")}
@@ -868,20 +859,15 @@ function BessMetric({
 
 export function ProducerWorkspace() {
   const { t } = useLang();
-  const requestedRange = useRequestedRangeKeys();
+  const { range } = useDateRange();
   const [technology, setTechnology] = useState<Technology>("both");
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("capture");
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
   const live = useQuery({
-    queryKey: [
-      "capture-series",
-      requestedRange.fromKey,
-      requestedRange.toKey,
-      requestedRange.preset,
-    ],
+    queryKey: ["capture-series", range.from, range.to],
     queryFn: () =>
       fetchCaptureSeries({
-        data: { from: requestedRange.fromKey, to: requestedRange.toKey },
+        data: { from: range.from, to: range.to },
       }),
     staleTime: 5 * 60_000,
   });
@@ -905,17 +891,13 @@ export function ProducerWorkspace() {
           windOffshore?: Diagnostic;
         })
       : null;
-  const { fromKey, toKey } = useDashboardRange({
-    firstAvailable: firstTimestamp ? new Date(firstTimestamp) : undefined,
-    latestAvailable: lastTimestamp ? new Date(lastTimestamp) : undefined,
-  });
   const selectedPoints = useMemo(
     () =>
       points.filter((point) => {
         const day = belgradeDayKey(new Date(point.ts));
-        return (!fromKey || day >= fromKey) && (!toKey || day <= toKey);
+        return day >= range.from && day <= range.to;
       }),
-    [points, fromKey, toKey],
+    [points, range.from, range.to],
   );
   const metrics = useMemo(() => computeProducerMetrics(selectedPoints), [selectedPoints]);
   const monthly = useMemo(
@@ -953,8 +935,8 @@ export function ProducerWorkspace() {
       priceHours={metrics.priceHours}
       solarHours={metrics.solarHours}
       windHours={metrics.windHours}
-      from={requestedRange.fromKey}
-      to={requestedRange.toKey}
+      from={range.from}
+      to={range.to}
       firstTimestamp={firstTimestamp}
       lastTimestamp={lastTimestamp}
       diagnostics={diagnostics}
@@ -1024,8 +1006,6 @@ export function ProducerWorkspace() {
         setAnalysisMode={setAnalysisMode}
         solarModelled={solarModelled}
         coveragePct={coveragePct}
-        firstAvailable={firstTimestamp ? new Date(firstTimestamp) : undefined}
-        latestAvailable={lastTimestamp ? new Date(lastTimestamp) : undefined}
         refreshing={live.isFetching}
         onRefresh={() => void live.refetch()}
         onExport={() => downloadCSV("serbia-producer-hourly.csv", exportRows)}

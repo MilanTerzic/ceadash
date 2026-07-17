@@ -31,9 +31,18 @@ interface Ctx {
 
 const DateRangeCtx = createContext<Ctx | null>(null);
 
-export function DateRangeProvider({ children }: { children: ReactNode }) {
-  const t = todayISO();
-  const [range, setRange] = useState<DateRange>({ from: t, to: t });
+export function DateRangeProvider({
+  children,
+  initialRange,
+}: {
+  children: ReactNode;
+  initialRange?: DateRange;
+}) {
+  const [range, setRange] = useState<DateRange>(() => {
+    if (initialRange) return initialRange;
+    const today = todayISO();
+    return { from: today, to: today };
+  });
   return <DateRangeCtx.Provider value={{ range, setRange }}>{children}</DateRangeCtx.Provider>;
 }
 

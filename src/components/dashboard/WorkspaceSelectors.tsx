@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Database, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,59 +14,45 @@ import {
 } from "@/components/ui/select";
 import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
-import {
-  DASHBOARD_ROLES,
-  PORTFOLIO_PROFILES,
-  type DashboardRole,
-  type PortfolioProfile,
-  useWorkspace,
-} from "@/lib/workspace";
-
-export function RoleSelector() {
-  const { t } = useLang();
-  const { role, setRole } = useWorkspace();
-  const { range } = useDateRange();
-  const navigate = useNavigate();
-  const selectRole = (value: string) => {
-    const nextRole = value as DashboardRole;
-    const roleConfig = DASHBOARD_ROLES.find((item) => item.value === nextRole);
-    setRole(nextRole);
-    if (roleConfig) {
-      void navigate({
-        to: "/dashboard/portfolio",
-        search: {
-          view: roleConfig.defaultPortfolioView,
-          preset: "custom",
-          from: range.from,
-          to: range.to,
-        },
-      });
-    }
-  };
-  return (
-    <label className="grid gap-1 text-xs text-muted-foreground">
-      <span>{t("View as", "Prikaz za")}</span>
-      <Select value={role} onValueChange={selectRole}>
-        <SelectTrigger className="h-9 min-w-[190px] bg-surface-2">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {DASHBOARD_ROLES.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {t(item.en, item.sr)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </label>
-  );
-}
+import { PORTFOLIO_PROFILES, type PortfolioProfile, useWorkspace } from "@/lib/workspace";
 
 export function PortfolioSelector() {
   const { t } = useLang();
-  const { portfolio, setPortfolio, selectedRole } = useWorkspace();
+  const { portfolio, setPortfolio } = useWorkspace();
   const { range } = useDateRange();
   const navigate = useNavigate();
+  const activeView = useRouterState({
+    select: (state) =>
+      state.location.pathname === "/dashboard/portfolio"
+        ? (state.location.search as { view?: string }).view
+        : undefined,
+  });
+  const routedPortfolio: PortfolioProfile | null =
+    activeView === "consumer"
+      ? "industrial-consumer"
+      : activeView === "battery"
+        ? "battery"
+        : activeView === "vpp"
+          ? "aggregated-portfolio"
+          : activeView === "producer"
+            ? portfolio === "serbia-market" ||
+              portfolio === "solar-project" ||
+              portfolio === "wind-project"
+              ? portfolio
+              : "serbia-market"
+            : activeView === "project"
+              ? portfolio === "solar-project" || portfolio === "wind-project"
+                ? portfolio
+                : "solar-project"
+              : null;
+  const displayedPortfolio = routedPortfolio ?? portfolio;
+
+  useEffect(() => {
+    if (routedPortfolio && routedPortfolio !== portfolio) {
+      setPortfolio(routedPortfolio);
+    }
+  }, [portfolio, routedPortfolio, setPortfolio]);
+
   const selectPortfolio = (value: string) => {
     const nextPortfolio = value as PortfolioProfile;
     setPortfolio(nextPortfolio);
@@ -77,9 +63,7 @@ export function PortfolioSelector() {
           ? "battery"
           : nextPortfolio === "aggregated-portfolio"
             ? "vpp"
-            : selectedRole.value === "investor"
-              ? "project"
-              : "producer";
+            : "producer";
     void navigate({
       to: "/dashboard/portfolio",
       search: {
@@ -93,7 +77,7 @@ export function PortfolioSelector() {
   return (
     <label className="grid gap-1 text-xs text-muted-foreground">
       <span>{t("Asset / portfolio", "Asset / portfolio")}</span>
-      <Select value={portfolio} onValueChange={selectPortfolio}>
+      <Select value={displayedPortfolio} onValueChange={selectPortfolio}>
         <SelectTrigger className="h-9 min-w-[190px] bg-surface-2">
           <SelectValue />
         </SelectTrigger>
