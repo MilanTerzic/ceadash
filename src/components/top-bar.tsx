@@ -112,7 +112,7 @@ export function TopBar({
             onClick={onDataHealthClick}
             className="rounded border border-border/60 bg-surface-2 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
           >
-            {t("Data health", "Zdravlje podataka")}:{" "}
+            {t("Data health", "Stanje podataka")}:{" "}
             <span className="text-primary">{dataHealth}</span>
           </button>
         )}

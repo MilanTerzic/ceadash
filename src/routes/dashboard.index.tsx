@@ -259,7 +259,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
-          label={t("Peakload (period)", "Peakload u periodu")}
+          label={t("Peakload (period)", "Vršno opterećenje u periodu")}
           value={fmt(period.peakload ?? NaN)}
           unit="EUR/MWh"
           hint={methodology({
@@ -359,7 +359,7 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
-          title={t("Daily baseload & peakload (period)", "Dnevna bazna cena i peakload u periodu")}
+          title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")}
           description={t(
             "In selected range. Peakload = Mon–Fri 08:00–20:00.",
             "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.",
@@ -380,7 +380,7 @@ function OverviewPage() {
               <Bar
                 dataKey="peakload"
                 fill="var(--color-chart-3)"
-                name={t("Peakload", "Peakload")}
+                name={t("Peakload", "Vršno opterećenje")}
               />
             </BarChart>
           </ResponsiveContainer>
