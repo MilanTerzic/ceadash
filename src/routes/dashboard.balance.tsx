@@ -64,7 +64,7 @@ function BalancePage() {
   return (
     <>
       <TopBar
-        title={t("Regional & Serbia Balance", "Regionalni i srpski bilans")}
+        title={t("Regional & Serbia Balance", "Regionalni bilans i bilans Srbije")}
         subtitle={t(
           "Serbia load and generation plus WB6 physical import, export and net-position comparison.",
           "Potrošnja i proizvodnja Srbije uz WB6 poređenje fizičkog uvoza, izvoza i neto pozicije.",
@@ -90,7 +90,7 @@ function BalancePage() {
               source={balance.data?.source}
             />
             <KPI
-              label={t("Generation minus load", "Proizvodnja minus potrošnja")}
+              label={t("Generation minus load", "Proizvodnja umanjena za potrošnju")}
               value={fmtMW(net)}
               sub={
                 net > 0
@@ -115,7 +115,7 @@ function BalancePage() {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="delta"
-                  name={t("Gen - Load", "Proizv. - Potr.")}
+                  name={t("Gen - Load", "Proizv. − Potr.")}
                   fill="#1ec8c8"
                   opacity={0.5}
                 />
@@ -139,7 +139,7 @@ function BalancePage() {
         </Panel>
 
         <Panel
-          title={t("WB6 comparison", "WB6 poređenje")}
+          title={t("WB6 comparison", "Poređenje WB6")}
           actions={wb6.data ? <DataBadge source={wb6.data.status} /> : undefined}
         >
           {wb6.data?.reason ? (
@@ -171,7 +171,7 @@ function BalancePage() {
                   ? "n/a"
                   : `${fmtNum(wb6.data.totals.intraWb6Share)}%`
               }
-              sub={t("of measured exchange", "merenih razmena")}
+              sub={t("of measured exchange", "izmerenih razmena")}
             />
           </div>
           <div className="h-80">

@@ -243,7 +243,7 @@ function TraderReportPage() {
               onClick={exportLinkedInJpeg}
             >
               <ImageDown className="mr-2 h-4 w-4" />
-              {isExportingLinkedIn ? t("Creating...", "Kreiram...") : "LinkedIn JPEG"}
+              {isExportingLinkedIn ? t("Creating...", "Kreiranje...") : "LinkedIn JPEG"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
@@ -263,7 +263,7 @@ function TraderReportPage() {
       />
 
       <ChartCard
-        title={t("Desk Summary", "Sažetak za trgovanje")}
+        title={t("Desk Summary", "Sažetak trgovačkog stola")}
         description={t(
           "Deterministic observations calculated from available report data. Missing inputs are skipped, not replaced with demo values.",
           "Deterministički zaključci iz dostupnih podataka. Nedostajući ulazni podaci se preskaču i ne zamenjuju demo vrednostima.",
@@ -297,7 +297,7 @@ function TraderReportPage() {
           value={fmt(rs?.baseload)}
           unit="EUR/MWh"
         />
-        <KpiCard label={t("RS peakload", "RS peakload")} value={fmt(rs?.peakload)} unit="EUR/MWh" />
+        <KpiCard label={t("RS peakload", "RS vršno opterećenje")} value={fmt(rs?.peakload)} unit="EUR/MWh" />
         <KpiCard
           label={t("RS volatility", "RS volatilnost")}
           value={fmt(rs?.volatility)}
@@ -322,12 +322,12 @@ function TraderReportPage() {
           unit={bestSpread ? `vs ${bestSpread.zone}` : "EUR/MWh"}
         />
         <KpiCard
-          label={t("Solar capture", "Solar capture")}
+          label={t("Solar capture", "Solarni capture")}
           value={fmt(capture?.solarCapture)}
           unit="EUR/MWh"
         />
         <KpiCard
-          label={t("Wind capture", "Wind capture")}
+          label={t("Wind capture", "Vetro capture")}
           value={fmt(capture?.windCapture)}
           unit="EUR/MWh"
         />
@@ -387,7 +387,7 @@ function TraderReportPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ChartCard
-          title={t("Serbia Hourly Price Heatmap", "Satna heatmap cena Srbije")}
+          title={t("Serbia Hourly Price Heatmap", "Satna toplotna mapa cena Srbije")}
           description={t(
             "Rows are Belgrade delivery dates; columns are local hours 00-23.",
             "Redovi su datumi isporuke po vremenu u Beogradu; kolone su lokalni sati 00-23.",
@@ -447,7 +447,7 @@ function TraderReportPage() {
         </ChartCard>
 
         <ChartCard
-          title={t("RES Capture and BESS Signals", "OIE capture i BESS signali")}
+          title={t("RES Capture and BESS Signals", "OIE capture cene i BESS signali")}
           description={t(
             "Capture uses Serbia day-ahead prices and available ENTSO-E generation inputs; solar may be modelled where ENTSO-E does not publish Serbia B16.",
             "Capture koristi day-ahead cene Srbije i dostupne ENTSO-E podatke o proizvodnji; solar može biti modelovan kada ENTSO-E ne objavljuje B16 za Srbiju.",
@@ -462,11 +462,11 @@ function TraderReportPage() {
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <MiniMetric
-              label={t("Solar capture rate", "Solar capture stopa")}
+              label={t("Solar capture rate", "Solarna capture stopa")}
               value={fmtPct(capture?.solarCaptureRate, 1)}
             />
             <MiniMetric
-              label={t("Wind capture rate", "Wind capture stopa")}
+              label={t("Wind capture rate", "Vetro capture stopa")}
               value={fmtPct(capture?.windCaptureRate, 1)}
             />
             <MiniMetric
@@ -519,16 +519,16 @@ function TraderReportPage() {
               <tr className="border-b border-border/60 text-left text-muted-foreground">
                 <th className="sticky left-0 bg-card py-2 pr-3">{t("Market", "Tržište")}</th>
                 <th className="py-2 pr-3 text-right">{t("Base", "Bazna")}</th>
-                <th className="py-2 pr-3 text-right">{t("Peak", "Peak")}</th>
-                <th className="py-2 pr-3 text-right">{t("Offpeak", "Offpeak")}</th>
+                <th className="py-2 pr-3 text-right">{t("Peak", "Vršno")}</th>
+                <th className="py-2 pr-3 text-right">{t("Offpeak", "Vanvršno")}</th>
                 <th className="py-2 pr-3 text-right">Min</th>
                 <th className="py-2 pr-3 text-right">Max</th>
                 <th className="py-2 pr-3 text-right">Std</th>
                 <th className="py-2 pr-3 text-right">{t("Neg h", "Neg. sati")}</th>
-                <th className="py-2 pr-3 text-right">{t("Spread vs RS", "Spread vs RS")}</th>
+                <th className="py-2 pr-3 text-right">{t("Spread vs RS", "Spread u odnosu na RS")}</th>
                 <th className="py-2 pr-3 text-right">{t("Abs spread", "Aps. spread")}</th>
                 <th className="py-2 pr-3 text-right">{t("Cheaper than RS", "Jeftinije od RS")}</th>
-                <th className="py-2 pr-3 text-right">{t("Corr vs RS", "Korel. vs RS")}</th>
+                <th className="py-2 pr-3 text-right">{t("Corr vs RS", "Korel. sa RS")}</th>
                 <th className="py-2 pr-3 text-right">{t("Hours", "Sati")}</th>
               </tr>
             </thead>

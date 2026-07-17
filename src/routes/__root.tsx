@@ -32,7 +32,7 @@ function NotFoundComponent() {
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            {t("Back to dashboard", "Nazad na dashboard")}
+            {t("Back to dashboard", "Nazad na kontrolnu tablu")}
           </Link>
         </div>
       </div>
@@ -165,7 +165,7 @@ function SiteHeader() {
             {t("About CEA", "O CEA")}
           </a>
           <Link to="/" className="hover:text-foreground">
-            {t("Dashboard", "Dashboard")}
+            {t("Dashboard", "Kontrolna tabla")}
           </Link>
           <a href="https://www.cea.org.rs/" className="hover:text-foreground">
             {t("Projects", "Projekti")}

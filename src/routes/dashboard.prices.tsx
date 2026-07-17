@@ -174,12 +174,12 @@ function PricesPage() {
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <SummaryCard
-              label={t("Serbia baseload", "Baseload Srbija")}
+              label={t("Serbia baseload", "Bazna cena Srbije")}
               value={fmtPrice(serbiaStats?.avg)}
               sub={PRICE_MARKETS.RS.displayLabel}
             />
             <SummaryCard
-              label={t("Serbia peakload", "Peakload Srbija")}
+              label={t("Serbia peakload", "Vršno opterećenje Srbije")}
               value={fmtPrice(serbiaStats?.peakAvg)}
               sub="08:00-20:00"
             />
@@ -245,7 +245,7 @@ function PricesPage() {
                   <th className="text-right">Min</th>
                   <th className="text-right">Max</th>
                   <th className="text-right">{t("Volatility", "Volatilnost")}</th>
-                  <th className="text-right">{t("Negative", "Negativni")}</th>
+                  <th className="text-right">{t("Negative", "Negativno")}</th>
                   <th className="text-right">{t("Intervals", "Intervali")}</th>
                   <th></th>
                 </tr>
@@ -288,9 +288,9 @@ function PricesPage() {
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
-                  <th className="text-right">{t("Baseload spread", "Baseload spread")}</th>
-                  <th className="text-right">{t("Peak spread", "Peak spread")}</th>
-                  <th className="text-right">{t("Off-peak spread", "Off-peak spread")}</th>
+                  <th className="text-right">{t("Baseload spread", "Spread bazne cene")}</th>
+                  <th className="text-right">{t("Peak spread", "Vršni spread")}</th>
+                  <th className="text-right">{t("Off-peak spread", "Vanvršni spread")}</th>
                   <th className="text-left">{t("Signal", "Signal")}</th>
                   <th></th>
                 </tr>

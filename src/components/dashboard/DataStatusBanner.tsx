@@ -229,7 +229,7 @@ export function DataStatusBanner({
                   <span className="text-foreground">{totalSelectedDays ?? "—"}</span>
                 </div>
                 <div>
-                  {t("Complete", "Potpuni")}:{" "}
+                  {t("Complete", "Kompletno")}:{" "}
                   <span className="text-foreground">{completeDays}</span>
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export function DataStatusBanner({
               {failureCounts && Object.keys(failureCounts).length > 0 && (
                 <div>
                   <div className="font-medium mb-0.5">
-                    {t("Failures by reason", "Greške po razlogu")}
+                    {t("Failures by reason", "Neuspesi po razlogu")}
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
                     {Object.entries(failureCounts)
@@ -309,13 +309,13 @@ export function DataStatusBanner({
                   className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted/40"
                 >
                   <Copy className="h-3 w-3" />
-                  {copied ? t("Copied", "Kopirano") : t("Copy debug", "Kopiraj debug")}
+                  {copied ? t("Copied", "Kopirano") : t("Copy debug", "Kopiraj dijagnostiku")}
                 </button>
               </div>
 
               {reasons && reasons.length > 0 && (
                 <div className="text-warning/90">
-                  <span className="font-medium">{t("Reason log: ", "Log razloga: ")}</span>
+                  <span className="font-medium">{t("Reason log: ", "Dnevnik razloga: ")}</span>
                   <span className="font-mono">{reasons.slice(0, 10).join(" · ")}</span>
                 </div>
               )}
