@@ -13,6 +13,8 @@ const outfile = path.join(libOutdir, "trading-calculations.mjs");
 const priceMarketsOutfile = path.join(libOutdir, "price-markets.mjs");
 const priceAnalysisOutfile = path.join(libOutdir, "price-analysis.mjs");
 const unitsOutfile = path.join(libOutdir, "units.mjs");
+const baseloadOutfile = path.join(libOutdir, "baseload.mjs");
+const producerAnalyticsOutfile = path.join(libOutdir, "producer-analytics.mjs");
 
 async function transpileModule(sourcePath, outPath, replacements = []) {
   let source = await readFile(sourcePath, "utf8");
@@ -39,11 +41,18 @@ await transpileModule(path.join(root, "src/lib/price-analysis.ts"), priceAnalysi
   ['from "./trading-calculations"', 'from "./trading-calculations.mjs"'],
 ]);
 await transpileModule(path.join(root, "src/lib/units.ts"), unitsOutfile);
+await transpileModule(path.join(root, "src/lib/baseload.ts"), baseloadOutfile);
+await transpileModule(
+  path.join(root, "src/components/dashboard/producer/producer-analytics.ts"),
+  producerAnalyticsOutfile,
+  [['from "@/lib/baseload"', 'from "./baseload.mjs"']],
+);
 
 const mod = await import(pathToFileURL(outfile).href);
 const priceMarkets = await import(pathToFileURL(priceMarketsOutfile).href);
 const priceAnalysis = await import(pathToFileURL(priceAnalysisOutfile).href);
 const units = await import(pathToFileURL(unitsOutfile).href);
+const producerAnalytics = await import(pathToFileURL(producerAnalyticsOutfile).href);
 
 const points = (prices) =>
   prices.map((price, index) => ({
@@ -362,4 +371,36 @@ test("energy charts select one common unit for a complete series", () => {
     valuesMWh.map((value) => units.convertMWh(value, unit)),
     [0.725, 2.45, 225.806],
   );
+});
+
+test("producer capture prices remain generation weighted", () => {
+  const capturePoints = Array.from({ length: 24 }, (_, hour) => ({
+    ts: new Date(Date.parse("2026-01-14T23:00:00.000Z") + hour * 3_600_000).toISOString(),
+    price: hour,
+    solar: hour >= 12 ? 1 : 0,
+    wind: 100,
+  }));
+  const metrics = producerAnalytics.computeProducerMetrics(capturePoints);
+
+  assert.equal(metrics.baseloadEurPerMWh, 11.5);
+  assert.equal(metrics.solarCaptureEurPerMWh, 17.5);
+  assert.equal(metrics.windCaptureEurPerMWh, 11.5);
+  assert.equal(Number(metrics.solarCaptureRate.toFixed(4)), 1.5217);
+  assert.equal(metrics.windCaptureRate, 1);
+});
+
+test("producer negative exposure and 85% BESS spread use actual price intervals", () => {
+  const capturePoints = Array.from({ length: 24 }, (_, hour) => ({
+    ts: new Date(Date.parse("2026-01-14T23:00:00.000Z") + hour * 3_600_000).toISOString(),
+    price: hour < 2 ? -10 : hour,
+    solar: hour < 4 ? 25 : 0,
+    wind: 100,
+  }));
+  const metrics = producerAnalytics.computeProducerMetrics(capturePoints);
+
+  assert.equal(metrics.negativePriceHours, 2);
+  assert.equal(metrics.solarNegativeExposure, 0.5);
+  assert.equal(metrics.windNegativeExposure, 2 / 24);
+  assert.equal(metrics.bess.days, 1);
+  assert.equal(Number(metrics.bess.avgNet2.toFixed(3)), 29.125);
 });

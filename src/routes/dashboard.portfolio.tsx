@@ -5,6 +5,7 @@ import { Battery, BriefcaseBusiness, Factory, Leaf, PlugZap } from "lucide-react
 import { useMemo, useState } from "react";
 
 import { AssetEmptyState } from "@/components/dashboard/WorkspaceSelectors";
+import { ProducerWorkspace } from "@/components/dashboard/producer/ProducerWorkspace";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/dashboard/atoms";
 import { useDateRange } from "@/lib/date-range";
@@ -15,6 +16,9 @@ import { useWorkspace } from "@/lib/workspace";
 
 const portfolioSearch = z.object({
   view: z.enum(["producer", "consumer", "vpp", "battery", "project"]).optional(),
+  preset: z.enum(["7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
 
 export const Route = createFileRoute("/dashboard/portfolio")({
@@ -281,17 +285,19 @@ function PortfolioPage() {
 
   return (
     <div className="space-y-6">
-      <section>
-        <h2 className="text-2xl font-semibold">
-          {t("Portfolio & Flexibility", "Portfolio i fleksibilnost")}
-        </h2>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          {t(
-            "Shared workspace for producer, consumer, VPP, battery and project-economics workflows. Public market signals are separated from private portfolio availability.",
-            "Zajednicki radni prostor za proizvodjace, potrosace, VPP, baterije i ekonomiku projekta. Javni trzisni signali su odvojeni od privatne dostupnosti portfolija.",
-          )}
-        </p>
-      </section>
+      {active !== "producer" ? (
+        <section>
+          <h2 className="text-2xl font-semibold">
+            {t("Portfolio & Flexibility", "Portfolio i fleksibilnost")}
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            {t(
+              "Shared workspace for producer, consumer, VPP, battery and project-economics workflows. Public market signals are separated from private portfolio availability.",
+              "Zajednicki radni prostor za proizvodjace, potrosace, VPP, baterije i ekonomiku projekta. Javni trzisni signali su odvojeni od privatne dostupnosti portfolija.",
+            )}
+          </p>
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {views.map((view) => {
@@ -301,8 +307,14 @@ function PortfolioPage() {
               key={view.value}
               type="button"
               variant={active === view.value ? "default" : "outline"}
+              size="sm"
               className="gap-2"
-              onClick={() => navigate({ to: "/dashboard/portfolio", search: { view: view.value } })}
+              onClick={() =>
+                navigate({
+                  to: "/dashboard/portfolio",
+                  search: { ...search, view: view.value },
+                })
+              }
             >
               <Icon className="h-4 w-4" />
               {t(view.label, view.sr)}
@@ -311,17 +323,7 @@ function PortfolioPage() {
         })}
       </div>
 
-      {active === "producer" && (
-        <div className="space-y-5">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard label="Baseload reference" value="Open Today" />
-            <KpiCard label="Solar capture price" value="Market signal" />
-            <KpiCard label="Negative-price exposure" value="Market signal" />
-            <KpiCard label="Generation coverage" value="N/A" hint="Connect production data." />
-          </section>
-          <AssetEmptyState description="Connect or upload production data to calculate actual generation, nominations, imbalance, curtailment, revenue and PPA settlement." />
-        </div>
-      )}
+      {active === "producer" && <ProducerWorkspace />}
 
       {active === "consumer" && (
         <div className="space-y-5">
