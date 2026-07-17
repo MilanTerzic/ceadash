@@ -143,9 +143,9 @@ export function DateRangeControl({
   }, [range]);
 
   const presets: { key: PresetKey; label: string }[] = [
-    { key: "7d", label: t("Last 7d", "7 dana") },
-    { key: "30d", label: t("Last 30d", "30 dana") },
-    { key: "mtd", label: t("MTD", "Tekući mesec") },
+    { key: "7d", label: t("Last 7d", "Poslednjih 7 dana") },
+    { key: "30d", label: t("Last 30d", "Poslednjih 30 dana") },
+    { key: "mtd", label: t("MTD", "Od početka meseca") },
     { key: "prev_month", label: t("Prev. month", "Prethodni mesec") },
     { key: "ytd", label: t("YTD", "Od početka godine") },
   ];

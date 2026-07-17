@@ -121,7 +121,7 @@ export function DashboardTabs() {
 
         <div className="flex h-14 items-center justify-between lg:hidden">
           <div className="text-sm font-medium text-muted-foreground">
-            {t("Dashboard navigation", "Dashboard navigacija")}
+            {t("Dashboard navigation", "Navigacija kontrolne table")}
           </div>
           <Sheet>
             <SheetTrigger asChild>
