@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { ChartCard, SignalPill } from "@/components/dashboard/atoms";
 import { captureMetricsByMonth, getDemoYear } from "@/lib/demo-data";
+import { getEkapijaNews } from "@/lib/news.functions";
 
 export const Route = createFileRoute("/dashboard/insights")({
   head: () => ({
@@ -28,6 +31,14 @@ export const Route = createFileRoute("/dashboard/insights")({
 type Signal = "Positive" | "Neutral" | "Warning" | "Critical";
 
 function InsightsPage() {
+  const newsFn = useServerFn(getEkapijaNews);
+  const newsQuery = useQuery({
+    queryKey: ["signals_news_policy"],
+    queryFn: () => newsFn(),
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
+    retry: 1,
+  });
   const data = useMemo(() => getDemoYear(), []);
   const monthly = useMemo(() => captureMetricsByMonth(data), [data]);
   const latest = monthly[monthly.length - 1];
@@ -109,27 +120,73 @@ function InsightsPage() {
   ];
 
   return (
-    <ChartCard
-      title="Key analytical insights"
-      description="Short, actionable signals automatically derived from current market data."
-    >
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {insights.map((i) => (
-          <article
-            key={i.title}
-            className="rounded-xl border border-border/70 bg-background/40 p-4"
+    <div className="space-y-6">
+      <ChartCard
+        title="Analytical signals"
+        description="Illustrative methodology examples based on the built-in sample year. They are not live market intelligence until connected to live dashboard datasets."
+      >
+        <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+          Demo-derived values are shown only as methodology examples. No demo number is presented as
+          a live trading signal.
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {insights.map((i) => (
+            <article
+              key={i.title}
+              className="rounded-xl border border-border/70 bg-background/40 p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-display text-lg leading-tight">{i.title}</h4>
+                <SignalPill signal={i.signal} />
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{i.text}</p>
+              <div className="mt-3 text-xs uppercase tracking-wider text-foreground/80">
+                {i.metric}
+              </div>
+            </article>
+          ))}
+        </div>
+      </ChartCard>
+
+      <ChartCard
+        title="News and policy monitor"
+        description="Automatically refreshes recent Serbian energy news and policy items from the configured public source."
+      >
+        <div className="mb-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>Refreshes every 30 minutes while this page is open.</span>
+          <button
+            type="button"
+            onClick={() => newsQuery.refetch()}
+            className="min-h-9 rounded-md border border-border/70 px-3 text-foreground hover:bg-muted"
           >
-            <div className="flex items-start justify-between gap-2">
-              <h4 className="font-display text-lg leading-tight">{i.title}</h4>
-              <SignalPill signal={i.signal} />
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{i.text}</p>
-            <div className="mt-3 text-xs uppercase tracking-wider text-foreground/80">
-              {i.metric}
-            </div>
-          </article>
-        ))}
-      </div>
-    </ChartCard>
+            Refresh
+          </button>
+        </div>
+        {newsQuery.isLoading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading news...</p>
+        ) : (newsQuery.data?.items ?? []).length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            News source is currently unavailable or returned no items.
+          </p>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {(newsQuery.data?.items ?? []).slice(0, 10).map((item) => (
+              <a
+                key={item.original_url}
+                href={item.original_url}
+                target="_blank"
+                rel="noreferrer"
+                className="block py-3 hover:bg-muted/40"
+              >
+                <div className="text-sm font-medium">{item.summary_en || item.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {item.date} - {item.source}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </ChartCard>
+    </div>
   );
 }

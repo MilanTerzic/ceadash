@@ -150,15 +150,25 @@ export const fetchRecentNewsForWeekly = createServerFn({ method: "GET" }).handle
     supabaseAdmin.from("weekly_report_used_news").select("url"),
   ]);
 
-  const usedSet = new Set((used ?? []).map((r) => r.url));
+  type UsedNewsRow = { url: string | null };
+  type NewsRow = {
+    title: string | null;
+    source: string | null;
+    date: string | null;
+    original_url: string | null;
+    summary_en: string | null;
+  };
+
+  const usedSet = new Set((used ?? []).map((r: UsedNewsRow) => r.url).filter(Boolean));
   const items = (news ?? [])
+    .map((n) => n as NewsRow)
     .filter((n) => n.original_url && !usedSet.has(n.original_url))
     .map((n) => ({
-      title: n.title as string,
-      source: (n.source as string) ?? "",
-      date: n.date as string,
-      url: n.original_url as string,
-      summary: (n.summary_en as string) ?? null,
+      title: n.title ?? "",
+      source: n.source ?? "",
+      date: n.date ?? "",
+      url: n.original_url ?? "",
+      summary: n.summary_en ?? null,
     }));
   return { items };
 });

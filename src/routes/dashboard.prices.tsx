@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -12,14 +12,33 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download } from "lucide-react";
-import { getAverageDAProfile } from "@/lib/data.functions";
-import { TopBar } from "@/components/top-bar";
-import { Panel } from "@/components/panel";
+import { Download, SlidersHorizontal, X } from "lucide-react";
+
 import { DataBadge } from "@/components/data-badge";
-import { fmtPrice, downloadCSV, fmtNum } from "@/lib/format";
+import { Panel } from "@/components/panel";
+import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useDateRange } from "@/lib/date-range";
+import { getAverageDAProfile } from "@/lib/data.functions";
+import { downloadCSV, fmtNum, fmtPrice } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 import {
   MARKET_PRESETS,
   PRICE_MARKETS,
@@ -28,13 +47,33 @@ import {
 } from "@/lib/price-markets";
 
 export const Route = createFileRoute("/dashboard/prices")({
-  head: () => ({ meta: [{ title: "Prices - CEA Power Dashboard" }] }),
+  head: () => ({ meta: [{ title: "Prices & Spreads - CEA Power Dashboard" }] }),
   component: PricesPage,
 });
+
+type MarketPresetId = "serbia" | "core" | "see" | "wb6" | "all";
+
+const COMPACT_MARKET_PRESETS: Record<
+  MarketPresetId,
+  { label: string; markets: PriceMarketCode[] }
+> = {
+  serbia: { label: "Serbia", markets: MARKET_PRESETS.serbiaOnly },
+  core: { label: "Core", markets: MARKET_PRESETS.core },
+  see: { label: "SEE", markets: MARKET_PRESETS.regional },
+  wb6: { label: "WB6", markets: ["RS", "ME", "MK", "AL"] },
+  all: { label: "All", markets: MARKET_PRESETS.all },
+};
 
 function PricesPage() {
   const fn = useServerFn(getAverageDAProfile);
   const { range } = useDateRange();
+  const { t } = useLang();
+  const [selectedMarkets, setSelectedMarkets] = useState<PriceMarketCode[]>(
+    MARKET_PRESETS.serbiaOnly,
+  );
+  const [preset, setPreset] = useState<MarketPresetId>("serbia");
+  const [marketSearch, setMarketSearch] = useState("");
+
   const q = useQuery({
     queryKey: ["da_profile", range.from, range.to],
     queryFn: () => fn({ data: { from: range.from, to: range.to } }),
@@ -44,75 +83,126 @@ function PricesPage() {
   });
 
   const rows = q.data?.rows ?? [];
-  const [selectedMarkets, setSelectedMarkets] = useState<PriceMarketCode[]>(MARKET_PRESETS.core);
+  const selectedSet = useMemo(() => new Set(selectedMarkets), [selectedMarkets]);
 
-  const chartData = Array.from({ length: 24 }, (_, hour) => {
-    const row: Record<string, number | string | null> = {
-      hour: `${String(hour).padStart(2, "0")}:00`,
-    };
-    for (const r of rows) row[r.zone] = r.profile[hour];
-    return row;
-  });
+  const chartData = useMemo(
+    () =>
+      Array.from({ length: 24 }, (_, hour) => {
+        const row: Record<string, number | string | null> = {
+          hour: `${String(hour).padStart(2, "0")}:00`,
+        };
+        for (const r of rows) row[r.zone] = r.profile[hour];
+        return row;
+      }),
+    [rows],
+  );
 
-  const stats = rows.map((r) => {
-    const profile = r.profile as Array<number | null>;
-    const valid = profile.filter((v): v is number => v != null && Number.isFinite(v));
-    const avg = mean(valid);
-    const peak = profile.slice(8, 20).filter((v): v is number => v != null && Number.isFinite(v));
-    const off = [...profile.slice(0, 8), ...profile.slice(20, 24)].filter(
-      (v): v is number => v != null && Number.isFinite(v),
-    );
-    const peakAvg = mean(peak);
-    const offAvg = mean(off);
-    const min = valid.length ? Math.min(...valid) : null;
-    const max = valid.length ? Math.max(...valid) : null;
-    const vol =
-      avg != null && valid.length > 1
-        ? Math.sqrt(valid.reduce((s, x) => s + (x - avg) ** 2, 0) / valid.length)
-        : null;
-    return {
-      zone: r.zone as PriceMarketCode,
-      avg,
-      peakAvg,
-      offAvg,
-      min,
-      max,
-      vol,
-      negativeIntervals: valid.filter((value) => value < 0).length,
-      receivedIntervals: valid.length,
-      expectedIntervals: 24,
-      source: r.source,
-      reason: r.reason,
-    };
-  });
+  const stats = useMemo(
+    () =>
+      rows.map((r) => {
+        const profile = r.profile as Array<number | null>;
+        const valid = profile.filter((v): v is number => v != null && Number.isFinite(v));
+        const avg = mean(valid);
+        const peak = profile
+          .slice(8, 20)
+          .filter((v): v is number => v != null && Number.isFinite(v));
+        const off = [...profile.slice(0, 8), ...profile.slice(20, 24)].filter(
+          (v): v is number => v != null && Number.isFinite(v),
+        );
+        const peakAvg = mean(peak);
+        const offAvg = mean(off);
+        const min = valid.length ? Math.min(...valid) : null;
+        const max = valid.length ? Math.max(...valid) : null;
+        const vol =
+          avg != null && valid.length > 1
+            ? Math.sqrt(valid.reduce((s, x) => s + (x - avg) ** 2, 0) / valid.length)
+            : null;
+        return {
+          zone: r.zone as PriceMarketCode,
+          avg,
+          peakAvg,
+          offAvg,
+          min,
+          max,
+          vol,
+          negativeIntervals: valid.filter((value) => value < 0).length,
+          receivedIntervals: valid.length,
+          expectedIntervals: 24,
+          source: r.source,
+          reason: r.reason,
+        };
+      }),
+    [rows],
+  );
+
+  const selectedStats = stats.filter((row) => selectedSet.has(row.zone));
+  const serbiaStats = stats.find((row) => row.zone === "RS");
+  const spreadRows = stats
+    .filter((row) => row.zone !== "RS")
+    .map((row) => ({
+      zone: row.zone,
+      market: PRICE_MARKETS[row.zone]?.displayLabel ?? row.zone,
+      baseloadSpread: subtract(row.avg, serbiaStats?.avg),
+      peakSpread: subtract(row.peakAvg, serbiaStats?.peakAvg),
+      offPeakSpread: subtract(row.offAvg, serbiaStats?.offAvg),
+      interpretation:
+        subtract(row.avg, serbiaStats?.avg) == null
+          ? "Unavailable"
+          : (subtract(row.avg, serbiaStats?.avg) ?? 0) > 0
+            ? "Serbia discount"
+            : "Serbia premium",
+      source: row.source,
+    }));
 
   const rangeLabel = range.from === range.to ? range.from : `${range.from} -> ${range.to}`;
 
   return (
     <>
       <TopBar
-        title="Prices"
-        subtitle={`Average hourly DA profile across ${rangeLabel} · Europe/Belgrade local time`}
+        title={t("Prices & Spreads", "Cene i spreadovi")}
+        subtitle={t(
+          `Market summary, hourly profiles and regional spreads for ${rangeLabel} in Europe/Belgrade local time`,
+          `Pregled tržišta, satni profili i regionalni spreadovi za ${rangeLabel} u vremenu Europe/Belgrade`,
+        )}
         onRefresh={() => q.refetch()}
         isRefreshing={q.isFetching}
         lastRefresh={rows[0]?.fetched_at}
       />
       <div className="space-y-5 p-6">
         <Panel
-          title="Average DA price per hour"
-          actions={
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5"
-              onClick={() => downloadCSV("da-hourly-avg.csv", chartData as never)}
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
-          }
+          title={t("Market summary", "Pregled tržišta")}
+          actions={<ExportMenu chartData={chartData} stats={stats} spreadRows={spreadRows} t={t} />}
         >
-          <MarketPresetSelector selected={selectedMarkets} setSelected={setSelectedMarkets} />
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <MarketControls
+              selected={selectedMarkets}
+              setSelected={setSelectedMarkets}
+              preset={preset}
+              setPreset={setPreset}
+              marketSearch={marketSearch}
+              setMarketSearch={setMarketSearch}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryCard
+              label={t("Serbia baseload", "Baseload Srbija")}
+              value={fmtPrice(serbiaStats?.avg)}
+              sub={PRICE_MARKETS.RS.displayLabel}
+            />
+            <SummaryCard
+              label={t("Serbia peakload", "Peakload Srbija")}
+              value={fmtPrice(serbiaStats?.peakAvg)}
+              sub="08:00-20:00"
+            />
+            <SummaryCard
+              label={t("Markets selected", "Izabrana tržišta")}
+              value={`${selectedMarkets.length}`}
+              sub={selectedMarkets.map((code) => PRICE_MARKETS[code]?.label ?? code).join(", ")}
+            />
+          </div>
+        </Panel>
+
+        <Panel title={t("Hourly price profiles", "Satni profili cena")}>
           <div className="h-80">
             <ResponsiveContainer>
               <LineChart data={chartData}>
@@ -127,7 +217,7 @@ function PricesPage() {
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 {rows
-                  .filter((r) => selectedMarkets.includes(r.zone as PriceMarketCode))
+                  .filter((r) => selectedSet.has(r.zone as PriceMarketCode))
                   .map((r) => {
                     const market = PRICE_MARKETS[r.zone as PriceMarketCode];
                     return (
@@ -149,37 +239,29 @@ function PricesPage() {
         </Panel>
 
         <Panel
-          title="Statistics (range average)"
-          actions={
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5"
-              onClick={() => downloadCSV("price-stats.csv", stats as never)}
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
-          }
+          title={t(
+            "Baseload, peakload and off-peak statistics",
+            "Baseload, peakload i off-peak statistika",
+          )}
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-sm">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="py-1.5 text-left">Market</th>
+                  <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
                   <th className="text-right">Baseload</th>
-                  <th className="text-right">Peak (8-20h)</th>
+                  <th className="text-right">Peak</th>
                   <th className="text-right">Off-peak</th>
                   <th className="text-right">Min</th>
                   <th className="text-right">Max</th>
-                  <th className="text-right">Volatility</th>
-                  <th className="text-right">Negative</th>
-                  <th className="text-right">Intervals</th>
+                  <th className="text-right">{t("Volatility", "Volatilnost")}</th>
+                  <th className="text-right">{t("Negative", "Negativni")}</th>
+                  <th className="text-right">{t("Intervals", "Intervali")}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {stats.map((s) => (
+                {selectedStats.map((s) => (
                   <tr key={s.zone} className="border-t border-border/60">
                     <td className="py-1.5 font-medium" title={s.reason}>
                       {PRICE_MARKETS[s.zone]?.displayLabel ?? s.zone}
@@ -203,95 +285,271 @@ function PricesPage() {
             </table>
           </div>
         </Panel>
+
+        <Panel
+          title={t(
+            "Serbia versus regional market spreads",
+            "Srbija u odnosu na regionalne spreadove",
+          )}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                  <th className="text-right">{t("Baseload spread", "Baseload spread")}</th>
+                  <th className="text-right">{t("Peak spread", "Peak spread")}</th>
+                  <th className="text-right">{t("Off-peak spread", "Off-peak spread")}</th>
+                  <th className="text-left">{t("Signal", "Signal")}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {spreadRows
+                  .filter((row) => selectedSet.has(row.zone))
+                  .map((row) => (
+                    <tr key={row.zone} className="border-t border-border/60">
+                      <td className="py-1.5 font-medium">{row.market}</td>
+                      <td className="num text-right">{fmtPrice(row.baseloadSpread)}</td>
+                      <td className="num text-right">{fmtPrice(row.peakSpread)}</td>
+                      <td className="num text-right">{fmtPrice(row.offPeakSpread)}</td>
+                      <td>{row.interpretation}</td>
+                      <td className="text-right">
+                        <DataBadge source={row.source} />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+
+        <Panel title={t("Regional comparison table", "Regionalna tabela poređenja")}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                  <th className="text-right">Baseload</th>
+                  <th className="text-right">Min</th>
+                  <th className="text-right">Max</th>
+                  <th className="text-right">{t("Completeness", "Kompletnost")}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.map((s) => (
+                  <tr key={s.zone} className="border-t border-border/60">
+                    <td className="py-1.5 font-medium">
+                      {PRICE_MARKETS[s.zone]?.displayLabel ?? s.zone}
+                    </td>
+                    <td className="num text-right">{fmtPrice(s.avg)}</td>
+                    <td className="num text-right">{fmtPrice(s.min)}</td>
+                    <td className="num text-right">{fmtPrice(s.max)}</td>
+                    <td className="num text-right">
+                      {s.receivedIntervals}/{s.expectedIntervals}
+                    </td>
+                    <td className="text-right">
+                      <DataBadge source={s.source} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </div>
     </>
   );
 }
 
-function mean(values: number[]) {
-  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
-}
-
-function MarketPresetSelector({
+function MarketControls({
   selected,
   setSelected,
+  preset,
+  setPreset,
+  marketSearch,
+  setMarketSearch,
 }: {
   selected: PriceMarketCode[];
   setSelected: (markets: PriceMarketCode[]) => void;
+  preset: MarketPresetId;
+  setPreset: (preset: MarketPresetId) => void;
+  marketSearch: string;
+  setMarketSearch: (value: string) => void;
 }) {
+  const filteredMarkets = PRICE_MARKET_LIST.filter((market) => {
+    const q = marketSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      market.code.toLowerCase().includes(q) ||
+      market.label.toLowerCase().includes(q) ||
+      market.displayLabel.toLowerCase().includes(q)
+    );
+  });
+
+  const applyPreset = (id: MarketPresetId) => {
+    setPreset(id);
+    setSelected(COMPACT_MARKET_PRESETS[id].markets);
+  };
+
+  const toggleMarket = (code: PriceMarketCode) => {
+    setSelected(
+      selected.includes(code) ? selected.filter((item) => item !== code) : [...selected, code],
+    );
+  };
+
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-end gap-1.5">
-      {PRICE_MARKET_LIST.map((market) => {
-        const on = selected.includes(market.code);
-        return (
-          <button
-            key={market.code}
-            type="button"
-            title={market.displayLabel}
-            onClick={() =>
-              setSelected(
-                on ? selected.filter((code) => code !== market.code) : [...selected, market.code],
-              )
-            }
-            className={`rounded border px-2 py-0.5 text-[11px] transition ${
-              on
-                ? "border-transparent text-background"
-                : "border-border/60 bg-surface-2 text-muted-foreground"
-            }`}
-            style={on ? { background: market.chartColor } : undefined}
-          >
-            {market.code}
-          </button>
-        );
-      })}
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.core)}
-      >
-        Core
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.directNeighbours)}
-      >
-        Direct neighbours
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.regional)}
-      >
-        Regional
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.europeanBenchmarks)}
-      >
-        Benchmarks
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.all)}
-      >
-        All markets
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 text-[11px]"
-        onClick={() => setSelected(MARKET_PRESETS.serbiaOnly)}
-      >
-        Serbia only
-      </Button>
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        <Select value={preset} onValueChange={(value) => applyPreset(value as MarketPresetId)}>
+          <SelectTrigger className="h-10 w-[150px]">
+            <SelectValue placeholder="Preset" />
+          </SelectTrigger>
+          <SelectContent>
+            {(
+              Object.entries(COMPACT_MARKET_PRESETS) as Array<
+                [MarketPresetId, (typeof COMPACT_MARKET_PRESETS)[MarketPresetId]]
+              >
+            ).map(([id, item]) => (
+              <SelectItem key={id} value={id}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="h-10 gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              Markets ({selected.length})
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-80 p-2">
+            <DropdownMenuLabel>Search markets</DropdownMenuLabel>
+            <Input
+              value={marketSearch}
+              onChange={(event) => setMarketSearch(event.target.value)}
+              placeholder="Serbia, Hungary, RS..."
+              className="mb-2 h-9"
+            />
+            <div className="max-h-72 overflow-y-auto">
+              {filteredMarkets.map((market) => (
+                <DropdownMenuCheckboxItem
+                  key={market.code}
+                  checked={selected.includes(market.code)}
+                  onCheckedChange={() => toggleMarket(market.code)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  <span
+                    className="mr-2 inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: market.chartColor }}
+                  />
+                  {market.displayLabel}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setSelected(MARKET_PRESETS.serbiaOnly);
+                setPreset("serbia");
+              }}
+            >
+              Clear to Serbia
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-10"
+          onClick={() => {
+            setSelected(MARKET_PRESETS.serbiaOnly);
+            setPreset("serbia");
+          }}
+        >
+          Clear
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {selected.map((code) => {
+          const market = PRICE_MARKETS[code];
+          return (
+            <button
+              key={code}
+              type="button"
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/70 bg-surface-2 px-2.5 text-xs text-foreground"
+              onClick={() => toggleMarket(code)}
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: market?.chartColor ?? "#94a3b8" }}
+              />
+              {market?.label ?? code}
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
+}
+
+function ExportMenu({
+  chartData,
+  stats,
+  spreadRows,
+  t,
+}: {
+  chartData: Array<Record<string, number | string | null>>;
+  stats: unknown[];
+  spreadRows: unknown[];
+  t: (en: string, sr: string) => string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5">
+          <Download className="h-3.5 w-3.5" />
+          {t("Export", "Izvoz")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => downloadCSV("da-hourly-avg.csv", chartData as never)}>
+          {t("Hourly profiles CSV", "Satni profili CSV")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => downloadCSV("price-stats.csv", stats as never)}>
+          {t("Statistics CSV", "Statistika CSV")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => downloadCSV("serbia-spreads.csv", spreadRows as never)}>
+          {t("Spreads CSV", "Spreadovi CSV")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function SummaryCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-surface-2 p-3">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 font-display text-2xl">{value}</div>
+      <div className="mt-1 truncate text-xs text-muted-foreground" title={sub}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+function subtract(a: number | null | undefined, b: number | null | undefined) {
+  return a == null || b == null ? null : a - b;
+}
+
+function mean(values: number[]) {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
