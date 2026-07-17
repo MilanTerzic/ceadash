@@ -144,7 +144,6 @@ function DashboardLayout() {
                 <div className="flex flex-wrap items-end justify-start gap-3 xl:justify-end">
                   <RoleSelector />
                   <PortfolioSelector />
-                  <DataQualityIndicator />
                   <HeaderActionButtons />
                 </div>
               </div>
