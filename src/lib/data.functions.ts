@@ -6,6 +6,8 @@ import {
   fetchPhysicalFlows,
   fetchPhysicalFlowsRange,
   fetchExplicitAllocation,
+  fetchImbalancePricesRange,
+  fetchImbalanceVolumesRange,
   fetchOutages,
   fetchLoadGen,
   validatePriceMarket,
@@ -433,6 +435,94 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
       to: days[days.length - 1],
       borders,
       fetched_at: new Date().toISOString(),
+    };
+  });
+
+export const getSerbiaImbalances = createServerFn({ method: "GET" })
+  .inputValidator((data: RangeInput) => data ?? {})
+  .handler(async ({ data }) => {
+    const days = expandRange(data?.from, data?.to, data?.day);
+    const from = days[0];
+    const to = days[days.length - 1];
+    const [prices, volumes] = await Promise.all([
+      fetchImbalancePricesRange("RS", from, to),
+      fetchImbalanceVolumesRange("RS", from, to),
+    ]);
+    const pricePoints = prices.data.points;
+    const volumePoints = volumes.data.points;
+    const latestPrice = pricePoints[pricePoints.length - 1] ?? null;
+    const latestVolume = volumePoints[volumePoints.length - 1] ?? null;
+    const priceValues = pricePoints.map((point) => point.price_eur_mwh);
+    const volumeValues = volumePoints.map((point) => point.volume_mwh);
+    const totalImbalanceMwh = volumeValues.length
+      ? volumeValues.reduce((sum, value) => sum + value, 0)
+      : null;
+    const averagePriceEurPerMWh = priceValues.length
+      ? priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length
+      : null;
+    const averageAbsoluteImbalanceMWh = volumeValues.length
+      ? volumeValues.reduce((sum, value) => sum + Math.abs(value), 0) / volumeValues.length
+      : null;
+    const byTimestamp = new Map<
+      string,
+      {
+        ts: string;
+        imbalance_price_eur_mwh: number | null;
+        imbalance_volume_mwh: number | null;
+        durationMinutes: number | null;
+        price_category?: string;
+        price_business_type?: string;
+        volume_business_type?: string;
+        volume_direction?: string;
+      }
+    >();
+    for (const point of pricePoints) {
+      const row = byTimestamp.get(point.ts) ?? {
+        ts: point.ts,
+        imbalance_price_eur_mwh: null,
+        imbalance_volume_mwh: null,
+        durationMinutes: null,
+      };
+      row.imbalance_price_eur_mwh = point.price_eur_mwh;
+      row.durationMinutes = point.durationMinutes;
+      row.price_category = point.category;
+      row.price_business_type = point.businessType;
+      byTimestamp.set(point.ts, row);
+    }
+    for (const point of volumePoints) {
+      const row = byTimestamp.get(point.ts) ?? {
+        ts: point.ts,
+        imbalance_price_eur_mwh: null,
+        imbalance_volume_mwh: null,
+        durationMinutes: null,
+      };
+      row.imbalance_volume_mwh = point.volume_mwh;
+      row.durationMinutes = row.durationMinutes ?? point.durationMinutes;
+      row.volume_business_type = point.businessType;
+      row.volume_direction = point.direction;
+      byTimestamp.set(point.ts, row);
+    }
+    return {
+      from,
+      to,
+      market: "RS" as const,
+      priceSource: prices.source,
+      priceReason: prices.reason,
+      volumeSource: volumes.source,
+      volumeReason: volumes.reason,
+      fetched_at: new Date().toISOString(),
+      rows: [...byTimestamp.values()].sort((a, b) => a.ts.localeCompare(b.ts)),
+      summary: {
+        priceObservations: pricePoints.length,
+        volumeObservations: volumePoints.length,
+        latestPriceEurPerMWh: latestPrice?.price_eur_mwh ?? null,
+        latestVolumeMWh: latestVolume?.volume_mwh ?? null,
+        averagePriceEurPerMWh,
+        minPriceEurPerMWh: priceValues.length ? Math.min(...priceValues) : null,
+        maxPriceEurPerMWh: priceValues.length ? Math.max(...priceValues) : null,
+        totalImbalanceMwh,
+        averageAbsoluteImbalanceMWh,
+      },
     };
   });
 
