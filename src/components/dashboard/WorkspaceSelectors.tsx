@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Database, Download, Bell } from "lucide-react";
+import { Database, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
