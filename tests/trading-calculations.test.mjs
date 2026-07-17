@@ -12,6 +12,7 @@ const libOutdir = path.join(outdir, "lib");
 const outfile = path.join(libOutdir, "trading-calculations.mjs");
 const priceMarketsOutfile = path.join(libOutdir, "price-markets.mjs");
 const priceAnalysisOutfile = path.join(libOutdir, "price-analysis.mjs");
+const unitsOutfile = path.join(libOutdir, "units.mjs");
 
 async function transpileModule(sourcePath, outPath, replacements = []) {
   let source = await readFile(sourcePath, "utf8");
@@ -37,10 +38,12 @@ await transpileModule(path.join(root, "src/lib/price-analysis.ts"), priceAnalysi
   ['from "./price-markets"', 'from "./price-markets.mjs"'],
   ['from "./trading-calculations"', 'from "./trading-calculations.mjs"'],
 ]);
+await transpileModule(path.join(root, "src/lib/units.ts"), unitsOutfile);
 
 const mod = await import(pathToFileURL(outfile).href);
 const priceMarkets = await import(pathToFileURL(priceMarketsOutfile).href);
 const priceAnalysis = await import(pathToFileURL(priceAnalysisOutfile).href);
+const units = await import(pathToFileURL(unitsOutfile).href);
 
 const points = (prices) =>
   prices.map((price, index) => ({
@@ -282,4 +285,81 @@ test("market presets include benchmarks without adding them to direct neighbours
 
 test("select all action resolves to every configured price market", () => {
   assert.deepEqual(priceAnalysis.resolveMarketPreset("all"), priceMarkets.PRICE_MARKET_CODES);
+});
+
+const powerPoints = (count, mw, stepMinutes, start = "2026-01-15T00:00:00.000Z") =>
+  Array.from({ length: count }, (_, index) => ({
+    ts: new Date(Date.parse(start) + index * stepMinutes * 60_000).toISOString(),
+    mw,
+    durationMinutes: stepMinutes,
+  }));
+
+test("energy integration handles hourly, quarter-hour and half-hour observations", () => {
+  assert.equal(units.integratePowerSeries(powerPoints(24, 100, 60)).mwh, 2400);
+  assert.equal(units.formatEnergyMWh(2400), "2.4 GWh");
+  assert.equal(units.integratePowerSeries(powerPoints(4, 100, 15)).mwh, 100);
+  assert.equal(units.integratePowerSeries(powerPoints(48, 100, 30)).mwh, 2400);
+});
+
+test("energy integration handles 23-hour and 25-hour DST delivery days", () => {
+  assert.equal(
+    units.integratePowerSeries(powerPoints(23, 100, 60, "2026-03-28T23:00:00.000Z")).mwh,
+    2300,
+  );
+  assert.equal(
+    units.integratePowerSeries(powerPoints(25, 100, 60, "2026-10-24T22:00:00.000Z")).mwh,
+    2500,
+  );
+});
+
+test("energy integration preserves negative net flow", () => {
+  assert.equal(units.integratePowerSeries(powerPoints(2, -100, 60)).mwh, -200);
+  assert.equal(units.formatEnergyMWh(-225806), "-225.8 GWh");
+});
+
+test("energy integration reports missing, duplicate and irregular intervals", () => {
+  const missing = units.integratePowerSeries([
+    { ts: "2026-01-15T00:00:00.000Z", mw: 100 },
+    { ts: "2026-01-15T01:00:00.000Z", mw: 100 },
+    { ts: "2026-01-15T03:00:00.000Z", mw: 100 },
+  ]);
+  assert.equal(missing.mwh, 100);
+  assert.equal(missing.gapCount, 1);
+  assert.equal(missing.intervalsSkipped > 0, true);
+  assert.equal(missing.coveragePct < 100, true);
+
+  const duplicate = units.integratePowerSeries([
+    { ts: "2026-01-15T00:00:00.000Z", mw: 100 },
+    { ts: "2026-01-15T00:00:00.000Z", mw: 100 },
+    { ts: "2026-01-15T01:00:00.000Z", mw: 100 },
+  ]);
+  assert.equal(duplicate.duplicateTimestampCount, 1);
+
+  const irregular = units.integratePowerSeries([
+    { ts: "2026-01-15T00:00:00.000Z", mw: 100 },
+    { ts: "2026-01-15T00:45:00.000Z", mw: 100 },
+    { ts: "2026-01-15T01:45:00.000Z", mw: 100 },
+  ]);
+  assert.equal(irregular.mwh, 175);
+  assert.equal(irregular.irregularIntervalCount, 1);
+});
+
+test("energy formatting thresholds and null values are explicit", () => {
+  assert.equal(units.formatEnergyMWh(999), "999 MWh");
+  assert.equal(units.formatEnergyMWh(1000), "1 GWh");
+  assert.equal(units.formatEnergyMWh(999999), "1,000 GWh");
+  assert.equal(units.formatEnergyMWh(1000000), "1 TWh");
+  assert.equal(units.formatEnergyMWh(2662136), "2.66 TWh");
+  assert.equal(units.formatEnergyMWh(0), "0 MWh");
+  assert.equal(units.formatEnergyMWh(null), "-");
+});
+
+test("energy charts select one common unit for a complete series", () => {
+  const valuesMWh = [725, 2450, 225806];
+  const unit = units.selectEnergyUnit(valuesMWh);
+  assert.equal(unit, "GWh");
+  assert.deepEqual(
+    valuesMWh.map((value) => units.convertMWh(value, unit)),
+    [0.725, 2.45, 225.806],
+  );
 });

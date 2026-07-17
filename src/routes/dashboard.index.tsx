@@ -1,446 +1,505 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ArrowRight, BatteryCharging, Info, TrendingUp } from "lucide-react";
+import { useMemo } from "react";
 import {
-  ResponsiveContainer,
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip as RTooltip,
-  Legend,
-  BarChart,
-  Bar,
-  ReferenceLine,
 } from "recharts";
-import {
-  ChartCard,
-  DataUnavailableState,
-  KpiCard,
-  PageLoadingSkeleton,
-} from "@/components/dashboard/atoms";
-import {
-  DateRangeControl,
-  useDashboardRange,
-  useRequestedRangeKeys,
-} from "@/components/dashboard/DateRangeControl";
-import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
+
+import { AssetEmptyState } from "@/components/dashboard/WorkspaceSelectors";
+import { KpiCard, PageLoadingSkeleton } from "@/components/dashboard/atoms";
+import { Button } from "@/components/ui/button";
+import { useDateRange } from "@/lib/date-range";
 import { fetchMarketPrices } from "@/lib/market.functions";
+import { fmtNum, fmtPrice } from "@/lib/format";
 import { useLang } from "@/lib/i18n";
-import { bucketByBelgradeDay, aggregatePeriod, type HourlyPrice } from "@/lib/baseload";
+import { useWorkspace, type DashboardRole } from "@/lib/workspace";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
     meta: [
-      { title: "Overview — CEA Power Dashboard" },
+      { title: "Today - CEA Power Dashboard" },
       {
         name: "description",
-        content: "Key Serbian power market and renewable indicators at a glance.",
+        content: "Role-specific Serbian electricity-market workspace for today's decisions.",
       },
-      { property: "og:title", content: "Overview — CEA Power Dashboard" },
-      {
-        property: "og:description",
-        content: "Key Serbian power market and renewable indicators at a glance.",
-      },
-      { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard" },
     ],
-    links: [{ rel: "canonical", href: "https://dashboard.cea.org.rs/dashboard" }],
   }),
-  component: OverviewPage,
+  component: TodayPage,
 });
 
-const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
+type PricePoint = { ts: string; price: number };
+type KpiConfig = {
+  label: string;
+  value: string;
+  unit?: string;
+  hint?: string;
+};
 
-function methodology(opts: {
-  metric: string;
-  range: string;
-  hours: number;
-  days: number;
-  formula: string;
-  lastUpdate?: Date;
+function mean(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function stdev(values: number[]) {
+  const avg = mean(values);
+  if (avg == null || values.length < 2) return null;
+  return Math.sqrt(values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length);
+}
+
+function belgradeHour(ts: string) {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Belgrade",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date(ts)),
+  );
+}
+
+function bestWindow(points: PricePoint[], count: number, mode: "low" | "high") {
+  if (points.length < count) return null;
+  const ranked = points
+    .slice()
+    .sort((a, b) => (mode === "low" ? a.price - b.price : b.price - a.price))
+    .slice(0, count);
+  const avg = mean(ranked.map((point) => point.price));
+  return {
+    avg,
+    label: ranked
+      .map((point) =>
+        new Date(point.ts).toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          hour: "2-digit",
+          timeZone: "Europe/Belgrade",
+        }),
+      )
+      .join(", "),
+  };
+}
+
+function batterySpread(points: PricePoint[], hours: number) {
+  const charge = bestWindow(points, hours, "low");
+  const discharge = bestWindow(points, hours, "high");
+  if (charge?.avg == null || discharge?.avg == null) return null;
+  return {
+    gross: discharge.avg - charge.avg,
+    net: discharge.avg * 0.85 - charge.avg,
+    charge,
+    discharge,
+  };
+}
+
+function solarCaptureSignal(points: PricePoint[]) {
+  const weighted = points
+    .map((point) => {
+      const hour = belgradeHour(point.ts);
+      const shape = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
+      return { price: point.price, weight: shape };
+    })
+    .filter((point) => point.weight > 0);
+  const weight = weighted.reduce((sum, point) => sum + point.weight, 0);
+  if (!weight) return null;
+  const capture = weighted.reduce((sum, point) => sum + point.price * point.weight, 0) / weight;
+  const base = mean(points.map((point) => point.price));
+  return base == null ? null : { capture, rate: (capture / base) * 100 };
+}
+
+function stats(points: PricePoint[]) {
+  const prices = points.map((point) => point.price);
+  const peak = points.filter((point) => {
+    const hour = belgradeHour(point.ts);
+    return hour >= 8 && hour < 20;
+  });
+  const offpeak = points.filter((point) => {
+    const hour = belgradeHour(point.ts);
+    return hour < 8 || hour >= 20;
+  });
+  const bess2 = batterySpread(points, 2);
+  const bess4 = batterySpread(points, 4);
+  const solar = solarCaptureSignal(points);
+  return {
+    baseload: mean(prices),
+    peakload: mean(peak.map((point) => point.price)),
+    offpeak: mean(offpeak.map((point) => point.price)),
+    min: prices.length ? Math.min(...prices) : null,
+    max: prices.length ? Math.max(...prices) : null,
+    volatility: stdev(prices),
+    negativeIntervals: prices.filter((price) => price < 0).length,
+    solar,
+    bess2,
+    bess4,
+    cheapest: bestWindow(points, 3, "low"),
+    highest: bestWindow(points, 3, "high"),
+  };
+}
+
+function price(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? "N/A" : fmtNum(value, 1);
+}
+
+function roleKpis(
+  role: DashboardRole,
+  period: ReturnType<typeof stats>,
+  privateMessage: string,
+): KpiConfig[] {
+  const common = {
+    baseload: {
+      label: "Serbia day-ahead baseload",
+      value: price(period.baseload),
+      unit: "EUR/MWh",
+    },
+    peakload: { label: "Serbia peakload", value: price(period.peakload), unit: "EUR/MWh" },
+    neg: {
+      label: "Negative-price intervals",
+      value: String(period.negativeIntervals),
+      unit: "intervals",
+    },
+    volatility: { label: "Volatility", value: price(period.volatility), unit: "EUR/MWh" },
+    bess2: { label: "2h BESS net spread", value: price(period.bess2?.net), unit: "EUR/MWh" },
+    bess4: { label: "4h BESS net spread", value: price(period.bess4?.net), unit: "EUR/MWh" },
+  } satisfies Record<string, KpiConfig>;
+
+  if (role === "producer") {
+    return [
+      common.baseload,
+      {
+        label: "Solar capture price",
+        value: price(period.solar?.capture),
+        unit: "EUR/MWh",
+        hint: "Modelled public market signal using a generic daylight production shape.",
+      },
+      {
+        label: "Solar capture rate",
+        value: period.solar ? fmtNum(period.solar.rate, 1) : "N/A",
+        unit: "%",
+      },
+      common.neg,
+      common.bess2,
+      { label: "Revenue metric", value: "N/A", hint: privateMessage },
+    ];
+  }
+  if (role === "consumer") {
+    return [
+      { label: "Market reference price", value: price(period.baseload), unit: "EUR/MWh" },
+      { label: "Peak-period price", value: price(period.peakload), unit: "EUR/MWh" },
+      { label: "Off-peak price", value: price(period.offpeak), unit: "EUR/MWh" },
+      { label: "Cheapest interval avg", value: price(period.cheapest?.avg), unit: "EUR/MWh" },
+      { label: "Most expensive avg", value: price(period.highest?.avg), unit: "EUR/MWh" },
+      common.volatility,
+    ];
+  }
+  if (role === "vpp") {
+    return [
+      common.volatility,
+      common.neg,
+      common.bess2,
+      common.bess4,
+      { label: "Upward opportunity", value: price(period.highest?.avg), unit: "EUR/MWh" },
+      { label: "Downward opportunity", value: price(period.cheapest?.avg), unit: "EUR/MWh" },
+    ];
+  }
+  if (role === "battery") {
+    return [
+      common.bess2,
+      common.bess4,
+      { label: "Cheapest charge window", value: price(period.cheapest?.avg), unit: "EUR/MWh" },
+      { label: "Highest discharge window", value: price(period.highest?.avg), unit: "EUR/MWh" },
+      common.neg,
+      common.volatility,
+    ];
+  }
+  if (role === "investor") {
+    return [
+      common.baseload,
+      {
+        label: "Solar capture price",
+        value: price(period.solar?.capture),
+        unit: "EUR/MWh",
+      },
+      {
+        label: "Capture rate",
+        value: period.solar ? fmtNum(period.solar.rate, 1) : "N/A",
+        unit: "%",
+      },
+      common.neg,
+      {
+        label: "Forward reference",
+        value: "Open outlook",
+        hint: "Uses public futures snapshot page.",
+      },
+      {
+        label: "Project calculator",
+        value: "Wizard",
+        hint: "Open Project Economics for assumptions.",
+      },
+    ];
+  }
+  return [
+    common.baseload,
+    common.peakload,
+    { label: "Minimum price", value: price(period.min), unit: "EUR/MWh" },
+    { label: "Maximum price", value: price(period.max), unit: "EUR/MWh" },
+    common.neg,
+    common.volatility,
+  ];
+}
+
+function MarketSignalCard({
+  title,
+  severity,
+  text,
+  to,
+}: {
+  title: string;
+  severity: "Positive" | "Neutral" | "Warning" | "Critical";
+  text: string;
+  to: string;
 }) {
+  const color =
+    severity === "Positive"
+      ? "border-success/40 bg-success/10"
+      : severity === "Warning"
+        ? "border-warning/40 bg-warning/10"
+        : severity === "Critical"
+          ? "border-destructive/40 bg-destructive/10"
+          : "border-border/70 bg-card";
   return (
-    <div className="space-y-1.5">
-      <div className="font-medium">{opts.metric}</div>
-      <div>
-        <span className="text-muted-foreground">Source:</span> ENTSO-E DA (Serbia SEEPEX, EIC
-        10YCS-SERBIATSOV)
-      </div>
-      <div>
-        <span className="text-muted-foreground">Range:</span> {opts.range}
-      </div>
-      <div>
-        <span className="text-muted-foreground">Time zone:</span> Europe/Belgrade
-      </div>
-      <div>
-        <span className="text-muted-foreground">Method:</span> {opts.formula}
-      </div>
-      <div>
-        <span className="text-muted-foreground">Sample:</span> {opts.hours} hours · {opts.days}{" "}
-        complete day(s)
-      </div>
-      {opts.lastUpdate && (
+    <div className={`rounded-lg border p-4 ${color}`}>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-muted-foreground">Updated:</span>{" "}
-          {opts.lastUpdate.toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}
+          <div className="text-sm font-semibold">{title}</div>
+          <p className="mt-1 text-sm text-muted-foreground">{text}</p>
         </div>
-      )}
+        {severity === "Critical" || severity === "Warning" ? (
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+        ) : (
+          <Info className="h-4 w-4 shrink-0" />
+        )}
+      </div>
+      <Link
+        to={to}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
+      >
+        Open analysis <ArrowRight className="h-3 w-3" />
+      </Link>
     </div>
   );
 }
 
-function OverviewPage() {
+function TodayPage() {
   const { t } = useLang();
-  const requestedRange = useRequestedRangeKeys();
-  const live = useQuery({
-    queryKey: [
-      "market-prices",
-      requestedRange.fromKey,
-      requestedRange.toKey,
-      requestedRange.preset,
-    ],
-    queryFn: () =>
-      fetchMarketPrices({ data: { from: requestedRange.fromKey, to: requestedRange.toKey } }),
+  const { range } = useDateRange();
+  const { role, selectedRole, selectedPortfolio, privateDataRequiredMessage } = useWorkspace();
+  const prices = useQuery({
+    queryKey: ["today-prices", range.from, range.to],
+    queryFn: () => fetchMarketPrices({ data: { from: range.from, to: range.to } }),
     staleTime: 5 * 60_000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
   });
-  const hasReal = (live.data?.points?.length ?? 0) > 0;
 
-  const data = useMemo<HourlyPrice[]>(
-    () => (live.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
-    [live.data],
+  const points = useMemo<PricePoint[]>(
+    () => (prices.data?.points ?? []).map((point) => ({ ts: point.ts, price: point.price })),
+    [prices.data],
   );
+  const period = useMemo(() => stats(points), [points]);
+  const kpis = roleKpis(role, period, privateDataRequiredMessage);
+  const chartData = points.map((point) => ({
+    ts: new Date(point.ts).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      timeZone: "Europe/Belgrade",
+    }),
+    price: Number(point.price.toFixed(2)),
+  }));
+  const roleTitle = t(selectedRole.en, selectedRole.sr);
+  const portfolioTitle = t(selectedPortfolio.en, selectedPortfolio.sr);
 
-  const buckets = useMemo(() => bucketByBelgradeDay(data), [data]);
-  const completeDays = useMemo(() => buckets.filter((b) => b.complete), [buckets]);
-  const incompleteCount = buckets.length - completeDays.length;
-  const firstAvailable = completeDays[0]?.date;
-  const latestAvailable = completeDays[completeDays.length - 1]?.date;
-  const lastTs = data[data.length - 1]?.ts;
+  if (prices.isLoading) return <PageLoadingSkeleton />;
 
-  const { fromKey, toKey, range } = useDashboardRange({ firstAvailable, latestAvailable });
-
-  const period = useMemo(() => aggregatePeriod(buckets, fromKey, toKey), [buckets, fromKey, toKey]);
-
-  // Rolling references (independent of selected range)
-  const last7 = useMemo(() => completeDays.slice(-7), [completeDays]);
-  const last30 = useMemo(() => completeDays.slice(-30), [completeDays]);
-  const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
-  const baseload30 = last30.length
-    ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length
-    : NaN;
-
-  // Monthly series — every month spanned by the selected analysis range
-  const monthly = useMemo(() => {
-    if (completeDays.length === 0 || !fromKey || !toKey) return [];
-    const agg = new Map<string, { sum: number; n: number; neg: number }>();
-    for (const b of completeDays) {
-      if (b.key < fromKey || b.key > toKey) continue;
-      const k = b.key.slice(0, 7); // YYYY-MM
-      const cur = agg.get(k) ?? { sum: 0, n: 0, neg: 0 };
-      cur.sum += b.baseload;
-      cur.n += 1;
-      cur.neg += b.hours.filter((h) => h.price < 0).length;
-      agg.set(k, cur);
-    }
-    const months: string[] = [];
-    const [fy, fm] = fromKey.split("-").map(Number);
-    const [ty, tm] = toKey.split("-").map(Number);
-    let y = fy,
-      m = fm;
-    while (y < ty || (y === ty && m <= tm)) {
-      months.push(`${y}-${String(m).padStart(2, "0")}`);
-      m += 1;
-      if (m > 12) {
-        m = 1;
-        y += 1;
-      }
-    }
-    const sameYear = fy === ty;
-    return months.map((ym) => {
-      const v = agg.get(ym);
-      return {
-        month: sameYear ? ym.slice(5) : ym,
-        baseload: v && v.n ? +(v.sum / v.n).toFixed(1) : null,
-        negHours: v ? v.neg : 0,
-      };
-    });
-  }, [completeDays, fromKey, toKey]);
-
-  // Daily chart (in-range)
-  const inRangeDaily = useMemo(
-    () =>
-      buckets
-        .filter((b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey))
-        .map((b) => ({
-          day: b.key.slice(5),
-          baseload: +b.baseload.toFixed(1),
-          peakload: b.peakload != null ? +b.peakload.toFixed(1) : null,
-        })),
-    [buckets, fromKey, toKey],
-  );
-
-  const last48Chart = useMemo(
-    () =>
-      data.slice(-48).map((p) => ({
-        t: p.ts.toISOString().slice(5, 16).replace("T", " "),
-        price: +p.price.toFixed(1),
-      })),
-    [data],
-  );
-
-  if (live.isLoading) {
-    return <PageLoadingSkeleton />;
-  }
-  if (!hasReal) {
+  if (!points.length) {
     return (
-      <DataUnavailableState
-        title={t("Live ENTSO-E data unavailable", "ENTSO-E podaci trenutno nisu dostupni")}
-        description={
-          <>
-            {t(
-              "We could not retrieve the latest Serbian day-ahead price data for the selected period. Try retrying live data or selecting a different range.",
-              "Nismo uspeli da preuzmemo najnovije day-ahead cene za Srbiju u izabranom periodu. Pokušajte ponovo ili izaberite drugi period.",
-            )}
-            {live.isError && <span className="mt-1 block text-critical">{String(live.error)}</span>}
-          </>
-        }
-        onRetry={() => live.refetch()}
+      <AssetEmptyState
+        title={t("Public market data unavailable", "Javni trzisni podaci nisu dostupni")}
+        description={t(
+          "No Serbian day-ahead prices are available for the selected period. Metrics are not replaced with zero.",
+          "Za izabrani period nema dostupnih day-ahead cena za Srbiju. Metrike nisu zamenjene nulom.",
+        )}
       />
     );
   }
 
-  const rangeLabel = range
-    ? `${range.from.toISOString().slice(0, 10)} → ${range.to.toISOString().slice(0, 10)}`
-    : "—";
+  const summary =
+    period.negativeIntervals > 0
+      ? t(
+          `Negative prices occurred in ${period.negativeIntervals} interval(s), so flexible consumption and storage charging windows deserve attention.`,
+          `Negativne cene su zabelezene u ${period.negativeIntervals} intervala, pa treba pratiti fleksibilnu potrosnju i punjenje baterija.`,
+        )
+      : period.bess2?.net != null && period.bess2.net > 30
+        ? t(
+            `The 2-hour battery net spread is ${fmtNum(period.bess2.net, 1)} EUR/MWh, indicating a strong public arbitrage signal.`,
+            `Neto 2h baterijski spread je ${fmtNum(period.bess2.net, 1)} EUR/MWh, sto ukazuje na jak javni arbitrazni signal.`,
+          )
+        : t(
+            "Serbian prices are available for the selected period; monitor volatility and regional spreads before acting.",
+            "Cene za Srbiju su dostupne za izabrani period; pratite volatilnost i regionalne spreadove pre odluke.",
+          );
 
   return (
     <div className="space-y-6">
-      <DataStatusBanner
-        source={(live.data?.source as "entsoe" | "cache" | "none") ?? "none"}
-        lastUpdate={lastTs}
-        hours={data.length}
-        completeDays={period.completeDaysCount}
-        incompleteDays={incompleteCount}
-        selectedFrom={fromKey}
-        selectedTo={toKey}
-        availableFrom={live.data?.loadedFrom ?? completeDays[0]?.key}
-        availableTo={live.data?.loadedTo ?? completeDays[completeDays.length - 1]?.key}
-        missingDays={live.data?.missingDays?.length ?? 0}
-        reasons={live.data?.reasons}
-        incompleteDayList={live.data?.incompleteDays}
-        failedFetches={live.data?.failedFetches}
-        totalSelectedDays={live.data?.totalSelectedDays}
-        attemptedDaysCount={live.data?.attemptedDaysCount}
-        fetchedDaysCount={live.data?.fetchedDaysCount}
-        failureCounts={live.data?.failureCounts}
-        capReached={live.data?.capReached}
-        maxFetchPerCall={live.data?.maxFetchPerCall}
-        debugSummary={live.data?.debugSummary}
-      />
+      <section className="rounded-lg border border-border/70 bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t("Today workspace", "Danasnji radni prostor")}
+            </div>
+            <h2 className="mt-1 text-2xl font-semibold">
+              {roleTitle} · {portfolioTitle}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{summary}</p>
+          </div>
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/dashboard/portfolio" search={{ view: selectedRole.defaultPortfolioView }}>
+              {t("Open portfolio view", "Otvori portfolio prikaz")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
 
-      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {kpis.map((kpi) => (
+          <KpiCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            unit={kpi.unit}
+            hint={kpi.hint}
+          />
+        ))}
+      </section>
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label={t("Baseload (period)", "Bazna cena u periodu")}
-          value={fmt(period.baseload)}
-          unit="EUR/MWh"
-          hint={methodology({
-            metric: "Period baseload",
-            range: rangeLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
-            formula:
-              "Mean of daily baseloads (each = mean of 24 hourly prices) over complete days only.",
-            lastUpdate: lastTs,
-          })}
-        />
-        <KpiCard
-          label={t("Peakload (period)", "Peakload u periodu")}
-          value={fmt(period.peakload ?? NaN)}
-          unit="EUR/MWh"
-          hint={methodology({
-            metric: "Period peakload",
-            range: rangeLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
-            formula:
-              "Mean of daily peakloads (Mon–Fri 08:00–20:00 Europe/Belgrade) over complete days.",
-            lastUpdate: lastTs,
-          })}
-        />
-        <KpiCard
-          label={t("Negative hours", "Sati sa negativnom cenom")}
-          value={period.negHours}
-          unit={t("hours", "sati")}
-          hint={methodology({
-            metric: "Negative price hours",
-            range: rangeLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
-            formula: "Count of hourly DA prices < 0 EUR/MWh in the selected range.",
-          })}
-        />
-        <KpiCard
-          label={t("Volatility (σ)", "Volatilnost (σ)")}
-          value={fmt(period.sd)}
-          unit="EUR/MWh"
-          hint={methodology({
-            metric: "Volatility",
-            range: rangeLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
-            formula: "Population standard deviation of hourly DA prices in the range.",
-          })}
-        />
-        <KpiCard
-          label={t("Min hour", "Najniži sat")}
-          value={fmt(period.minHour, 0)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          label={t("Max hour", "Najviši sat")}
-          value={fmt(period.maxHour, 0)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          label={t("7-day baseload", "Bazna cena 7 dana")}
-          value={fmt(baseload7)}
-          unit="EUR/MWh"
-          hint={methodology({
-            metric: "Rolling 7-day baseload",
-            range: `${last7[0]?.key ?? "?"} → ${last7[last7.length - 1]?.key ?? "?"}`,
-            hours: last7.reduce((a, b) => a + b.hours.length, 0),
-            days: last7.length,
-            formula: "Mean of last 7 complete daily baseloads.",
-          })}
-        />
-        <KpiCard
-          label={t("30-day baseload", "Bazna cena 30 dana")}
-          value={fmt(baseload30)}
-          unit="EUR/MWh"
-          hint={methodology({
-            metric: "Rolling 30-day baseload",
-            range: `${last30[0]?.key ?? "?"} → ${last30[last30.length - 1]?.key ?? "?"}`,
-            hours: last30.reduce((a, b) => a + b.hours.length, 0),
-            days: last30.length,
-            formula: "Mean of last 30 complete daily baseloads.",
-          })}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title={t("Hourly day-ahead price", "Satna day-ahead cena")}
-          description={t(
-            "Last 48 hours of SEEPEX-style hourly prices.",
-            "Poslednjih 48 sati satnih cena u SEEPEX formatu.",
-          )}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
+      <section className="rounded-lg border border-border/70 bg-card p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">
+              {t("Primary market chart", "Glavni trzisni grafikon")}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "Serbia day-ahead price profile for the selected delivery period.",
+                "Profil day-ahead cena Srbije za izabrani period isporuke.",
+              )}
+            </p>
+          </div>
+          <div className="text-xs text-muted-foreground">{fmtPrice(period.baseload)} average</div>
+        </div>
+        <div className="h-[360px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ left: 4, right: 12, top: 10, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
-              <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
-              <Line
-                type="monotone"
-                dataKey="price"
-                stroke="var(--color-chart-1)"
-                strokeWidth={2}
-                dot={false}
+              <XAxis dataKey="ts" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} unit=" €/MWh" width={78} />
+              <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
+              <RTooltip
+                formatter={(value) => [`${fmtNum(Number(value), 2)} EUR/MWh`, "Serbia DA"]}
+                contentStyle={{
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  fontSize: 12,
+                }}
               />
+              <Line dataKey="price" stroke="#1ec8c8" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </div>
+      </section>
 
-        <ChartCard
-          title={t("Daily baseload & peakload (period)", "Dnevna bazna cena i peakload u periodu")}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <MarketSignalCard
+          title={t("Negative-price exposure", "Izlozenost negativnim cenama")}
+          severity={period.negativeIntervals > 0 ? "Warning" : "Neutral"}
+          text={t(
+            `${period.negativeIntervals} interval(s) below 0 EUR/MWh in the selected period.`,
+            `${period.negativeIntervals} intervala ispod 0 EUR/MWh u izabranom periodu.`,
+          )}
+          to="/dashboard/markets/spot"
+        />
+        <MarketSignalCard
+          title={t("Battery arbitrage window", "Baterijski arbitrazni prozor")}
+          severity={period.bess2?.net != null && period.bess2.net > 30 ? "Positive" : "Neutral"}
+          text={t(
+            `Indicative 2h net spread: ${price(period.bess2?.net)} EUR/MWh. This is not guaranteed revenue.`,
+            `Indikativni 2h neto spread: ${price(period.bess2?.net)} EUR/MWh. Ovo nije garantovan prihod.`,
+          )}
+          to="/dashboard/portfolio"
+        />
+        <MarketSignalCard
+          title={t("Private-data readiness", "Spremnost privatnih podataka")}
+          severity={selectedPortfolio.kind === "public" ? "Neutral" : "Warning"}
+          text={
+            selectedPortfolio.kind === "public"
+              ? t(
+                  "Public Serbia Market profile is active; portfolio-specific metrics are not assumed.",
+                  "Aktivan je javni profil trzista Srbije; portfolio metrike se ne pretpostavljaju.",
+                )
+              : t(
+                  "Connect or upload asset data before calculating revenue, cost, dispatch or settlement metrics.",
+                  "Povezite ili ucitajte podatke asseta pre racunanja prihoda, troska, dispatch-a ili poravnanja.",
+                )
+          }
+          to="/dashboard/portfolio"
+        />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <AssetEmptyState
+          title={t("Asset data connection", "Povezivanje podataka asseta")}
           description={t(
-            "In selected range. Peakload = Mon–Fri 08:00–20:00.",
-            "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.",
+            "Upload or connect production, consumption, schedules, contracts or meter data to calculate private financial and operational metrics.",
+            "Ucitajte ili povezite proizvodnju, potrosnju, planove, ugovore ili merne podatke za privatne finansijske i operativne metrike.",
           )}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={inRangeDaily}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
-              <Legend />
-              <Bar
-                dataKey="baseload"
-                fill="var(--color-chart-1)"
-                name={t("Baseload", "Bazna cena")}
-              />
-              <Bar
-                dataKey="peakload"
-                fill="var(--color-chart-3)"
-                name={t("Peakload", "Peakload")}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
-              <Line
-                type="monotone"
-                dataKey="baseload"
-                stroke="var(--color-chart-2)"
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}
-        >
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
-              <Bar dataKey="negHours" fill="var(--color-critical)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card text-sm space-y-2">
-        <h3 className="font-display text-lg">
-          {t("Data check & methodology", "Provera podataka i metodologija")}
-        </h3>
-        <p className="text-muted-foreground">
-          {t(
-            "Baseload prices are computed as the simple mean of daily baseloads, where each daily baseload is the simple mean of that day's 24 hourly SEEPEX DA prices in Europe/Belgrade local time. Incomplete days (DST or today-so-far) are excluded so that month-to-date numbers are comparable with exchange-published averages.",
-            "Bazne cene se računaju kao prost prosek dnevnih baznih cena, pri čemu je dnevna bazna cena prost prosek satnih SEEPEX DA cena u lokalnom vremenu Europe/Belgrade. Nepotpuni dani, uključujući DST dane ili tekući dan, izuzimaju se kako bi MTD vrednosti bile uporedive sa berzanskim prosekom.",
-          )}
-        </p>
-        <p className="text-muted-foreground">
-          {t(
-            "If you see a small gap vs SEEPEX WB — note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on any KPI to see exact range, hours included and last update.",
-            "Ako vidite manje odstupanje u odnosu na SEEPEX WB, imajte u vidu da je SEEPEX WB regionalna referenca za Zapadni Balkan; ova platforma koristi srpsku bidding zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na KPI karticama za tačan period, uključene sate i poslednje ažuriranje.",
-          )}
-        </p>
-      </div>
+        />
+        <div className="rounded-lg border border-border/70 bg-card p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <TrendingUp className="h-4 w-4" />
+            {t("What to watch next", "Sta pratiti dalje")}
+          </div>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li>
+              {t(
+                "Compare Serbia against Hungary, Romania and Bulgaria in Spot Markets.",
+                "Poredite Srbiju sa Madjarskom, Rumunijom i Bugarskom u Spot trzistima.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Check public futures and fundamental drivers in Forwards & Outlook.",
+                "Proverite futures i fundamentalne faktore u Terminskim cenama i izgledima.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Review border flow, capacity and utilization in System & Borders.",
+                "Pregledajte tokove, kapacitet i iskoriscenost u Sistemu i granicama.",
+              )}
+            </li>
+          </ul>
+          <Button asChild variant="ghost" className="mt-4 gap-2 px-0">
+            <Link to="/dashboard/markets/outlook">
+              <BatteryCharging className="h-4 w-4" />
+              {t("Open outlook", "Otvori izglede")}
+            </Link>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

@@ -110,6 +110,7 @@ export function demoLoadGen(zone: ZoneCode, dayISO: string) {
       ts: new Date(day.getTime() + h * 3600_000).toISOString(),
       load_mw: Math.round(load),
       gen_mw: Math.round(gen),
+      durationMinutes: 60,
     };
   });
 }

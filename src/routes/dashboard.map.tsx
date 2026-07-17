@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { legacyDashboardRedirect } from "@/lib/dashboard-redirect";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/dashboard/map")({
-  beforeLoad: ({ search }) => legacyDashboardRedirect("/dashboard/flows", search, "map"),
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboard/markets/system" });
+  },
 });

@@ -4,6 +4,7 @@ import {
   fetchDayAheadPrices,
   fetchDayAheadPricesRange,
   fetchPhysicalFlows,
+  fetchPhysicalFlowsRange,
   fetchExplicitAllocation,
   fetchOutages,
   fetchLoadGen,
@@ -26,6 +27,7 @@ import {
   type ProductType,
 } from "./markets";
 import { PRICE_MARKET_CODES } from "./price-markets";
+import { integratePowerSeries } from "./units";
 
 const belgradeDateISO = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -367,25 +369,51 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
     const borders = await Promise.all(
       RS_BORDERS.map(async (neighbour) => {
         // import = neighbour -> RS, export = RS -> neighbour
-        const impParts = await Promise.all(days.map((d) => fetchPhysicalFlows(neighbour, "RS", d)));
-        const expParts = await Promise.all(days.map((d) => fetchPhysicalFlows("RS", neighbour, d)));
+        const [imp, exp] = await Promise.all([
+          fetchPhysicalFlowsRange(neighbour, "RS", days[0], days[days.length - 1]),
+          fetchPhysicalFlowsRange("RS", neighbour, days[0], days[days.length - 1]),
+        ]);
         const capImp = await fetchExplicitAllocation(neighbour, "RS", "daily", days[0]);
         const capExp = await fetchExplicitAllocation("RS", neighbour, "daily", days[0]);
 
-        const impByTs = new Map<string, number>();
-        const expByTs = new Map<string, number>();
-        for (const r of impParts)
-          for (const p of r.data.points)
-            impByTs.set(p.ts, (impByTs.get(p.ts) ?? 0) + (Number.isFinite(p.mw) ? p.mw : 0));
-        for (const r of expParts)
-          for (const p of r.data.points)
-            expByTs.set(p.ts, (expByTs.get(p.ts) ?? 0) + (Number.isFinite(p.mw) ? p.mw : 0));
+        const impByTs = new Map<string, { mw: number; durationMinutes?: number }>();
+        const expByTs = new Map<string, { mw: number; durationMinutes?: number }>();
+        for (const p of imp.data.points) {
+          const cur = impByTs.get(p.ts) ?? { mw: 0, durationMinutes: p.durationMinutes };
+          cur.mw += Number.isFinite(p.mw) ? p.mw : 0;
+          cur.durationMinutes =
+            cur.durationMinutes == null
+              ? p.durationMinutes
+              : Math.min(cur.durationMinutes, p.durationMinutes);
+          impByTs.set(p.ts, cur);
+        }
+        for (const p of exp.data.points) {
+          const cur = expByTs.get(p.ts) ?? { mw: 0, durationMinutes: p.durationMinutes };
+          cur.mw += Number.isFinite(p.mw) ? p.mw : 0;
+          cur.durationMinutes =
+            cur.durationMinutes == null
+              ? p.durationMinutes
+              : Math.min(cur.durationMinutes, p.durationMinutes);
+          expByTs.set(p.ts, cur);
+        }
 
         const allTs = Array.from(new Set([...impByTs.keys(), ...expByTs.keys()])).sort();
         const hourly = allTs.map((ts) => {
-          const imp = impByTs.get(ts) ?? 0;
-          const exp = expByTs.get(ts) ?? 0;
-          return { ts, imp_mw: imp, exp_mw: exp, net_mw: imp - exp };
+          const impPoint = impByTs.get(ts);
+          const expPoint = expByTs.get(ts);
+          const impMw = impPoint?.mw ?? 0;
+          const expMw = expPoint?.mw ?? 0;
+          const durations = [impPoint?.durationMinutes, expPoint?.durationMinutes].filter(
+            (duration): duration is number =>
+              typeof duration === "number" && Number.isFinite(duration),
+          );
+          return {
+            ts,
+            imp_mw: impMw,
+            exp_mw: expMw,
+            net_mw: impMw - expMw,
+            durationMinutes: durations.length ? Math.min(...durations) : undefined,
+          };
         });
 
         return {
@@ -393,10 +421,10 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
           hourly,
           capacity_imp_mw: capImp.data.offered_mw,
           capacity_exp_mw: capExp.data.offered_mw,
-          source_imp: impParts[0]?.source ?? "empty",
-          source_exp: expParts[0]?.source ?? "empty",
+          source_imp: imp.source,
+          source_exp: exp.source,
           cap_source: capImp.source,
-          fetched_at: impParts[0]?.fetched_at ?? new Date().toISOString(),
+          fetched_at: imp.fetched_at,
         };
       }),
     );
@@ -414,6 +442,7 @@ type Wb6FlowRow = {
   from_zone: string;
   to_zone: string;
   flow_mw: number | string | null;
+  durationMinutes?: number | null;
 };
 
 export const getWb6Balance = createServerFn({ method: "GET" })
@@ -472,18 +501,18 @@ export const getWb6Balance = createServerFn({ method: "GET" })
       const pairs = BORDERS.filter(
         ([from, to]) => WB6_ZONES.includes(from) || WB6_ZONES.includes(to),
       );
-      const tasks = pairs.flatMap(([from, to]) =>
-        days.map(
-          (day) => async () =>
-            fetchPhysicalFlows(from, to, day).then((result) =>
+      const tasks = pairs.map(
+        ([from, to]) =>
+          async () =>
+            fetchPhysicalFlowsRange(from, to, days[0], days[days.length - 1]).then((result) =>
               result.data.points.map((point) => ({
                 datetime: point.ts,
                 from_zone: from,
                 to_zone: to,
                 flow_mw: point.mw,
+                durationMinutes: point.durationMinutes,
               })),
             ),
-        ),
       );
       const fallback = await allSettledBounded(tasks, 4);
       rawRows = fallback.flatMap((result): Wb6FlowRow[] =>
@@ -510,6 +539,8 @@ export const getWb6Balance = createServerFn({ method: "GET" })
         externalExportsMwh: number;
         rowCount: number;
         timestamps: Set<string>;
+        coverageWeightedPctSum: number;
+        coverageSeriesCount: number;
       }
     >();
     const hourlyAcc = new Map<string, Record<ZoneCode, number>>();
@@ -536,6 +567,8 @@ export const getWb6Balance = createServerFn({ method: "GET" })
           externalExportsMwh: 0,
           rowCount: 0,
           timestamps: new Set<string>(),
+          coverageWeightedPctSum: 0,
+          coverageSeriesCount: 0,
         };
         countryAcc.set(code, acc);
       }
@@ -571,41 +604,78 @@ export const getWb6Balance = createServerFn({ method: "GET" })
       counterpartyAcc.set(key, acc);
     };
 
+    const rowsByDirectedBorder = new Map<string, Wb6FlowRow[]>();
     for (const raw of rawRows) {
       const fromRaw = raw.from_zone as ZoneCode;
       const toRaw = raw.to_zone as ZoneCode;
-      const parsed = Number(raw.flow_mw);
-      if (!Number.isFinite(parsed) || fromRaw === toRaw) continue;
-
-      const reverse = parsed < 0;
-      const from = reverse ? toRaw : fromRaw;
-      const to = reverse ? fromRaw : toRaw;
-      const flow = Math.abs(parsed);
-      const fromIsWb6 = WB6_ZONES.includes(from);
-      const toIsWb6 = WB6_ZONES.includes(to);
+      if (fromRaw === toRaw) continue;
+      const fromIsWb6 = WB6_ZONES.includes(fromRaw);
+      const toIsWb6 = WB6_ZONES.includes(toRaw);
       if (!fromIsWb6 && !toIsWb6) continue;
+      const key = `${fromRaw}|${toRaw}`;
+      const rows = rowsByDirectedBorder.get(key) ?? [];
+      rows.push(raw);
+      rowsByDirectedBorder.set(key, rows);
+    }
 
-      const ts = raw.datetime;
-      const row = hourlyRow(ts);
-      if (fromIsWb6) {
-        const acc = ensureCountry(from);
-        acc.exportsMwh += flow;
-        acc.rowCount += 1;
-        acc.timestamps.add(ts);
-        row[from] -= flow;
-        if (toIsWb6) acc.internalExportsMwh += flow;
-        else acc.externalExportsMwh += flow;
-        addCounterparty(from, to, "exportsMwh", flow);
-      }
-      if (toIsWb6) {
-        const acc = ensureCountry(to);
-        acc.importsMwh += flow;
-        acc.rowCount += 1;
-        acc.timestamps.add(ts);
-        row[to] += flow;
-        if (fromIsWb6) acc.internalImportsMwh += flow;
-        else acc.externalImportsMwh += flow;
-        addCounterparty(to, from, "importsMwh", flow);
+    let intervalsUsed = 0;
+    let intervalsSkipped = 0;
+    let usedDurationMinutes = 0;
+    let expectedDurationMinutes = 0;
+
+    for (const [key, rows] of rowsByDirectedBorder) {
+      const [fromRaw, toRaw] = key.split("|") as [ZoneCode, ZoneCode];
+      const integration = integratePowerSeries(
+        rows.map((row) => ({
+          ts: row.datetime,
+          mw: Number(row.flow_mw),
+          durationMinutes: row.durationMinutes,
+        })),
+      );
+      intervalsUsed += integration.intervalsUsed;
+      intervalsSkipped += integration.intervalsSkipped;
+      usedDurationMinutes += integration.usedDurationMinutes;
+      expectedDurationMinutes += integration.expectedDurationMinutes ?? 0;
+
+      for (const interval of integration.intervals) {
+        const reverse = interval.mwh < 0;
+        const from = reverse ? toRaw : fromRaw;
+        const to = reverse ? fromRaw : toRaw;
+        const flowMw = Math.abs(interval.mw);
+        const energyMWh = Math.abs(interval.mwh);
+        const fromIsWb6 = WB6_ZONES.includes(from);
+        const toIsWb6 = WB6_ZONES.includes(to);
+        if (!fromIsWb6 && !toIsWb6) continue;
+
+        const row = hourlyRow(interval.ts);
+        if (fromIsWb6) {
+          const acc = ensureCountry(from);
+          acc.exportsMwh += energyMWh;
+          acc.rowCount += 1;
+          acc.timestamps.add(interval.ts);
+          if (integration.coveragePct != null) {
+            acc.coverageWeightedPctSum += integration.coveragePct;
+            acc.coverageSeriesCount += 1;
+          }
+          row[from] -= flowMw;
+          if (toIsWb6) acc.internalExportsMwh += energyMWh;
+          else acc.externalExportsMwh += energyMWh;
+          addCounterparty(from, to, "exportsMwh", energyMWh);
+        }
+        if (toIsWb6) {
+          const acc = ensureCountry(to);
+          acc.importsMwh += energyMWh;
+          acc.rowCount += 1;
+          acc.timestamps.add(interval.ts);
+          if (integration.coveragePct != null) {
+            acc.coverageWeightedPctSum += integration.coveragePct;
+            acc.coverageSeriesCount += 1;
+          }
+          row[to] += flowMw;
+          if (fromIsWb6) acc.internalImportsMwh += energyMWh;
+          else acc.externalImportsMwh += energyMWh;
+          addCounterparty(to, from, "importsMwh", energyMWh);
+        }
       }
     }
 
@@ -615,7 +685,11 @@ export const getWb6Balance = createServerFn({ method: "GET" })
       const exportsMwh = Math.round(acc.exportsMwh);
       const netMwh = importsMwh - exportsMwh;
       const hoursWithData = acc.timestamps.size;
-      const coveragePct = expectedHours ? (hoursWithData / expectedHours) * 100 : 0;
+      const coveragePct = acc.coverageSeriesCount
+        ? Math.min(100, acc.coverageWeightedPctSum / acc.coverageSeriesCount)
+        : expectedHours
+          ? Math.min(100, (hoursWithData / expectedHours) * 100)
+          : 0;
       const totalExchange = importsMwh + exportsMwh;
       return {
         code,
@@ -686,6 +760,15 @@ export const getWb6Balance = createServerFn({ method: "GET" })
               ? "Some WB6 countries have no cached physical-flow rows in the selected period."
               : null,
       expectedHours,
+      integration: {
+        intervalsUsed,
+        intervalsSkipped,
+        usedDurationMinutes,
+        expectedDurationMinutes,
+        coveragePct: expectedDurationMinutes
+          ? Math.min(100, (usedDurationMinutes / expectedDurationMinutes) * 100)
+          : null,
+      },
       rows: rawRows.length,
       countries,
       hourly,

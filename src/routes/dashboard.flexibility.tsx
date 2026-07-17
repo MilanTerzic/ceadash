@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { legacyDashboardRedirect } from "@/lib/dashboard-redirect";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/dashboard/flexibility")({
-  beforeLoad: ({ search }) => legacyDashboardRedirect("/dashboard/capture", search, "flexibility"),
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboard/portfolio", search: { view: "vpp" } });
+  },
 });

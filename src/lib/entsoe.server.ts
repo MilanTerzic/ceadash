@@ -648,6 +648,7 @@ export interface LoadGenPoint {
   ts: string;
   load_mw: number;
   gen_mw: number;
+  durationMinutes?: number;
 }
 export interface ActualLoadPoint {
   ts: string;
@@ -790,14 +791,18 @@ export async function fetchLoadGen(
     fetchActualLoadRange(zone, dayISO, dayISO),
     fetchActualGenerationRange(zone, dayISO, dayISO),
   ]);
-  const genByTs = new Map(gen.data.points.map((p) => [p.ts, p.gen_mw]));
+  const genByTs = new Map(gen.data.points.map((p) => [p.ts, p]));
   const rows = load.data.points
     .filter((p) => genByTs.has(p.ts))
-    .map((p) => ({
-      ts: p.ts,
-      load_mw: p.load_mw,
-      gen_mw: genByTs.get(p.ts)!,
-    }));
+    .map((p) => {
+      const genPoint = genByTs.get(p.ts)!;
+      return {
+        ts: p.ts,
+        load_mw: p.load_mw,
+        gen_mw: genPoint.gen_mw,
+        durationMinutes: Math.min(p.durationMinutes, genPoint.durationMinutes),
+      };
+    });
   if (!rows.length || !gen.data.points.length) {
     return staleCacheOrEmpty(
       key,

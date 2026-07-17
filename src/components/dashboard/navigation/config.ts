@@ -2,10 +2,9 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BookOpen,
+  BriefcaseBusiness,
   FileChartColumn,
   LayoutDashboard,
-  TrendingUp,
-  Zap,
 } from "lucide-react";
 
 export type LocalizedLabel = {
@@ -30,134 +29,61 @@ export type DashboardNavGroup = {
 
 export const dashboardNavGroups: DashboardNavGroup[] = [
   {
-    id: "overview",
-    label: { en: "Overview", sr: "Pregled" },
+    id: "today",
+    label: { en: "Today", sr: "Danas" },
     icon: LayoutDashboard,
     to: "/dashboard",
   },
   {
     id: "markets",
-    label: { en: "Markets", sr: "Tržišta" },
+    label: { en: "Markets", sr: "Trzista" },
     icon: BarChart3,
     items: [
       {
-        id: "prices",
-        to: "/dashboard/prices",
-        label: { en: "Prices & Spreads", sr: "Cene i spreadovi" },
+        id: "spot",
+        to: "/dashboard/markets/spot",
+        label: { en: "Spot Markets", sr: "Spot trzista" },
         description: {
-          en: "Market summary, hourly profiles and regional spreads",
-          sr: "Pregled tržišta, satni profili i regionalni spreadovi",
+          en: "Day-ahead prices, spreads, heatmaps and regional comparison",
+          sr: "Day-ahead cene, spreadovi, heatmap i regionalno poredjenje",
         },
       },
       {
-        id: "flows",
-        to: "/dashboard/flows",
-        label: { en: "Cross-Border & Flows", sr: "Granice i tokovi" },
+        id: "outlook",
+        to: "/dashboard/markets/outlook",
+        label: { en: "Forwards & Outlook", sr: "Terminske cene i izgledi" },
         description: {
-          en: "Capacity, utilization, physical flows and route map",
-          sr: "Kapacitet, iskorišćenost, fizički tokovi i mapa ruta",
+          en: "Futures, forecasts, weather, outages and hydrology",
+          sr: "Futures, prognoze, vreme, ispadi i hidrologija",
         },
       },
       {
-        id: "balance",
-        to: "/dashboard/balance",
-        label: { en: "Regional & Serbia Balance", sr: "Regionalni i srpski bilans" },
+        id: "system",
+        to: "/dashboard/markets/system",
+        label: { en: "System & Borders", sr: "Sistem i granice" },
         description: {
-          en: "Serbia position, WB6 comparison and net-balance analysis",
-          sr: "Pozicija Srbije, WB6 poređenje i neto bilans",
+          en: "Flows, capacity, utilization, Serbia and WB6 balance",
+          sr: "Tokovi, kapacitet, iskoriscenost, Srbija i WB6 bilans",
         },
       },
     ],
   },
   {
-    id: "outlook",
-    label: { en: "Outlook", sr: "Izgledi" },
-    icon: Zap,
-    items: [
-      {
-        id: "futures",
-        to: "/dashboard/futures",
-        label: { en: "Futures & Forecast", sr: "Fjučersi i prognoza" },
-        description: {
-          en: "Forward curves, forecast inputs and assumptions",
-          sr: "Forward krive, ulazi za prognozu i pretpostavke",
-        },
-      },
-      {
-        id: "fundamentals",
-        to: "/dashboard/outages",
-        label: { en: "System Fundamentals", sr: "Fundamenti sistema" },
-        description: {
-          en: "Outages, weather and hydrology",
-          sr: "Ispadi, vreme i hidrologija",
-        },
-      },
-    ],
+    id: "portfolio",
+    label: { en: "Portfolio & Flexibility", sr: "Portfolio i fleksibilnost" },
+    icon: BriefcaseBusiness,
+    to: "/dashboard/portfolio",
   },
   {
-    id: "intelligence",
-    label: { en: "Market Intelligence", sr: "Tržišna analitika" },
+    id: "reports",
+    label: { en: "Reports", sr: "Izvestaji" },
     icon: FileChartColumn,
-    items: [
-      {
-        id: "reports",
-        to: "/dashboard/market-report",
-        label: { en: "CEA Reports", sr: "CEA izveštaji" },
-        description: {
-          en: "Market report, weekly brief and export-ready outputs",
-          sr: "Tržišni izveštaj, nedeljni pregled i izvozi",
-        },
-      },
-      {
-        id: "signals-news",
-        to: "/dashboard/insights",
-        label: { en: "Signals & News", sr: "Signali i vesti" },
-        description: {
-          en: "Analytical signals plus news and policy monitor",
-          sr: "Analitički signali i pregled vesti i regulative",
-        },
-      },
-    ],
-  },
-  {
-    id: "renewables",
-    label: { en: "Renewables", sr: "OIE" },
-    icon: TrendingUp,
-    items: [
-      {
-        id: "res-flex",
-        to: "/dashboard/capture",
-        label: { en: "RES & Flexibility", sr: "OIE i fleksibilnost" },
-        description: {
-          en: "Capture prices, negative-price exposure and BESS signals",
-          sr: "Capture cene, izloženost negativnim cenama i BESS signali",
-        },
-      },
-      {
-        id: "project-economics",
-        to: "/dashboard/calculator",
-        label: { en: "Project Economics", sr: "Ekonomika projekata" },
-        description: {
-          en: "Solar project economics and CBAM export impacts",
-          sr: "Ekonomika solara i CBAM uticaj na izvoz",
-        },
-      },
-    ],
+    to: "/dashboard/reports",
   },
   {
     id: "more",
-    label: { en: "More", sr: "Još" },
+    label: { en: "More", sr: "Vise" },
     icon: BookOpen,
-    items: [
-      {
-        id: "methodology",
-        to: "/dashboard/methodology",
-        label: { en: "Methodology & Data Status", sr: "Metodologija i status podataka" },
-        description: {
-          en: "Calculation methodology, providers, cache and configuration",
-          sr: "Metodologija, provajderi, keš i konfiguracija",
-        },
-      },
-    ],
+    to: "/dashboard/more",
   },
 ];
