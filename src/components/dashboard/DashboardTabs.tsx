@@ -24,6 +24,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 import {
   dashboardNavGroups,
@@ -49,6 +50,12 @@ function primaryDestination(group: DashboardNavGroup) {
 export function DashboardTabs() {
   const { pathname } = useLocation();
   const { t } = useLang();
+  const { range } = useDateRange();
+  const rangeSearch = {
+    preset: "custom" as const,
+    from: range.from,
+    to: range.to,
+  };
 
   return (
     <div className="sticky top-[73px] z-20 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
@@ -63,6 +70,7 @@ export function DashboardTabs() {
                 <Link
                   key={group.id}
                   to={directTo}
+                  search={rangeSearch}
                   className={cn(
                     "inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors",
                     active
@@ -101,6 +109,7 @@ export function DashboardTabs() {
                     <DropdownMenuItem key={item.id} asChild>
                       <Link
                         to={item.to}
+                        search={rangeSearch}
                         className={cn(
                           "flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-3 py-2",
                           pathname === item.to && "bg-muted text-primary",
@@ -147,6 +156,7 @@ export function DashboardTabs() {
                       <SheetClose asChild key={group.id}>
                         <Link
                           to={directTo}
+                          search={rangeSearch}
                           className={cn(
                             "flex min-h-11 items-center gap-3 rounded-xl border border-border/70 px-3 text-sm font-medium",
                             active
@@ -179,6 +189,7 @@ export function DashboardTabs() {
                           <SheetClose asChild key={item.id}>
                             <Link
                               to={item.to}
+                              search={rangeSearch}
                               className={cn(
                                 "block rounded-lg px-3 py-2 text-sm",
                                 pathname === item.to

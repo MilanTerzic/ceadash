@@ -263,6 +263,7 @@ function MarketSignalCard({
   text: string;
   to: string;
 }) {
+  const { range } = useDateRange();
   const color =
     severity === "Positive"
       ? "border-success/40 bg-success/10"
@@ -286,6 +287,7 @@ function MarketSignalCard({
       </div>
       <Link
         to={to}
+        search={{ preset: "custom", from: range.from, to: range.to }}
         className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
       >
         Open analysis <ArrowRight className="h-3 w-3" />
@@ -366,7 +368,15 @@ function TodayPage() {
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{summary}</p>
           </div>
           <Button asChild variant="outline" className="gap-2">
-            <Link to="/dashboard/portfolio" search={{ view: selectedRole.defaultPortfolioView }}>
+            <Link
+              to="/dashboard/portfolio"
+              search={{
+                view: selectedRole.defaultPortfolioView,
+                preset: "custom",
+                from: range.from,
+                to: range.to,
+              }}
+            >
               {t("Open portfolio view", "Otvori portfolio prikaz")}
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -493,7 +503,10 @@ function TodayPage() {
             </li>
           </ul>
           <Button asChild variant="ghost" className="mt-4 gap-2 px-0">
-            <Link to="/dashboard/markets/outlook">
+            <Link
+              to="/dashboard/markets/outlook"
+              search={{ preset: "custom", from: range.from, to: range.to }}
+            >
               <BatteryCharging className="h-4 w-4" />
               {t("Open outlook", "Otvori izglede")}
             </Link>

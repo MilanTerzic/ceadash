@@ -102,6 +102,7 @@ export function DataQualityIndicator({
 }) {
   const { t } = useLang();
   const navigate = useNavigate();
+  const { range } = useDateRange();
   const statusLabel =
     status == null
       ? t("Data status", "Status podataka")
@@ -139,7 +140,15 @@ export function DataQualityIndicator({
         const event = new Event("cea:data-quality", { cancelable: true });
         const unhandled = window.dispatchEvent(event);
         if (unhandled) {
-          void navigate({ to: "/dashboard/more", search: { tab: "data" } });
+          void navigate({
+            to: "/dashboard/more",
+            search: {
+              tab: "data",
+              preset: "custom",
+              from: range.from,
+              to: range.to,
+            },
+          });
         }
       }}
     >

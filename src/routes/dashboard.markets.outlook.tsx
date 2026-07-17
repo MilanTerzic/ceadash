@@ -3,6 +3,7 @@ import { Activity, CloudSun, Droplets, Factory, LineChart, TrendingUp } from "lu
 
 import { AssetEmptyState } from "@/components/dashboard/WorkspaceSelectors";
 import { Button } from "@/components/ui/button";
+import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/markets/outlook")({
@@ -57,6 +58,7 @@ const outlookCards = [
 
 function OutlookPage() {
   const { t } = useLang();
+  const { range } = useDateRange();
   return (
     <div className="space-y-6">
       <section>
@@ -94,10 +96,18 @@ function OutlookPage() {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
-          <Link to="/dashboard/reports">{t("Open reports", "Otvori izvestaje")}</Link>
+          <Link
+            to="/dashboard/reports"
+            search={{ preset: "custom", from: range.from, to: range.to }}
+          >
+            {t("Open reports", "Otvori izvestaje")}
+          </Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/dashboard/markets/system">
+          <Link
+            to="/dashboard/markets/system"
+            search={{ preset: "custom", from: range.from, to: range.to }}
+          >
             {t("Open system signals", "Otvori sistemske signale")}
           </Link>
         </Button>

@@ -4,10 +4,14 @@ import { z } from "zod";
 
 import { AssetEmptyState } from "@/components/dashboard/WorkspaceSelectors";
 import { Button } from "@/components/ui/button";
+import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
 const reportsSearch = z.object({
   tab: z.enum(["overview", "cea", "signals", "news"]).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  preset: z.enum(["today", "d1", "7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
 });
 
 export const Route = createFileRoute("/dashboard/reports")({
@@ -50,6 +54,7 @@ function ReportsPage() {
   const { t } = useLang();
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const { range } = useDateRange();
   const activeTab = search.tab ?? "overview";
   return (
     <div className="space-y-6">
@@ -89,7 +94,18 @@ function ReportsPage() {
               type="button"
               variant={activeTab === "cea" ? "default" : "outline"}
               className="gap-2"
-              onClick={() => navigate({ to: "/dashboard/reports", search: { tab: "cea" } })}
+              onClick={() =>
+                navigate({
+                  to: "/dashboard/reports",
+                  search: {
+                    ...search,
+                    tab: "cea",
+                    preset: "custom",
+                    from: range.from,
+                    to: range.to,
+                  },
+                })
+              }
             >
               <Newspaper className="h-4 w-4" />
               {t("CEA report preview", "Pregled CEA izvestaja")}

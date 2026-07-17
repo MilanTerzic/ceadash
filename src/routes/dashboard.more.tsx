@@ -3,10 +3,14 @@ import { BookOpen, Database, Info, Settings } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
 const moreSearch = z.object({
   tab: z.enum(["methodology", "data", "settings", "about"]).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  preset: z.enum(["today", "d1", "7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
 });
 
 export const Route = createFileRoute("/dashboard/more")({
@@ -17,6 +21,7 @@ export const Route = createFileRoute("/dashboard/more")({
 
 function MorePage() {
   const { t } = useLang();
+  const { range } = useDateRange();
   const cards = [
     {
       title: t("Methodology", "Metodologija"),
@@ -76,7 +81,15 @@ function MorePage() {
               <h3 className="mt-3 text-base font-semibold">{card.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{card.text}</p>
               <Button asChild variant="ghost" className="mt-3 px-0">
-                <Link to="/dashboard/more" search={{ tab: card.tab }}>
+                <Link
+                  to="/dashboard/more"
+                  search={{
+                    tab: card.tab,
+                    preset: "custom",
+                    from: range.from,
+                    to: range.to,
+                  }}
+                >
                   {t("Open", "Otvori")}
                 </Link>
               </Button>
