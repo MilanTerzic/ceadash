@@ -1,26 +1,19 @@
-import { formatPowerMW } from "./units";
-
 export const fmtEur = (v: number | null | undefined, digits = 2) =>
   v == null || !Number.isFinite(v)
     ? "—"
     : `€${v.toLocaleString("en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
-
 export const fmtNum = (v: number | null | undefined, digits = 1) =>
   v == null || !Number.isFinite(v)
     ? "—"
     : v.toLocaleString("en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-
 export const fmtMW = (v: number | null | undefined) =>
-  v == null || !Number.isFinite(v) ? "—" : formatPowerMW(v);
-
+  v == null || !Number.isFinite(v) ? "—" : `${fmtNum(v, 0)} MW`;
 export const fmtPrice = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v) ? "—" : `${fmtNum(v, 2)} €/MWh`;
-
 export const fmtPct = (v: number | null | undefined, digits = 1) =>
   v == null || !Number.isFinite(v)
     ? "—"
     : `${v.toLocaleString("en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
-
 export const fmtHour = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", {
     hour: "2-digit",

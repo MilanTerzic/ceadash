@@ -118,8 +118,6 @@ export const ENTSOE_DOCUMENT_TYPES = {
   generation_unit_unavailability: "A80",
   system_total_load: "A65",
   actual_generation: "A75",
-  imbalance_prices: "A85",
-  imbalance_volumes: "A86",
 } as const;
 
 export const MARKET_AGREEMENT_TYPES = {

@@ -21,8 +21,6 @@ const TTL = {
   flow_past: 7 * 24 * 3600,
   cap_today: 30 * 60,
   cap_past: 7 * 24 * 3600,
-  imbalance_today: 30 * 60,
-  imbalance_past: 7 * 24 * 3600,
   outages: 60 * 60, // 1h
   loadgen_today: 30 * 60,
   loadgen_past: 24 * 3600,
@@ -147,7 +145,7 @@ async function entsoeRaw(params: Record<string, string>): Promise<string> {
         signal: controller.signal,
       });
       lastStatus = res.status;
-      if (res.status === 200) return decodeEntsoePayload(await res.arrayBuffer());
+      if (res.status === 200) return await res.text();
       if (!isRetryableEntsoeStatus(res.status) || attempt === 1) {
         if (res.status === 400) throw new Error("entsoe_no_data");
         if (res.status === 401 || res.status === 403) throw new Error("entsoe_unauthorized");
@@ -166,67 +164,6 @@ async function entsoeRaw(params: Record<string, string>): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
   }
   throw new Error(`entsoe_http_${lastStatus || "unknown"}`);
-}
-
-function findSignature(bytes: Uint8Array, signature: number, from = bytes.length - 4) {
-  for (let index = from; index >= 0; index--) {
-    if (
-      bytes[index] === (signature & 0xff) &&
-      bytes[index + 1] === ((signature >> 8) & 0xff) &&
-      bytes[index + 2] === ((signature >> 16) & 0xff) &&
-      bytes[index + 3] === ((signature >> 24) & 0xff)
-    ) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-async function inflateRaw(bytes: Uint8Array) {
-  const DecompressionStreamCtor = globalThis.DecompressionStream as
-    (new (format: string) => DecompressionStream) | undefined;
-  if (!DecompressionStreamCtor) throw new Error("zip_inflate_unavailable");
-  const input = bytes.slice();
-  const stream = new Blob([input.buffer])
-    .stream()
-    .pipeThrough(new DecompressionStreamCtor("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-async function unzipFirstXml(bytes: Uint8Array) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const centralDir = findSignature(bytes, 0x02014b50);
-  let method: number;
-  let compressedSize: number;
-  let localHeaderOffset: number;
-  if (centralDir >= 0) {
-    method = view.getUint16(centralDir + 10, true);
-    compressedSize = view.getUint32(centralDir + 20, true);
-    localHeaderOffset = view.getUint32(centralDir + 42, true);
-  } else if (view.getUint32(0, true) === 0x04034b50) {
-    method = view.getUint16(8, true);
-    compressedSize = view.getUint32(18, true);
-    localHeaderOffset = 0;
-  } else {
-    throw new Error("zip_entry_not_found");
-  }
-  const nameLength = view.getUint16(localHeaderOffset + 26, true);
-  const extraLength = view.getUint16(localHeaderOffset + 28, true);
-  const dataOffset = localHeaderOffset + 30 + nameLength + extraLength;
-  const compressed = bytes.slice(dataOffset, dataOffset + compressedSize);
-  if (method === 0) return compressed;
-  if (method === 8) return inflateRaw(compressed);
-  throw new Error(`zip_method_${method}_unsupported`);
-}
-
-async function decodeEntsoePayload(payload: ArrayBuffer) {
-  const bytes = new Uint8Array(payload);
-  const decoded = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.length, 200))).trimStart();
-  if (decoded.startsWith("<")) return new TextDecoder().decode(bytes);
-  if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-    return new TextDecoder().decode(await unzipFirstXml(bytes));
-  }
-  return new TextDecoder().decode(bytes);
 }
 
 // --- Tiny XML utilities -----------------------------------------------------
@@ -320,67 +257,6 @@ function parseTimeSeriesIntervals(xml: string): Array<{
         if (!Number.isFinite(value)) continue;
         const ts2 = new Date(startMs + (pos - 1) * durationMinutes * 60_000).toISOString();
         out.push({ ts: ts2, value, durationMinutes, productionType, mRID });
-      }
-    }
-  }
-  return out.sort((a, b) => a.ts.localeCompare(b.ts));
-}
-
-function tagOneAny(xml: string, tags: string[]): string | null {
-  for (const tag of tags) {
-    const value = tagOne(xml, tag);
-    if (value != null) return value;
-  }
-  return null;
-}
-
-function parseBalancingSeries(xml: string): Array<{
-  ts: string;
-  value: number;
-  durationMinutes: number;
-  businessType?: string;
-  category?: string;
-  direction?: string;
-  status?: string;
-}> {
-  const clean = stripNs(xml);
-  const out: Array<{
-    ts: string;
-    value: number;
-    durationMinutes: number;
-    businessType?: string;
-    category?: string;
-    direction?: string;
-    status?: string;
-  }> = [];
-  for (const ts of tagAll(clean, "TimeSeries")) {
-    const businessType = tagOne(ts, "businessType") ?? undefined;
-    const status = tagOne(ts, "docStatus") ?? tagOne(ts, "DocStatus") ?? undefined;
-    for (const period of tagAll(ts, "Period")) {
-      const start = tagOne(period, "start");
-      if (!start) continue;
-      const startMs = Date.parse(start);
-      const durationMinutes = parseResolutionMinutes(tagOne(period, "resolution"));
-      for (const point of tagAll(period, "Point")) {
-        const pos = parseInt(tagOne(point, "position") ?? "1", 10);
-        const rawValue = tagOneAny(point, [
-          "imbalance_Price.amount",
-          "price.amount",
-          "quantity",
-          "secondaryQuantity",
-        ]);
-        if (rawValue == null) continue;
-        const value = Number(rawValue);
-        if (!Number.isFinite(value)) continue;
-        out.push({
-          ts: new Date(startMs + (pos - 1) * durationMinutes * 60_000).toISOString(),
-          value,
-          durationMinutes,
-          businessType,
-          category: tagOne(point, "imbalance_Price.category") ?? undefined,
-          direction: tagOne(point, "flowDirection.direction") ?? undefined,
-          status,
-        });
       }
     }
   }
@@ -746,132 +622,6 @@ export async function fetchExplicitAllocation(
   }
 }
 
-export interface ImbalancePricePoint {
-  ts: string;
-  price_eur_mwh: number;
-  durationMinutes: number;
-  businessType?: string;
-  category?: string;
-}
-
-export interface ImbalanceVolumePoint {
-  ts: string;
-  volume_mwh: number;
-  durationMinutes: number;
-  businessType?: string;
-  direction?: string;
-}
-
-export async function fetchImbalancePricesRange(
-  zone: ZoneCode,
-  fromISO: string,
-  toISO: string,
-  demo = false,
-  force = false,
-): Promise<FetchResult<{ zone: ZoneCode; points: ImbalancePricePoint[] }>> {
-  const key = `imbalance_prices_range:v1:${zone}:${fromISO}:${toISO}`;
-  const emptyData = { zone, points: [] as ImbalancePricePoint[] };
-  const ttl =
-    toISO < new Date().toISOString().slice(0, 10) ? TTL.imbalance_past : TTL.imbalance_today;
-  if (!force) {
-    const cached = await cacheGet<typeof emptyData>(key, ttl);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
-  }
-  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
-  try {
-    const startOffsetH = cetOffsetHours(fromISO);
-    const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
-    const afterTo = new Date(Date.parse(toISO + "T00:00:00Z") + 24 * 3600_000)
-      .toISOString()
-      .slice(0, 10);
-    const endOffsetH = cetOffsetHours(afterTo);
-    const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-    const xml = await entsoeRaw({
-      documentType: ENTSOE_DOCUMENT_TYPES.imbalance_prices,
-      controlArea_Domain: ZONES[zone].eic,
-      periodStart: ymdh(start),
-      periodEnd: ymdh(end),
-    });
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-    const points = parseBalancingSeries(xml)
-      .filter((point) => {
-        const t = Date.parse(point.ts);
-        return t >= startMs && t < endMs;
-      })
-      .map((point) => ({
-        ts: point.ts,
-        price_eur_mwh: point.value,
-        durationMinutes: point.durationMinutes,
-        businessType: point.businessType,
-        category: point.category,
-      }));
-    if (!points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
-    const payload = { zone, points };
-    await cacheSet(key, payload, ttl);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : "error";
-    return staleCacheOrEmpty(key, emptyData, reason);
-  }
-}
-
-export async function fetchImbalanceVolumesRange(
-  zone: ZoneCode,
-  fromISO: string,
-  toISO: string,
-  demo = false,
-  force = false,
-): Promise<FetchResult<{ zone: ZoneCode; points: ImbalanceVolumePoint[] }>> {
-  const key = `imbalance_volumes_range:v1:${zone}:${fromISO}:${toISO}`;
-  const emptyData = { zone, points: [] as ImbalanceVolumePoint[] };
-  const ttl =
-    toISO < new Date().toISOString().slice(0, 10) ? TTL.imbalance_past : TTL.imbalance_today;
-  if (!force) {
-    const cached = await cacheGet<typeof emptyData>(key, ttl);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
-  }
-  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
-  try {
-    const startOffsetH = cetOffsetHours(fromISO);
-    const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
-    const afterTo = new Date(Date.parse(toISO + "T00:00:00Z") + 24 * 3600_000)
-      .toISOString()
-      .slice(0, 10);
-    const endOffsetH = cetOffsetHours(afterTo);
-    const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-    const xml = await entsoeRaw({
-      documentType: ENTSOE_DOCUMENT_TYPES.imbalance_volumes,
-      controlArea_Domain: ZONES[zone].eic,
-      periodStart: ymdh(start),
-      periodEnd: ymdh(end),
-    });
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-    const points = parseBalancingSeries(xml)
-      .filter((point) => {
-        const t = Date.parse(point.ts);
-        return t >= startMs && t < endMs;
-      })
-      .map((point) => ({
-        ts: point.ts,
-        volume_mwh: point.value,
-        durationMinutes: point.durationMinutes,
-        businessType: point.businessType,
-        direction: point.direction,
-      }));
-    if (!points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
-    const payload = { zone, points };
-    await cacheSet(key, payload, ttl);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : "error";
-    return staleCacheOrEmpty(key, emptyData, reason);
-  }
-}
-
 export interface OutageRow {
   unit: string;
   zone: ZoneCode;
@@ -898,7 +648,6 @@ export interface LoadGenPoint {
   ts: string;
   load_mw: number;
   gen_mw: number;
-  durationMinutes?: number;
 }
 export interface ActualLoadPoint {
   ts: string;
@@ -1041,18 +790,14 @@ export async function fetchLoadGen(
     fetchActualLoadRange(zone, dayISO, dayISO),
     fetchActualGenerationRange(zone, dayISO, dayISO),
   ]);
-  const genByTs = new Map(gen.data.points.map((p) => [p.ts, p]));
+  const genByTs = new Map(gen.data.points.map((p) => [p.ts, p.gen_mw]));
   const rows = load.data.points
     .filter((p) => genByTs.has(p.ts))
-    .map((p) => {
-      const genPoint = genByTs.get(p.ts)!;
-      return {
-        ts: p.ts,
-        load_mw: p.load_mw,
-        gen_mw: genPoint.gen_mw,
-        durationMinutes: Math.min(p.durationMinutes, genPoint.durationMinutes),
-      };
-    });
+    .map((p) => ({
+      ts: p.ts,
+      load_mw: p.load_mw,
+      gen_mw: genByTs.get(p.ts)!,
+    }));
   if (!rows.length || !gen.data.points.length) {
     return staleCacheOrEmpty(
       key,

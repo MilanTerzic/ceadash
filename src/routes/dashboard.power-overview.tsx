@@ -1,7 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { legacyDashboardRedirect } from "@/lib/dashboard-redirect";
 
 export const Route = createFileRoute("/dashboard/power-overview")({
-  beforeLoad: () => {
-    throw redirect({ to: "/dashboard" });
-  },
+  beforeLoad: ({ search }) => legacyDashboardRedirect("/dashboard", search),
 });
