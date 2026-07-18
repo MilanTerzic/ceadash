@@ -862,6 +862,7 @@ export const getOutages = createServerFn({ method: "GET" })
       to,
       rows: [...seen.values()],
       reason: firstReason,
+      fetched_at: new Date().toISOString(),
     };
   });
 
