@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOutages } from "@/lib/data.functions";
 import { TopBar } from "@/components/top-bar";
 import { Panel } from "@/components/panel";
@@ -13,7 +13,7 @@ import {
   useRequestedRangeKeys,
 } from "@/components/dashboard/DateRangeControl";
 import { Download, AlertTriangle, Wrench } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/dashboard/outages")({
   head: () => ({ meta: [{ title: "Outages — CEA Power Dashboard" }] }),
@@ -22,7 +22,9 @@ export const Route = createFileRoute("/dashboard/outages")({
 
 function OutagesPage() {
   const fn = useServerFn(getOutages);
+  const queryClient = useQueryClient();
   const { fromKey, toKey } = useRequestedRangeKeys();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const q = useQuery({
     queryKey: ["outages", fromKey, toKey],
     queryFn: () => fn({ data: { from: fromKey, to: toKey } }),
@@ -52,7 +54,17 @@ function OutagesPage() {
       <TopBar
         title="Outages (A77/A80)"
         subtitle={`${rows.length} units unavailable · ${fmtMW(totalMW)} impacted`}
-        onRefresh={() => q.refetch()}
+        onRefresh={async () => {
+          setIsRefreshing(true);
+          try {
+            const fresh = await fn({ data: { from: fromKey, to: toKey, force: true } });
+            queryClient.setQueryData(["outages", fromKey, toKey], fresh);
+          } finally {
+            setIsRefreshing(false);
+          }
+        }}
+        isRefreshing={q.isFetching || isRefreshing}
+        lastRefresh={q.data?.fetched_at}
       />
       <div className="p-6 space-y-5">
         <DateRangeControl />

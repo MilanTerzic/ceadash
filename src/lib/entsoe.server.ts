@@ -183,6 +183,43 @@ function tagOne(xml: string, tag: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+function decodeXmlText(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
+function firstTag(section: string, tags: string[]): string | null {
+  for (const tag of tags) {
+    const value = decodeXmlText(tagOne(section, tag));
+    if (value) return value;
+  }
+  return null;
+}
+
+function quantitiesFromPeriod(period: string): number[] {
+  const quantities: number[] = [];
+  for (const point of tagAll(period, "Point")) {
+    const value = Number.parseFloat(
+      tagOne(point, "quantity") ?? tagOne(point, "value") ?? tagOne(point, "amount") ?? "",
+    );
+    if (Number.isFinite(value) && value > 0) quantities.push(value);
+  }
+  return quantities;
+}
+
+function outageTypeFromBusinessType(value: string | null): "forced" | "planned" {
+  const code = value?.trim().toUpperCase();
+  if (code === "A54" || code === "A55" || code === "B18") return "forced";
+  return "planned";
+}
+
 function avg(values: number[]): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
@@ -630,18 +667,126 @@ export interface OutageRow {
   start: string;
   end: string;
 }
+
+function parseOutageRows(
+  xml: string,
+  zone: ZoneCode,
+  startMs: number,
+  endMs: number,
+): OutageRow[] {
+  const clean = stripNs(xml);
+  const rows: OutageRow[] = [];
+  for (const ts of tagAll(clean, "TimeSeries")) {
+    const businessType = firstTag(ts, ["businessType", "BusinessType"]);
+    const type = outageTypeFromBusinessType(businessType);
+    const unit =
+      firstTag(ts, [
+        "production_RegisteredResource.name",
+        "production_RegisteredResource.mRID",
+        "registeredResource.name",
+        "registeredResource.mRID",
+        "mRID",
+      ]) ?? "Unknown unit";
+    const periods = [
+      ...tagAll(ts, "Period"),
+      ...tagAll(ts, "available_Period"),
+      ...tagAll(ts, "unavailable_Period"),
+    ];
+    for (const period of periods) {
+      const rowStart = firstTag(period, ["start"]);
+      const rowEnd = firstTag(period, ["end"]);
+      const rowStartMs = rowStart ? Date.parse(rowStart) : startMs;
+      const rowEndMs = rowEnd ? Date.parse(rowEnd) : endMs;
+      if (!Number.isFinite(rowStartMs) || !Number.isFinite(rowEndMs)) continue;
+      if (rowEndMs <= startMs || rowStartMs >= endMs) continue;
+      const quantities = quantitiesFromPeriod(period);
+      const mw = quantities.length ? Math.max(...quantities) : 0;
+      if (mw <= 0) continue;
+      rows.push({
+        zone,
+        unit,
+        mw,
+        type,
+        start: new Date(rowStartMs).toISOString(),
+        end: new Date(rowEndMs).toISOString(),
+      });
+    }
+  }
+  return rows;
+}
+
+function addDaysISO(dayISO: string, days: number): string {
+  const date = new Date(`${dayISO}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export async function fetchOutagesRange(
+  zone: ZoneCode,
+  fromISO: string,
+  toISO: string,
+  demo = false,
+  force = false,
+): Promise<FetchResult<OutageRow[]>> {
+  const key = `outages_range:v1:${zone}:${fromISO}:${toISO}`;
+  const emptyData: OutageRow[] = [];
+  if (!force) {
+    const cached = await cacheGet<OutageRow[]>(key, TTL.outages);
+    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
+  }
+  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
+  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
+  try {
+    const startOffsetH = cetOffsetHours(fromISO);
+    const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
+    const afterTo = addDaysISO(toISO, 1);
+    const endOffsetH = cetOffsetHours(afterTo);
+    const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
+    const baseParams = {
+      biddingZone_Domain: ZONES[zone].eic,
+      periodStart: ymdh(start),
+      periodEnd: ymdh(end),
+    };
+    const attempts = await Promise.all(
+      [
+        ENTSOE_DOCUMENT_TYPES.production_unit_unavailability,
+        ENTSOE_DOCUMENT_TYPES.generation_unit_unavailability,
+      ].map(async (documentType) => {
+        try {
+          const xml = await entsoeRaw({ ...baseParams, documentType });
+          return { rows: parseOutageRows(xml, zone, start.getTime(), end.getTime()) };
+        } catch (error) {
+          return { rows: [] as OutageRow[], reason: error instanceof Error ? error.message : "error" };
+        }
+      }),
+    );
+    const rows = attempts.flatMap((attempt) => attempt.rows);
+    if (!rows.length) {
+      const reason = attempts.find((attempt) => attempt.reason)?.reason ?? "no_data";
+      return staleCacheOrEmpty(key, emptyData, reason);
+    }
+    const byKey = new Map<string, OutageRow>();
+    for (const row of rows) {
+      const key2 = `${row.zone}|${row.unit}|${row.type}|${row.start}|${row.end}`;
+      const existing = byKey.get(key2);
+      if (!existing || row.mw > existing.mw) byKey.set(key2, row);
+    }
+    const payload = [...byKey.values()].sort((a, b) => b.mw - a.mw);
+    await cacheSet(key, payload, TTL.outages);
+    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "error";
+    return staleCacheOrEmpty(key, emptyData, reason);
+  }
+}
+
 export async function fetchOutages(
   zone: ZoneCode,
   dayISO: string,
   demo = false,
+  force = false,
 ): Promise<FetchResult<OutageRow[]>> {
-  const key = `outages:${zone}:${dayISO}`;
-  const emptyData: OutageRow[] = [];
-  const cached = await cacheGet<OutageRow[]>(key, DEFAULT_TTL);
-  if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
-  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
-  return staleCacheOrEmpty(key, emptyData, "outage_parser_not_implemented");
+  return fetchOutagesRange(zone, dayISO, dayISO, demo, force);
 }
 
 export interface LoadGenPoint {

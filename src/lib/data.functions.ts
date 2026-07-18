@@ -6,6 +6,7 @@ import {
   fetchPhysicalFlows,
   fetchExplicitAllocation,
   fetchOutages,
+  fetchOutagesRange,
   fetchLoadGen,
   validatePriceMarket,
 } from "./entsoe.server";
@@ -88,7 +89,7 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayISO()];
 }
 
-type RangeInput = { day?: string; from?: string; to?: string };
+type RangeInput = { day?: string; from?: string; to?: string; force?: boolean };
 
 const DA_ZONES = PRICE_MARKET_CODES;
 
@@ -830,14 +831,18 @@ export const getOutages = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const days = expandRange(data?.from, data?.to, data?.day);
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
-    // Fetch outages for every day in the requested range, across all zones.
-    const jobs = zones.flatMap((z) => days.map((d) => ({ zone: z, day: d })));
-    const results = await Promise.all(jobs.map((j) => fetchOutages(j.zone, j.day)));
+    const from = days[0];
+    const to = days[days.length - 1];
+    // Fetch the selected period in one ENTSO-E request per zone/document type.
+    const jobs = zones.map((z) => ({ zone: z, from, to }));
+    const results = await Promise.all(
+      jobs.map((j) => fetchOutagesRange(j.zone, j.from, j.to, false, Boolean(data?.force))),
+    );
     // Deduplicate by zone+unit+start+end so recurring daily A77/A80 snapshots
     // don't inflate row counts.
     const seen = new Map<string, ReturnType<typeof buildRow>>();
     function buildRow(
-      j: { zone: ZoneCode; day: string },
+      j: { zone: ZoneCode },
       o: (typeof results)[number]["data"][number],
       r: (typeof results)[number],
     ) {
@@ -846,17 +851,18 @@ export const getOutages = createServerFn({ method: "GET" })
     jobs.forEach((j, i) => {
       const r = results[i];
       for (const o of r.data) {
-        const k = `${j.zone}|${(o as { unit?: string }).unit ?? ""}|${(o as { start?: string }).start ?? ""}|${(o as { end?: string }).end ?? ""}`;
+      const k = `${j.zone}|${(o as { unit?: string }).unit ?? ""}|${(o as { type?: string }).type ?? ""}|${(o as { start?: string }).start ?? ""}|${(o as { end?: string }).end ?? ""}`;
         if (!seen.has(k)) seen.set(k, buildRow(j, o, r));
       }
     });
     const firstReason = results.find((r) => r.reason)?.reason;
     return {
       day: days[0],
-      from: days[0],
-      to: days[days.length - 1],
+      from,
+      to,
       rows: [...seen.values()],
       reason: firstReason,
+      fetched_at: new Date().toISOString(),
     };
   });
 
