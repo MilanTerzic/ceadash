@@ -89,7 +89,7 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayISO()];
 }
 
-type RangeInput = { day?: string; from?: string; to?: string };
+type RangeInput = { day?: string; from?: string; to?: string; force?: boolean };
 
 const DA_ZONES = PRICE_MARKET_CODES;
 
@@ -835,12 +835,14 @@ export const getOutages = createServerFn({ method: "GET" })
     const to = days[days.length - 1];
     // Fetch the selected period in one ENTSO-E request per zone/document type.
     const jobs = zones.map((z) => ({ zone: z, from, to }));
-    const results = await Promise.all(jobs.map((j) => fetchOutagesRange(j.zone, j.from, j.to)));
+    const results = await Promise.all(
+      jobs.map((j) => fetchOutagesRange(j.zone, j.from, j.to, false, Boolean(data?.force))),
+    );
     // Deduplicate by zone+unit+start+end so recurring daily A77/A80 snapshots
     // don't inflate row counts.
     const seen = new Map<string, ReturnType<typeof buildRow>>();
     function buildRow(
-      j: { zone: ZoneCode; day: string },
+      j: { zone: ZoneCode },
       o: (typeof results)[number]["data"][number],
       r: (typeof results)[number],
     ) {
