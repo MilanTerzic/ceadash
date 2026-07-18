@@ -55,6 +55,8 @@ function OutagesPage() {
         onRefresh={() => q.refetch()}
       />
       <div className="p-6 space-y-5">
+        <DateRangeControl />
+
         <div className="grid md:grid-cols-4 gap-4">
           <KPI
             label="Total impacted"
