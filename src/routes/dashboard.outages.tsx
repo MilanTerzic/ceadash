@@ -8,7 +8,10 @@ import { KPI } from "@/components/kpi";
 import { DataBadge } from "@/components/data-badge";
 import { fmtMW, downloadCSV } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { useDateRange } from "@/lib/date-range";
+import {
+  DateRangeControl,
+  useRequestedRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { Download, AlertTriangle, Wrench } from "lucide-react";
 import { useMemo } from "react";
 
@@ -19,10 +22,10 @@ export const Route = createFileRoute("/dashboard/outages")({
 
 function OutagesPage() {
   const fn = useServerFn(getOutages);
-  const { range } = useDateRange();
+  const { fromKey, toKey } = useRequestedRangeKeys();
   const q = useQuery({
-    queryKey: ["outages", range.from, range.to],
-    queryFn: () => fn({ data: { from: range.from, to: range.to } }),
+    queryKey: ["outages", fromKey, toKey],
+    queryFn: () => fn({ data: { from: fromKey, to: toKey } }),
   });
   const rows = q.data?.rows ?? [];
   const totalMW = rows.reduce((a, r) => a + r.mw, 0);
