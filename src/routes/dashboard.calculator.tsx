@@ -37,7 +37,7 @@ function CalculatorPage() {
       asset={asset}
       onAssetChange={(nextAsset) =>
         navigate({
-          search: (previous) => ({ ...previous, asset: nextAsset }),
+          search: (previous: Record<string, unknown>) => ({ ...previous, asset: nextAsset }),
           replace: true,
         })
       }

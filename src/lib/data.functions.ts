@@ -829,14 +829,34 @@ export const getOutages = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
     const days = expandRange(data?.from, data?.to, data?.day);
-    const day = days[0];
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
-    const res = await Promise.all(zones.map((z) => fetchOutages(z, day)));
+    // Fetch outages for every day in the requested range, across all zones.
+    const jobs = zones.flatMap((z) => days.map((d) => ({ zone: z, day: d })));
+    const results = await Promise.all(jobs.map((j) => fetchOutages(j.zone, j.day)));
+    // Deduplicate by zone+unit+start+end so recurring daily A77/A80 snapshots
+    // don't inflate row counts.
+    const seen = new Map<string, ReturnType<typeof buildRow>>();
+    function buildRow(
+      j: { zone: ZoneCode; day: string },
+      o: (typeof results)[number]["data"][number],
+      r: (typeof results)[number],
+    ) {
+      return { ...o, source: r.source, reason: r.reason };
+    }
+    jobs.forEach((j, i) => {
+      const r = results[i];
+      for (const o of r.data) {
+        const k = `${j.zone}|${(o as { unit?: string }).unit ?? ""}|${(o as { start?: string }).start ?? ""}|${(o as { end?: string }).end ?? ""}`;
+        if (!seen.has(k)) seen.set(k, buildRow(j, o, r));
+      }
+    });
+    const firstReason = results.find((r) => r.reason)?.reason;
     return {
-      day,
-      rows: zones.flatMap((z, i) =>
-        res[i].data.map((o) => ({ ...o, source: res[i].source, reason: res[i].reason })),
-      ),
+      day: days[0],
+      from: days[0],
+      to: days[days.length - 1],
+      rows: [...seen.values()],
+      reason: firstReason,
     };
   });
 
