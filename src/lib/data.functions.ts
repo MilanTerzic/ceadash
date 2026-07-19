@@ -10,7 +10,7 @@ import {
   fetchLoadGen,
   validatePriceMarket,
 } from "./entsoe.server";
-import { fetchWeather, fetchRiverDischarge } from "./openmeteo.server";
+import { fetchWeather, fetchWeatherRange, fetchRiverDischarge } from "./openmeteo.server";
 import { DANUBE_STATION_COORDS } from "./markets";
 import type { PricePoint } from "./trading-calculations";
 
@@ -870,22 +870,49 @@ export const getWeather = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
     const days = expandRange(data?.from, data?.to, data?.day);
-    const day = days[0];
+    const from = days[0];
+    const to = days[days.length - 1];
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
-    const res = await Promise.all(zones.map((z) => fetchWeather(z, day)));
-    return { day, rows: zones.map((z, i) => ({ zone: z, name: ZONES[z].name, ...res[i] })) };
+    const res = await Promise.all(
+      zones.map((z) => fetchWeatherRange(z, from, to, Boolean(data?.force))),
+    );
+    return {
+      day: from,
+      from,
+      to,
+      fetched_at: new Date().toISOString(),
+      rows: zones.map((z, i) => ({ zone: z, name: ZONES[z].name, ...res[i] })),
+    };
   });
 
 export const getBalance = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
     const days = expandRange(data?.from, data?.to, data?.day);
-    const parts = await Promise.all(days.map((d) => fetchLoadGen("RS", d)));
+    const parts = await allSettledBounded(
+      days.map((d) => () => fetchLoadGen("RS", d, false, Boolean(data?.force))),
+      4,
+    );
+    const fulfilled = parts
+      .filter((part): part is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchLoadGen>>> =>
+        part.status === "fulfilled",
+      )
+      .map((part) => part.value);
+    const firstRejected = parts.find((part) => part.status === "rejected");
     return {
       day: days[0],
-      points: parts.flatMap((p) => p.data),
-      source: parts[0]?.source,
-      reason: parts[0]?.reason,
+      from: days[0],
+      to: days[days.length - 1],
+      points: fulfilled.flatMap((p) => p.data),
+      source: fulfilled.find((p) => p.source === "live")?.source ?? fulfilled[0]?.source,
+      reason:
+        fulfilled.find((p) => p.reason)?.reason ??
+        (firstRejected?.status === "rejected"
+          ? firstRejected.reason instanceof Error
+            ? firstRejected.reason.message
+            : "error"
+          : undefined),
+      fetched_at: new Date().toISOString(),
     };
   });
 
@@ -916,11 +943,11 @@ export const getDanubeDischarge = createServerFn({ method: "GET" })
     const stations = Object.entries(DANUBE_STATION_COORDS);
     const res = await Promise.all(
       stations.map(async ([name, c]) => {
-        const r = await fetchRiverDischarge(c.lat, c.lon, from, to);
+        const r = await fetchRiverDischarge(c.lat, c.lon, from, to, Boolean(data?.force));
         return { name, ...r };
       }),
     );
-    return { from, to, stations: res };
+    return { from, to, fetched_at: new Date().toISOString(), stations: res };
   });
 
 // ---- Multi-product SEEPEX forecast (DA / Week / Month) ----------------------
