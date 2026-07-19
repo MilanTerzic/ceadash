@@ -924,16 +924,17 @@ export async function fetchLoadGen(
   zone: ZoneCode,
   dayISO: string,
   demo = false,
+  force = false,
 ): Promise<FetchResult<LoadGenPoint[]>> {
   const key = `loadgen:${zone}:${dayISO}`;
   const emptyData: LoadGenPoint[] = [];
-  const cached = await cacheGet<LoadGenPoint[]>(key, DEFAULT_TTL);
+  const cached = force ? null : await cacheGet<LoadGenPoint[]>(key, DEFAULT_TTL);
   if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
   if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
   const [load, gen] = await Promise.all([
-    fetchActualLoadRange(zone, dayISO, dayISO),
-    fetchActualGenerationRange(zone, dayISO, dayISO),
+    fetchActualLoadRange(zone, dayISO, dayISO, false, force),
+    fetchActualGenerationRange(zone, dayISO, dayISO, false, force),
   ]);
   const genByTs = new Map(gen.data.points.map((p) => [p.ts, p.gen_mw]));
   const rows = load.data.points

@@ -62,21 +62,31 @@ async function fetchWeatherVisualCrossing(
   lon: number,
   dayISO: string,
 ): Promise<WeatherPoint[]> {
+  return fetchWeatherVisualCrossingRange(lat, lon, dayISO, dayISO);
+}
+
+async function fetchWeatherVisualCrossingRange(
+  lat: number,
+  lon: number,
+  fromISO: string,
+  toISO: string,
+): Promise<WeatherPoint[]> {
   const key = process.env.VISUAL_CROSSING_API_KEY;
   if (!key) throw new Error("VISUAL_CROSSING_API_KEY not configured");
-  const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lon}/${dayISO}/${dayISO}?unitGroup=metric&include=hours&elements=datetime,temp,windspeed&key=${encodeURIComponent(key)}&contentType=json`;
+  const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lon}/${fromISO}/${toISO}?unitGroup=metric&include=hours&elements=datetime,temp,windspeed&key=${encodeURIComponent(key)}&contentType=json`;
   const j = (await fetchJson(url)) as {
     days?: Array<{
       datetime: string;
       hours?: Array<{ datetime: string; temp: number; windspeed: number }>;
     }>;
   };
-  const hours = j.days?.[0]?.hours ?? [];
-  return hours.map((h) => ({
-    ts: new Date(`${dayISO}T${h.datetime}Z`).toISOString(),
-    temp_c: h.temp,
-    wind_ms: (h.windspeed ?? 0) / 3.6,
-  }));
+  return (j.days ?? []).flatMap((day) =>
+    (day.hours ?? []).map((h) => ({
+      ts: new Date(`${day.datetime}T${h.datetime}Z`).toISOString(),
+      temp_c: h.temp,
+      wind_ms: (h.windspeed ?? 0) / 3.6,
+    })),
+  );
 }
 
 export async function fetchWeather(
@@ -87,15 +97,28 @@ export async function fetchWeather(
   source: "live" | "visual-crossing" | "cache" | "demo";
   reason?: string;
 }> {
+  return fetchWeatherRange(zone, dayISO, dayISO);
+}
+
+export async function fetchWeatherRange(
+  zone: ZoneCode,
+  fromISO: string,
+  toISO: string,
+  force = false,
+): Promise<{
+  data: WeatherPoint[];
+  source: "live" | "visual-crossing" | "cache" | "demo";
+  reason?: string;
+}> {
   const cap = ZONES[zone].capital;
   if (!cap) return { data: [], source: "demo", reason: "no_capital" };
-  const cacheKey = `weather:${zone}:${dayISO}`;
+  const cacheKey = `weather_range:v1:${zone}:${fromISO}:${toISO}`;
   const cached = await cacheGet<{ data: WeatherPoint[]; source: "live" | "visual-crossing" }>(
     cacheKey,
   );
-  if (cached) return { data: cached.data, source: "cache", reason: `was_${cached.source}` };
+  if (!force && cached) return { data: cached.data, source: "cache", reason: `was_${cached.source}` };
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cap.lat}&longitude=${cap.lon}&hourly=temperature_2m,wind_speed_10m&start_date=${dayISO}&end_date=${dayISO}&timezone=UTC`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cap.lat}&longitude=${cap.lon}&hourly=temperature_2m,wind_speed_10m&start_date=${fromISO}&end_date=${toISO}&timezone=UTC`;
     const j = (await fetchJson(url)) as {
       hourly?: { time: string[]; temperature_2m: number[]; wind_speed_10m: number[] };
     };
@@ -109,17 +132,17 @@ export async function fetchWeather(
     await cacheSet(
       cacheKey,
       { data, source: "live" },
-      isPastDay(dayISO) ? WEATHER_TTL_PAST : WEATHER_TTL_TODAY,
+      isPastDay(toISO) ? WEATHER_TTL_PAST : WEATHER_TTL_TODAY,
     );
     return { data, source: "live" };
   } catch (primary) {
     try {
-      const data = await fetchWeatherVisualCrossing(cap.lat, cap.lon, dayISO);
+      const data = await fetchWeatherVisualCrossingRange(cap.lat, cap.lon, fromISO, toISO);
       if (data.length) {
         await cacheSet(
           cacheKey,
           { data, source: "visual-crossing" },
-          isPastDay(dayISO) ? WEATHER_TTL_PAST : WEATHER_TTL_TODAY,
+          isPastDay(toISO) ? WEATHER_TTL_PAST : WEATHER_TTL_TODAY,
         );
         return { data, source: "visual-crossing", reason: "open_meteo_unavailable" };
       }
@@ -144,6 +167,7 @@ export async function fetchRiverDischarge(
   lon: number,
   from: string,
   to: string,
+  force = false,
 ): Promise<{
   data: DischargePoint[];
   source: "open-meteo" | "visual-crossing" | "cache" | "none";
@@ -154,7 +178,7 @@ export async function fetchRiverDischarge(
     data: DischargePoint[];
     source: "open-meteo" | "visual-crossing";
   }>(cacheKey);
-  if (cached) return { data: cached.data, source: "cache", reason: `was_${cached.source}` };
+  if (!force && cached) return { data: cached.data, source: "cache", reason: `was_${cached.source}` };
   try {
     const url = `https://flood-api.open-meteo.com/v1/flood?latitude=${lat}&longitude=${lon}&daily=river_discharge&start_date=${from}&end_date=${to}`;
     const j = (await fetchJson(url)) as {
