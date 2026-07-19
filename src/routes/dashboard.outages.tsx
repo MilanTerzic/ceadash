@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getOutages } from "@/lib/data.functions";
+import { getBalance, getDanubeDischarge, getOutages, getWeather } from "@/lib/data.functions";
 import { TopBar } from "@/components/top-bar";
 import { Panel } from "@/components/panel";
 import { KPI } from "@/components/kpi";
 import { DataBadge } from "@/components/data-badge";
-import { fmtMW, downloadCSV } from "@/lib/format";
+import { fmtMW, fmtNum, downloadCSV } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   DateRangeControl,
@@ -21,18 +21,55 @@ export const Route = createFileRoute("/dashboard/outages")({
 });
 
 function OutagesPage() {
-  const fn = useServerFn(getOutages);
+  const outagesFn = useServerFn(getOutages);
+  const weatherFn = useServerFn(getWeather);
+  const danubeFn = useServerFn(getDanubeDischarge);
+  const balanceFn = useServerFn(getBalance);
   const queryClient = useQueryClient();
   const { fromKey, toKey } = useRequestedRangeKeys();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const q = useQuery({
+  const outages = useQuery({
     queryKey: ["outages", fromKey, toKey],
-    queryFn: () => fn({ data: { from: fromKey, to: toKey } }),
+    queryFn: () => outagesFn({ data: { from: fromKey, to: toKey } }),
   });
-  const rows = q.data?.rows ?? [];
+  const weather = useQuery({
+    queryKey: ["fundamentals-weather", fromKey, toKey],
+    queryFn: () => weatherFn({ data: { from: fromKey, to: toKey } }),
+  });
+  const danube = useQuery({
+    queryKey: ["fundamentals-danube", fromKey, toKey],
+    queryFn: () => danubeFn({ data: { from: fromKey, to: toKey } }),
+  });
+  const balance = useQuery({
+    queryKey: ["fundamentals-balance", fromKey, toKey],
+    queryFn: () => balanceFn({ data: { from: fromKey, to: toKey } }),
+  });
+  const rows = outages.data?.rows ?? [];
   const totalMW = rows.reduce((a, r) => a + r.mw, 0);
   const forcedMW = rows.filter((r) => r.type === "forced").reduce((a, r) => a + r.mw, 0);
   const plannedMW = totalMW - forcedMW;
+  const balancePoints = balance.data?.points ?? [];
+  const avgLoad = balancePoints.length
+    ? balancePoints.reduce((sum, point) => sum + point.load_mw, 0) / balancePoints.length
+    : null;
+  const avgGen = balancePoints.length
+    ? balancePoints.reduce((sum, point) => sum + point.gen_mw, 0) / balancePoints.length
+    : null;
+  const weatherRows = weather.data?.rows ?? [];
+  const rsWeather = weatherRows.find((row) => row.zone === "RS");
+  const rsWeatherPoints = rsWeather?.data ?? [];
+  const avgTemp = rsWeatherPoints.length
+    ? rsWeatherPoints.reduce((sum, point) => sum + point.temp_c, 0) / rsWeatherPoints.length
+    : null;
+  const avgWind = rsWeatherPoints.length
+    ? rsWeatherPoints.reduce((sum, point) => sum + point.wind_ms, 0) / rsWeatherPoints.length
+    : null;
+  const danubeStations = danube.data?.stations ?? [];
+  const zemun = danubeStations.find((station) => station.name === "Zemun") ?? danubeStations[0];
+  const zemunSeries = zemun?.data ?? [];
+  const latestDischarge = zemunSeries.at(-1)?.discharge_m3s ?? null;
+  const isFetchingAll =
+    outages.isFetching || weather.isFetching || danube.isFetching || balance.isFetching || isRefreshing;
 
   // Aggregate per zone
   const byZone = useMemo(() => {
@@ -57,14 +94,23 @@ function OutagesPage() {
         onRefresh={async () => {
           setIsRefreshing(true);
           try {
-            const fresh = await fn({ data: { from: fromKey, to: toKey, force: true } });
-            queryClient.setQueryData(["outages", fromKey, toKey], fresh);
+            const [freshOutages, freshWeather, freshDanube, freshBalance] = await Promise.all([
+              outagesFn({ data: { from: fromKey, to: toKey, force: true } }),
+              weatherFn({ data: { from: fromKey, to: toKey, force: true } }),
+              danubeFn({ data: { from: fromKey, to: toKey, force: true } }),
+              balanceFn({ data: { from: fromKey, to: toKey, force: true } }),
+            ]);
+            queryClient.setQueryData(["outages", fromKey, toKey], freshOutages);
+            queryClient.setQueryData(["fundamentals-weather", fromKey, toKey], freshWeather);
+            queryClient.setQueryData(["fundamentals-danube", fromKey, toKey], freshDanube);
+            queryClient.setQueryData(["fundamentals-balance", fromKey, toKey], freshBalance);
           } finally {
             setIsRefreshing(false);
           }
         }}
-        isRefreshing={q.isFetching || isRefreshing}
-        lastRefresh={q.data?.fetched_at}
+        isRefreshing={isFetchingAll}
+        lastRefresh={outages.data?.fetched_at}
+        hideRange
       />
       <div className="p-6 space-y-5">
         <DateRangeControl />
@@ -89,6 +135,113 @@ function OutagesPage() {
             sub={`${rows.filter((r) => r.type !== "forced").length} units`}
           />
           <KPI label="Zones affected" value={String(byZone.length)} accent="primary" />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <KPI
+            label="Serbia avg. load"
+            value={fmtMW(avgLoad)}
+            sub={`${balancePoints.length} hourly points`}
+            source={balance.data?.source}
+          />
+          <KPI
+            label="Serbia avg. generation"
+            value={fmtMW(avgGen)}
+            sub={balance.data?.reason ?? "ENTSO-E A65/A75"}
+            source={balance.data?.source}
+          />
+          <KPI
+            label="Serbia weather"
+            value={avgTemp == null ? "—" : `${fmtNum(avgTemp)} °C`}
+            sub={avgWind == null ? "Wind —" : `Wind ${fmtNum(avgWind)} m/s`}
+            source={rsWeather?.source}
+          />
+          <KPI
+            label="Danube — Zemun"
+            value={latestDischarge == null ? "—" : `${fmtNum(latestDischarge, 0)} m³/s`}
+            sub={`${zemunSeries.length} daily points`}
+            source={zemun?.source}
+          />
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <Panel title="Weather by zone" actions={weather.data ? <DataBadge source="live" /> : undefined}>
+            <table className="w-full text-sm">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="py-1.5 text-left">Zone</th>
+                  <th className="text-right">Avg. temp</th>
+                  <th className="text-right">Avg. wind</th>
+                  <th className="text-right">Hours</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {weatherRows.map((row) => {
+                  const points = row.data ?? [];
+                  const temp = points.length
+                    ? points.reduce((sum, point) => sum + point.temp_c, 0) / points.length
+                    : null;
+                  const wind = points.length
+                    ? points.reduce((sum, point) => sum + point.wind_ms, 0) / points.length
+                    : null;
+                  return (
+                    <tr key={row.zone} className="border-t border-border/60">
+                      <td className="py-1.5 font-medium">
+                        {row.name} ({row.zone})
+                      </td>
+                      <td className="num text-right">{temp == null ? "—" : `${fmtNum(temp)} °C`}</td>
+                      <td className="num text-right">
+                        {wind == null ? "—" : `${fmtNum(wind)} m/s`}
+                      </td>
+                      <td className="num text-right">{points.length}</td>
+                      <td className="text-right">
+                        <DataBadge source={row.source} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
+
+          <Panel title="Hydrology — Danube stations">
+            <table className="w-full text-sm">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="py-1.5 text-left">Station</th>
+                  <th className="text-right">Latest</th>
+                  <th className="text-right">Period avg.</th>
+                  <th className="text-right">Days</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {danubeStations.map((station) => {
+                  const series = station.data ?? [];
+                  const latest = series.at(-1)?.discharge_m3s ?? null;
+                  const avg = series.length
+                    ? series.reduce((sum, point) => sum + point.discharge_m3s, 0) / series.length
+                    : null;
+                  return (
+                    <tr key={station.name} className="border-t border-border/60">
+                      <td className="py-1.5 font-medium">{station.name}</td>
+                      <td className="num text-right">
+                        {latest == null ? "—" : `${fmtNum(latest, 0)} m³/s`}
+                      </td>
+                      <td className="num text-right">
+                        {avg == null ? "—" : `${fmtNum(avg, 0)} m³/s`}
+                      </td>
+                      <td className="num text-right">{series.length}</td>
+                      <td className="text-right">
+                        <DataBadge source={station.source} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
         </div>
 
         <Panel title="Impact by zone (MW unavailable)">
