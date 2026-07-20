@@ -13,7 +13,7 @@ import {
 } from "./entsoe.server";
 import { fetchWeather, fetchWeatherRange, fetchRiverDischarge } from "./openmeteo.server";
 import { DANUBE_STATION_COORDS } from "./markets";
-import type { PricePoint } from "./trading-calculations";
+import { expectedIntervalsForBelgradeDay, type PricePoint } from "./trading-calculations";
 import { aggregateDataStatus, isValidIsoDate, type DataSourceStatus } from "./fundamentals";
 
 import { forecastPrices } from "./forecast";
@@ -141,6 +141,36 @@ async function readCachedDaPricePoints(
     }))
     .filter((point) => Number.isFinite(point.price))
     .sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
+function mergeDaPricePoints(...groups: PricePoint[][]): PricePoint[] {
+  const byTs = new Map<string, PricePoint>();
+  for (const group of groups) {
+    for (const point of group) {
+      if (!Number.isFinite(point.price)) continue;
+      const timestamp = new Date(point.ts);
+      if (Number.isNaN(timestamp.getTime())) continue;
+      timestamp.setUTCMinutes(0, 0, 0);
+      byTs.set(timestamp.toISOString(), {
+        ts: timestamp.toISOString(),
+        price: point.price,
+        durationMinutes: point.durationMinutes ?? 60,
+      });
+    }
+  }
+  return [...byTs.values()].sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
+function expectedPriceIntervals(days: string[]): number {
+  return days.reduce((sum, day) => sum + expectedIntervalsForBelgradeDay(day, 60), 0);
+}
+
+function hasCompletePriceCoverage(points: PricePoint[], days: string[]): boolean {
+  if (!days.length) return points.length > 0;
+  const stats = calculatePricePeriodStats(points, days);
+  return (
+    stats.receivedIntervals >= expectedPriceIntervals(days) && stats.completeDays === days.length
+  );
 }
 
 async function allSettledBounded<T>(
@@ -271,6 +301,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const days = expandRange(data?.from, data?.to, data?.day);
+    const force = Boolean(data?.force);
     const zones = DA_ZONES;
     const outResults = await allSettledBounded(
       zones.map((z) => async () => {
@@ -280,20 +311,31 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
           days[0],
           days[days.length - 1],
         );
-        let points: PricePoint[] = cachedPoints;
-        let source: "live" | "cache" | "demo" | "empty" = cachedPoints.length ? "cache" : "empty";
+        let points: PricePoint[] = mergeDaPricePoints(cachedPoints);
+        let source: "live" | "cache" | "demo" | "empty" = points.length ? "cache" : "empty";
         let reason: string | undefined;
         let fetchedAt = new Date().toISOString();
-        if (!points.length) {
-          const live = await fetchDayAheadPricesRange(z, days[0], days[days.length - 1]);
-          points = live.data.points.map((point) => ({
+        const cacheComplete = hasCompletePriceCoverage(points, days);
+        if (force || !cacheComplete) {
+          const live = await fetchDayAheadPricesRange(
+            z,
+            days[0],
+            days[days.length - 1],
+            false,
+            force || !cacheComplete,
+          );
+          const livePoints = live.data.points.map((point) => ({
             ts: point.ts,
             price: point.price,
             durationMinutes: point.durationMinutes,
           }));
-          source = live.source;
+          points = mergeDaPricePoints(points, livePoints);
+          source = live.source === "empty" && points.length ? source : live.source;
           reason = live.reason;
           fetchedAt = live.fetched_at;
+          if (points.length && !hasCompletePriceCoverage(points, days)) {
+            reason = reason ?? "partial_market_price_coverage";
+          }
         }
         const stats = calculatePricePeriodStats(points, days);
         return {

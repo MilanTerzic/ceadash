@@ -73,10 +73,11 @@ function PricesPage() {
   );
   const [preset, setPreset] = useState<MarketPresetId>("serbia");
   const [marketSearch, setMarketSearch] = useState("");
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const q = useQuery({
-    queryKey: ["da_profile", range.from, range.to],
-    queryFn: () => fn({ data: { from: range.from, to: range.to } }),
+    queryKey: ["da_profile", range.from, range.to, refreshNonce],
+    queryFn: () => fn({ data: { from: range.from, to: range.to, force: refreshNonce > 0 } }),
     staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -153,7 +154,7 @@ function PricesPage() {
           `Market summary, hourly profiles and regional spreads for ${rangeLabel} in Europe/Belgrade local time`,
           `Pregled tržišta, satni profili i regionalni spreadovi za ${rangeLabel} u vremenu Europe/Belgrade`,
         )}
-        onRefresh={() => q.refetch()}
+        onRefresh={() => setRefreshNonce((value) => value + 1)}
         isRefreshing={q.isFetching}
         lastRefresh={rows[0]?.fetched_at}
       />
