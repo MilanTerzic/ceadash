@@ -48,10 +48,24 @@ function BalancePage() {
     hour: i,
     load: p.load_mw,
     gen: p.gen_mw,
-    delta: p.gen_mw - p.load_mw,
+    delta: p.gen_mw != null && p.load_mw != null ? p.gen_mw - p.load_mw : null,
   }));
-  const sumLoad = data.reduce((a, x) => a + x.load, 0);
-  const sumGen = data.reduce((a, x) => a + x.gen, 0);
+  const sumLoad = (balance.data?.points ?? []).reduce(
+    (sum, point) =>
+      sum +
+      (point.load_mw != null && point.loadDurationMinutes != null
+        ? (point.load_mw * point.loadDurationMinutes) / 60
+        : 0),
+    0,
+  );
+  const sumGen = (balance.data?.points ?? []).reduce(
+    (sum, point) =>
+      sum +
+      (point.gen_mw != null && point.generationDurationMinutes != null
+        ? (point.gen_mw * point.generationDurationMinutes) / 60
+        : 0),
+    0,
+  );
   const net = sumGen - sumLoad;
   const wb6Countries = wb6.data?.countries ?? [];
   const wb6NetChart = wb6Countries.map((country) => ({
@@ -82,12 +96,12 @@ function BalancePage() {
             <KPI
               label={t("Total load (MWh)", "Ukupna potrošnja (MWh)")}
               value={fmtMW(sumLoad)}
-              source={balance.data?.source}
+              source={balance.data?.load.status}
             />
             <KPI
               label={t("Total generation (MWh)", "Ukupna proizvodnja (MWh)")}
               value={fmtMW(sumGen)}
-              source={balance.data?.source}
+              source={balance.data?.generation.status}
             />
             <KPI
               label={t("Generation minus load", "Proizvodnja umanjena za potrošnju")}

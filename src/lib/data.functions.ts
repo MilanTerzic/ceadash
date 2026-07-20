@@ -8,11 +8,13 @@ import {
   fetchOutages,
   fetchOutagesRange,
   fetchLoadGen,
+  fetchLoadGenRange,
   validatePriceMarket,
 } from "./entsoe.server";
 import { fetchWeather, fetchWeatherRange, fetchRiverDischarge } from "./openmeteo.server";
 import { DANUBE_STATION_COORDS } from "./markets";
 import type { PricePoint } from "./trading-calculations";
+import { aggregateDataStatus, isValidIsoDate, type DataSourceStatus } from "./fundamentals";
 
 import { forecastPrices } from "./forecast";
 import { calculatePricePeriodStats } from "./price-analysis";
@@ -90,6 +92,14 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
 }
 
 type RangeInput = { day?: string; from?: string; to?: string; force?: boolean };
+
+function requestedRange(data: RangeInput | undefined): { from: string; to: string } {
+  const fallback = todayISO();
+  const day = data?.day && isValidIsoDate(data.day) ? data.day : undefined;
+  const from = data?.from && isValidIsoDate(data.from) ? data.from : (day ?? fallback);
+  const to = data?.to && isValidIsoDate(data.to) ? data.to : (day ?? from);
+  return { from, to };
+}
 
 const DA_ZONES = PRICE_MARKET_CODES;
 
@@ -829,90 +839,138 @@ export const getCapacityHistory = createServerFn({ method: "GET" })
 export const getOutages = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
-    const days = expandRange(data?.from, data?.to, data?.day);
+    const { from, to } = requestedRange(data);
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
-    const from = days[0];
-    const to = days[days.length - 1];
-    // Fetch the selected period in one ENTSO-E request per zone/document type.
-    const jobs = zones.map((z) => ({ zone: z, from, to }));
-    const results = await Promise.all(
-      jobs.map((j) => fetchOutagesRange(j.zone, j.from, j.to, false, Boolean(data?.force))),
+    const settled = await allSettledBounded(
+      zones.map((zone) => () => fetchOutagesRange(zone, from, to, false, Boolean(data?.force))),
+      2,
     );
-    // Deduplicate by zone+unit+start+end so recurring daily A77/A80 snapshots
-    // don't inflate row counts.
-    const seen = new Map<string, ReturnType<typeof buildRow>>();
-    function buildRow(
-      j: { zone: ZoneCode },
-      o: (typeof results)[number]["data"][number],
-      r: (typeof results)[number],
-    ) {
-      return { ...o, source: r.source, reason: r.reason };
-    }
-    jobs.forEach((j, i) => {
-      const r = results[i];
-      for (const o of r.data) {
-      const k = `${j.zone}|${(o as { unit?: string }).unit ?? ""}|${(o as { type?: string }).type ?? ""}|${(o as { start?: string }).start ?? ""}|${(o as { end?: string }).end ?? ""}`;
-        if (!seen.has(k)) seen.set(k, buildRow(j, o, r));
+    const results = settled.map((result) =>
+      result.status === "fulfilled"
+        ? result.value
+        : {
+            data: [],
+            source: "empty" as const,
+            status: "error" as const,
+            reason: result.reason instanceof Error ? result.reason.message : "entsoe_error",
+            fetched_at: new Date().toISOString(),
+            attempts: [],
+          },
+    );
+    const seen = new Map<string, (typeof results)[number]["data"][number]>();
+    for (const result of results) {
+      for (const outage of result.data) {
+        const key = [
+          outage.zone,
+          outage.document_id ?? "",
+          outage.unit_id ?? outage.unit,
+          outage.outage_type,
+          outage.start,
+          outage.end,
+        ].join("|");
+        const existing = seen.get(key);
+        if (!existing || (outage.revision ?? 0) >= (existing.revision ?? 0)) {
+          seen.set(key, outage);
+        }
       }
-    });
-    const firstReason = results.find((r) => r.reason)?.reason;
+    }
+    const zoneStatuses: Array<DataSourceStatus & { zone: ZoneCode }> = results.map(
+      (result, index) => ({
+        zone: zones[index],
+        source: `ENTSO-E outages ${zones[index]}`,
+        status: result.status ?? (result.source === "cache" ? "cache" : "error"),
+        reason: result.reason,
+        fetched_at: result.fetched_at,
+        last_success_at: result.last_success_at,
+        stale: result.stale,
+      }),
+    );
+    const aggregate = aggregateDataStatus(zoneStatuses, "ENTSO-E outages");
+    const rows = [...seen.values()];
+    const failedZones = zoneStatuses.filter((status) => status.status === "error");
+    const status =
+      rows.length && failedZones.length
+        ? ("partial" as const)
+        : !rows.length && zoneStatuses.every((item) => item.status === "empty")
+          ? ("empty" as const)
+          : aggregate.status;
     return {
-      day: days[0],
+      day: from,
       from,
       to,
-      rows: [...seen.values()],
-      reason: firstReason,
-      fetched_at: new Date().toISOString(),
+      rows,
+      source: aggregate.source,
+      status,
+      reason:
+        status === "partial"
+          ? `${failedZones.length}_of_${zones.length}_outage_zones_unavailable`
+          : status === "empty"
+            ? "entsoe_no_outage_publications"
+            : aggregate.reason,
+      fetched_at: aggregate.fetched_at,
+      last_success_at: aggregate.last_success_at,
+      stale: aggregate.stale,
+      zones: zoneStatuses,
     };
   });
 
 export const getWeather = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
-    const days = expandRange(data?.from, data?.to, data?.day);
-    const from = days[0];
-    const to = days[days.length - 1];
+    const { from, to } = requestedRange(data);
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
-    const res = await Promise.all(
-      zones.map((z) => fetchWeatherRange(z, from, to, Boolean(data?.force))),
+    const settled = await allSettledBounded(
+      zones.map((zone) => () => fetchWeatherRange(zone, from, to, Boolean(data?.force))),
+      4,
     );
+    const rows = settled.map((result, index) =>
+      result.status === "fulfilled"
+        ? { zone: zones[index], name: ZONES[zones[index]].name, ...result.value }
+        : {
+            zone: zones[index],
+            name: ZONES[zones[index]].name,
+            data: [],
+            source: "Open-Meteo weather",
+            status: "error" as const,
+            reason: result.reason instanceof Error ? result.reason.message : "weather_error",
+            fetched_at: new Date().toISOString(),
+          },
+    );
+    const aggregate = aggregateDataStatus(rows, "Open-Meteo weather");
+    const failedZones = rows.filter((row) => row.status === "error");
+    const hasData = rows.some((row) => row.data.length);
     return {
       day: from,
       from,
       to,
-      fetched_at: new Date().toISOString(),
-      rows: zones.map((z, i) => ({ zone: z, name: ZONES[z].name, ...res[i] })),
+      ...aggregate,
+      status: failedZones.length && hasData ? ("partial" as const) : aggregate.status,
+      reason:
+        failedZones.length && hasData
+          ? `weather_unavailable_for_${failedZones.length}_of_${zones.length}_zones`
+          : aggregate.reason,
+      rows,
     };
   });
 
 export const getBalance = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
-    const days = expandRange(data?.from, data?.to, data?.day);
-    const parts = await allSettledBounded(
-      days.map((d) => () => fetchLoadGen("RS", d, false, Boolean(data?.force))),
-      4,
-    );
-    const fulfilled = parts
-      .filter((part): part is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchLoadGen>>> =>
-        part.status === "fulfilled",
-      )
-      .map((part) => part.value);
-    const firstRejected = parts.find((part) => part.status === "rejected");
+    const { from, to } = requestedRange(data);
+    const result = await fetchLoadGenRange("RS", from, to, false, Boolean(data?.force));
     return {
-      day: days[0],
-      from: days[0],
-      to: days[days.length - 1],
-      points: fulfilled.flatMap((p) => p.data),
-      source: fulfilled.find((p) => p.source === "live")?.source ?? fulfilled[0]?.source,
-      reason:
-        fulfilled.find((p) => p.reason)?.reason ??
-        (firstRejected?.status === "rejected"
-          ? firstRejected.reason instanceof Error
-            ? firstRejected.reason.message
-            : "error"
-          : undefined),
-      fetched_at: new Date().toISOString(),
+      day: from,
+      from,
+      to,
+      points: result.data,
+      source: result.source,
+      status: result.status,
+      reason: result.reason,
+      fetched_at: result.fetched_at,
+      last_success_at: result.last_success_at,
+      stale: result.stale,
+      load: result.load,
+      generation: result.generation,
     };
   });
 
@@ -933,21 +991,57 @@ export const runForecast = createServerFn({ method: "POST" })
 
 export { offsetISO, todayISO };
 
-// Danube river discharge — Open-Meteo flood API, Visual Crossing precipitation as fallback proxy.
+// Danube river discharge from the Open-Meteo Flood API.
 export const getDanubeDischarge = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
-    const days = expandRange(data?.from, data?.to, data?.day);
-    const from = days[0];
-    const to = days[days.length - 1];
+    const { from, to } = requestedRange(data);
     const stations = Object.entries(DANUBE_STATION_COORDS);
-    const res = await Promise.all(
-      stations.map(async ([name, c]) => {
-        const r = await fetchRiverDischarge(c.lat, c.lon, from, to, Boolean(data?.force));
-        return { name, ...r };
-      }),
+    const settled = await allSettledBounded(
+      stations.map(([name, coordinates]) => async () => ({
+        name,
+        ...(await fetchRiverDischarge(
+          coordinates.lat,
+          coordinates.lon,
+          from,
+          to,
+          Boolean(data?.force),
+        )),
+      })),
+      3,
     );
-    return { from, to, fetched_at: new Date().toISOString(), stations: res };
+    const results = settled.map((result, index) => {
+      if (result.status === "fulfilled") return result.value;
+      const [name, coordinates] = stations[index];
+      return {
+        name,
+        data: [],
+        source: "Open-Meteo hydrology",
+        status: "error" as const,
+        reason: result.reason instanceof Error ? result.reason.message : "hydrology_error",
+        fetched_at: new Date().toISOString(),
+        requested_coordinates: coordinates,
+        query_coordinates: null,
+        selected_coordinates: null,
+      };
+    });
+    const aggregate = aggregateDataStatus(results, "Open-Meteo hydrology");
+    const failed = results.filter(
+      (station) => station.status === "error" || station.data.length === 0,
+    );
+    const hasData = results.some((station) => station.data.length);
+    const status = failed.length && hasData ? ("partial" as const) : aggregate.status;
+    return {
+      from,
+      to,
+      ...aggregate,
+      status,
+      reason:
+        status === "partial"
+          ? `river_discharge_unavailable_for_${failed.map((station) => station.name).join(",")}`
+          : aggregate.reason,
+      stations: results,
+    };
   });
 
 // ---- Multi-product SEEPEX forecast (DA / Week / Month) ----------------------
@@ -1128,7 +1222,9 @@ export const runForecastV2 = createServerFn({ method: "POST" })
       }
 
       if (outRes?.data?.length) {
-        const total = outRes.data.reduce((s, o) => s + (o.mw ?? 0), 0);
+        const total = outRes.data.reduce((sum, outage) => {
+          return sum + (outage.unavailable_mw ?? 0);
+        }, 0);
         drivers.push({
           key: "outages",
           label: "Generation outages (RS)",

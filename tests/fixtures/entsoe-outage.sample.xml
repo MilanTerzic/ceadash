@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Unavailability_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-6:outagedocument:4:2">
+  <mRID>ANON-OUTAGE-001</mRID>
+  <revisionNumber>1</revisionNumber>
+  <type>A77</type>
+  <process.processType>A26</process.processType>
+  <createdDateTime>2026-07-10T12:00:00Z</createdDateTime>
+  <unavailability_Time_Period.timeInterval>
+    <start>2026-07-15T00:00Z</start>
+    <end>2026-07-16T00:00Z</end>
+  </unavailability_Time_Period.timeInterval>
+  <docStatus>
+    <value>A05</value>
+  </docStatus>
+  <TimeSeries>
+    <mRID>ANON-SERIES-001</mRID>
+    <businessType>A53</businessType>
+    <biddingZone_Domain.mRID>10YCS-SERBIATSOV</biddingZone_Domain.mRID>
+    <start_DateAndOrTime.date>2026-07-15</start_DateAndOrTime.date>
+    <start_DateAndOrTime.time>00:00:00Z</start_DateAndOrTime.time>
+    <end_DateAndOrTime.date>2026-07-16</end_DateAndOrTime.date>
+    <end_DateAndOrTime.time>00:00:00Z</end_DateAndOrTime.time>
+    <production_RegisteredResource.mRID>ANON-PRODUCTION-001</production_RegisteredResource.mRID>
+    <production_RegisteredResource.name>Anonymous Unit</production_RegisteredResource.name>
+    <production_RegisteredResource.nominalP>500</production_RegisteredResource.nominalP>
+    <production_RegisteredResource.pSRType.psrType>B04</production_RegisteredResource.pSRType.psrType>
+    <Available_Period>
+      <timeInterval>
+        <start>2026-07-15T00:00Z</start>
+        <end>2026-07-16T00:00Z</end>
+      </timeInterval>
+      <resolution>PT60M</resolution>
+      <Point>
+        <position>1</position>
+        <quantity>200</quantity>
+      </Point>
+    </Available_Period>
+  </TimeSeries>
+</Unavailability_MarketDocument>

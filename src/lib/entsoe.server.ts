@@ -10,6 +10,26 @@ import {
 } from "./markets";
 import { PRICE_MARKETS, type PriceMarketCode } from "./price-markets";
 import { entsoeTokenMissingMessage, getEntsoeToken } from "./entsoe-token";
+import { extractEntsoeZipDocuments, isZipPayload } from "./entsoe-zip";
+import {
+  dedupeOutageRevisions,
+  inspectEntsoeXml,
+  parseOutageRows,
+  chunkOutageRange,
+  type OutageRow,
+} from "./entsoe-outages";
+import {
+  addDaysIso,
+  aggregateDataStatus,
+  assertValidDateRange,
+  mergeLoadGeneration,
+  type DataSourceStatus,
+  type DataStatus,
+  type LoadGenerationPoint,
+} from "./fundamentals";
+import { logSourceDiagnostic } from "./source-diagnostics.server";
+
+export type { OutageRow } from "./entsoe-outages";
 
 const API_BASE = "https://web-api.tp.entsoe.eu/api";
 const DEFAULT_TTL = 1800;
@@ -77,27 +97,47 @@ export interface FetchResult<T> {
   source: "live" | "cache" | "demo" | "empty";
   reason?: string;
   fetched_at: string;
+  status?: DataStatus;
+  last_success_at?: string;
+  stale?: boolean;
+}
+
+type CacheEntry<T> = {
+  payload: T;
+  fetched_at: string;
+  ttl_seconds: number;
+  fresh: boolean;
+};
+
+async function cacheGetEntry<T>(key: string, ttl: number): Promise<CacheEntry<T> | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("api_cache")
+      .select("payload, fetched_at, ttl_seconds")
+      .eq("key", key)
+      .maybeSingle();
+    if (!data) return null;
+    const fetchedAt = String(data.fetched_at);
+    const ttlSeconds = Number(data.ttl_seconds ?? ttl);
+    const age = (Date.now() - new Date(fetchedAt).getTime()) / 1000;
+    return {
+      payload: data.payload as T,
+      fetched_at: fetchedAt,
+      ttl_seconds: ttlSeconds,
+      fresh: age <= ttlSeconds,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function cacheGet<T>(key: string, ttl: number): Promise<T | null> {
-  const { data } = await supabaseAdmin
-    .from("api_cache")
-    .select("payload, fetched_at, ttl_seconds")
-    .eq("key", key)
-    .maybeSingle();
-  if (!data) return null;
-  const age = (Date.now() - new Date(data.fetched_at as string).getTime()) / 1000;
-  if (age > (data.ttl_seconds ?? ttl)) return null;
-  return data.payload as T;
+  const entry = await cacheGetEntry<T>(key, ttl);
+  return entry?.fresh ? entry.payload : null;
 }
 
-async function cacheGetStale<T>(key: string): Promise<T | null> {
-  const { data } = await supabaseAdmin
-    .from("api_cache")
-    .select("payload")
-    .eq("key", key)
-    .maybeSingle();
-  return data ? (data.payload as T) : null;
+async function cacheGetStale<T>(key: string): Promise<CacheEntry<T> | null> {
+  return cacheGetEntry<T>(key, 0);
 }
 
 async function staleCacheOrEmpty<T>(
@@ -108,62 +148,185 @@ async function staleCacheOrEmpty<T>(
   const cached = await cacheGetStale<T>(key);
   if (cached) {
     return {
-      data: cached,
+      data: cached.payload,
       source: "cache",
       reason: `stale_cache_${reason}`,
-      fetched_at: new Date().toISOString(),
+      fetched_at: cached.fetched_at,
+      last_success_at: cached.fetched_at,
+      status: "partial",
+      stale: true,
     };
   }
-  return { data: emptyData, source: "empty", reason, fetched_at: new Date().toISOString() };
+  return {
+    data: emptyData,
+    source: "empty",
+    reason,
+    fetched_at: new Date().toISOString(),
+    status: reason === "entsoe_no_data" || reason === "no_data" ? "empty" : "error",
+  };
 }
 
 async function cacheSet(key: string, payload: unknown, ttl = DEFAULT_TTL) {
-  await supabaseAdmin.from("api_cache").upsert({
-    key,
-    payload: payload as never,
-    fetched_at: new Date().toISOString(),
-    ttl_seconds: ttl,
-  });
+  try {
+    await supabaseAdmin.from("api_cache").upsert({
+      key,
+      payload: payload as never,
+      fetched_at: new Date().toISOString(),
+      ttl_seconds: ttl,
+    });
+  } catch {
+    // Cache writes are best-effort and never invalidate a successful live response.
+  }
 }
 
 function isRetryableEntsoeStatus(status: number) {
   return status === 429 || status >= 500;
 }
 
-async function entsoeRaw(params: Record<string, string>): Promise<string> {
+class EntsoeRequestError extends Error {
+  constructor(
+    message: string,
+    readonly retryable = false,
+    readonly status?: number,
+    readonly contentType?: string,
+  ) {
+    super(message);
+  }
+}
+
+type EntsoePayload = {
+  documents: string[];
+  contentType: string;
+  status: number;
+  compressed: boolean;
+};
+
+async function entsoePayload(
+  params: Record<string, string>,
+  diagnostic?: { source: string; from: string; to: string },
+  acceptZip = false,
+): Promise<EntsoePayload> {
   const t = token();
-  if (!t) throw new Error(entsoeTokenMissingMessage());
+  if (!t) throw new EntsoeRequestError(entsoeTokenMissingMessage());
   const qs = new URLSearchParams({ securityToken: t, ...params });
   const url = `${API_BASE}?${qs.toString()}`;
   let lastStatus = 0;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
       const res = await fetch(url, {
         headers: { Accept: "application/xml" },
         signal: controller.signal,
       });
       lastStatus = res.status;
-      if (res.status === 200) return await res.text();
-      if (!isRetryableEntsoeStatus(res.status) || attempt === 1) {
-        if (res.status === 400) throw new Error("entsoe_no_data");
-        if (res.status === 401 || res.status === 403) throw new Error("entsoe_unauthorized");
-        if (res.status === 429) throw new Error("entsoe_rate_limited");
-        throw new Error(`entsoe_http_${res.status}`);
+      const contentType = res.headers.get("content-type") ?? "";
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const compressed = isZipPayload(bytes, contentType);
+      const body = compressed ? "" : new TextDecoder().decode(bytes);
+      const xmlContent = /(?:application|text)\/(?:[\w.+-]*\+)?xml/i.test(contentType);
+      const envelope = xmlContent && body ? inspectEntsoeXml(body) : null;
+
+      if (!res.ok) {
+        let reason = `entsoe_http_${res.status}`;
+        if (res.status === 400) {
+          reason = envelope?.kind === "no_data" ? "entsoe_no_data" : "entsoe_invalid_request";
+        } else if (res.status === 401 || res.status === 403) {
+          reason = "entsoe_unauthorized";
+        } else if (res.status === 429) {
+          reason = "entsoe_rate_limited";
+        }
+        const retryable = isRetryableEntsoeStatus(res.status);
+        if (retryable && attempt < 2) {
+          throw new EntsoeRequestError(reason, true, res.status, contentType);
+        }
+        if (diagnostic) {
+          logSourceDiagnostic({
+            ...diagnostic,
+            http_status: res.status,
+            content_type: contentType,
+            records: 0,
+            reason,
+          });
+        }
+        throw new EntsoeRequestError(reason, false, res.status, contentType);
       }
+
+      if (!bytes.length) {
+        throw new EntsoeRequestError("entsoe_empty_response", false, res.status, contentType);
+      }
+      if (compressed) {
+        if (!acceptZip) {
+          throw new EntsoeRequestError(
+            "entsoe_compressed_response_unsupported",
+            false,
+            res.status,
+            contentType,
+          );
+        }
+        let documents: string[];
+        try {
+          documents = extractEntsoeZipDocuments(bytes);
+        } catch (error) {
+          throw new EntsoeRequestError(
+            error instanceof Error ? error.message : "entsoe_zip_parse_error",
+            false,
+            res.status,
+            contentType,
+          );
+        }
+        return { documents, contentType, status: res.status, compressed: true };
+      }
+      if (!xmlContent) {
+        throw new EntsoeRequestError(
+          "entsoe_unexpected_content_type",
+          false,
+          res.status,
+          contentType,
+        );
+      }
+      if (envelope?.kind !== "data") {
+        throw new EntsoeRequestError(
+          envelope?.reason ?? "entsoe_xml_error_document",
+          false,
+          res.status,
+          contentType,
+        );
+      }
+      return { documents: [body], contentType, status: res.status, compressed: false };
     } catch (error) {
-      if (attempt === 1) {
-        if (error instanceof Error && error.name === "AbortError")
-          throw new Error("entsoe_timeout");
-        throw error;
+      const normalized =
+        error instanceof Error && error.name === "AbortError"
+          ? new EntsoeRequestError("entsoe_timeout", true)
+          : error instanceof EntsoeRequestError
+            ? error
+            : new EntsoeRequestError("entsoe_network_error");
+      if (!normalized.retryable || attempt === 2) {
+        if (diagnostic) {
+          logSourceDiagnostic({
+            ...diagnostic,
+            http_status: normalized.status,
+            content_type: normalized.contentType,
+            records: 0,
+            reason: normalized.message,
+          });
+        }
+        throw normalized;
       }
     } finally {
       clearTimeout(timeout);
     }
     await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
   }
-  throw new Error(`entsoe_http_${lastStatus || "unknown"}`);
+  throw new EntsoeRequestError(`entsoe_http_${lastStatus || "unknown"}`);
+}
+
+async function entsoeRaw(
+  params: Record<string, string>,
+  diagnostic?: { source: string; from: string; to: string },
+): Promise<string> {
+  const payload = await entsoePayload(params, diagnostic);
+  return payload.documents[0];
 }
 
 // --- Tiny XML utilities -----------------------------------------------------
@@ -181,43 +344,6 @@ function tagOne(xml: string, tag: string): string | null {
   const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`);
   const m = re.exec(xml);
   return m ? m[1].trim() : null;
-}
-
-function decodeXmlText(value: string | null | undefined): string | null {
-  if (!value) return null;
-  return value
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
-}
-
-function firstTag(section: string, tags: string[]): string | null {
-  for (const tag of tags) {
-    const value = decodeXmlText(tagOne(section, tag));
-    if (value) return value;
-  }
-  return null;
-}
-
-function quantitiesFromPeriod(period: string): number[] {
-  const quantities: number[] = [];
-  for (const point of tagAll(period, "Point")) {
-    const value = Number.parseFloat(
-      tagOne(point, "quantity") ?? tagOne(point, "value") ?? tagOne(point, "amount") ?? "",
-    );
-    if (Number.isFinite(value) && value > 0) quantities.push(value);
-  }
-  return quantities;
-}
-
-function outageTypeFromBusinessType(value: string | null): "forced" | "planned" {
-  const code = value?.trim().toUpperCase();
-  if (code === "A54" || code === "A55" || code === "B18") return "forced";
-  return "planned";
 }
 
 function avg(values: number[]): number | null {
@@ -659,66 +785,34 @@ export async function fetchExplicitAllocation(
   }
 }
 
-export interface OutageRow {
-  unit: string;
+type OutageAttemptStatus = DataSourceStatus & {
   zone: ZoneCode;
-  mw: number;
-  type: string;
-  start: string;
-  end: string;
-}
+  document_type: string;
+  from: string;
+  to: string;
+  records: number;
+};
 
-function parseOutageRows(
-  xml: string,
-  zone: ZoneCode,
-  startMs: number,
-  endMs: number,
-): OutageRow[] {
-  const clean = stripNs(xml);
-  const rows: OutageRow[] = [];
-  for (const ts of tagAll(clean, "TimeSeries")) {
-    const businessType = firstTag(ts, ["businessType", "BusinessType"]);
-    const type = outageTypeFromBusinessType(businessType);
-    const unit =
-      firstTag(ts, [
-        "production_RegisteredResource.name",
-        "production_RegisteredResource.mRID",
-        "registeredResource.name",
-        "registeredResource.mRID",
-        "mRID",
-      ]) ?? "Unknown unit";
-    const periods = [
-      ...tagAll(ts, "Period"),
-      ...tagAll(ts, "available_Period"),
-      ...tagAll(ts, "unavailable_Period"),
-    ];
-    for (const period of periods) {
-      const rowStart = firstTag(period, ["start"]);
-      const rowEnd = firstTag(period, ["end"]);
-      const rowStartMs = rowStart ? Date.parse(rowStart) : startMs;
-      const rowEndMs = rowEnd ? Date.parse(rowEnd) : endMs;
-      if (!Number.isFinite(rowStartMs) || !Number.isFinite(rowEndMs)) continue;
-      if (rowEndMs <= startMs || rowStartMs >= endMs) continue;
-      const quantities = quantitiesFromPeriod(period);
-      const mw = quantities.length ? Math.max(...quantities) : 0;
-      if (mw <= 0) continue;
-      rows.push({
-        zone,
-        unit,
-        mw,
-        type,
-        start: new Date(rowStartMs).toISOString(),
-        end: new Date(rowEndMs).toISOString(),
-      });
+async function allSettledBounded<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number,
+): Promise<Array<PromiseSettledResult<T>>> {
+  const results: Array<PromiseSettledResult<T>> = new Array(tasks.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < tasks.length) {
+      const index = cursor++;
+      try {
+        results[index] = { status: "fulfilled", value: await tasks[index]() };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
     }
   }
-  return rows;
-}
-
-function addDaysISO(dayISO: string, days: number): string {
-  const date = new Date(`${dayISO}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, Math.max(tasks.length, 1)) }, worker),
+  );
+  return results;
 }
 
 export async function fetchOutagesRange(
@@ -727,57 +821,181 @@ export async function fetchOutagesRange(
   toISO: string,
   demo = false,
   force = false,
-): Promise<FetchResult<OutageRow[]>> {
-  const key = `outages_range:v1:${zone}:${fromISO}:${toISO}`;
+): Promise<FetchResult<OutageRow[]> & { attempts: OutageAttemptStatus[] }> {
+  const key = `outages_range:v3:${zone}:${fromISO}:${toISO}`;
   const emptyData: OutageRow[] = [];
-  if (!force) {
-    const cached = await cacheGet<OutageRow[]>(key, TTL.outages);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
-  }
-  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
   try {
-    const startOffsetH = cetOffsetHours(fromISO);
-    const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
-    const afterTo = addDaysISO(toISO, 1);
-    const endOffsetH = cetOffsetHours(afterTo);
-    const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-    const baseParams = {
-      biddingZone_Domain: ZONES[zone].eic,
-      periodStart: ymdh(start),
-      periodEnd: ymdh(end),
-    };
-    const attempts = await Promise.all(
-      [
-        ENTSOE_DOCUMENT_TYPES.production_unit_unavailability,
-        ENTSOE_DOCUMENT_TYPES.generation_unit_unavailability,
-      ].map(async (documentType) => {
-        try {
-          const xml = await entsoeRaw({ ...baseParams, documentType });
-          return { rows: parseOutageRows(xml, zone, start.getTime(), end.getTime()) };
-        } catch (error) {
-          return { rows: [] as OutageRow[], reason: error instanceof Error ? error.message : "error" };
-        }
-      }),
-    );
-    const rows = attempts.flatMap((attempt) => attempt.rows);
-    if (!rows.length) {
-      const reason = attempts.find((attempt) => attempt.reason)?.reason ?? "no_data";
-      return staleCacheOrEmpty(key, emptyData, reason);
-    }
-    const byKey = new Map<string, OutageRow>();
-    for (const row of rows) {
-      const key2 = `${row.zone}|${row.unit}|${row.type}|${row.start}|${row.end}`;
-      const existing = byKey.get(key2);
-      if (!existing || row.mw > existing.mw) byKey.set(key2, row);
-    }
-    const payload = [...byKey.values()].sort((a, b) => b.mw - a.mw);
-    await cacheSet(key, payload, TTL.outages);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
+    assertValidDateRange(fromISO, toISO);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "error";
-    return staleCacheOrEmpty(key, emptyData, reason);
+    return {
+      data: emptyData,
+      source: "empty",
+      status: "error",
+      reason: error instanceof Error ? error.message : "invalid_date_range",
+      fetched_at: new Date().toISOString(),
+      attempts: [],
+    };
   }
+  const cached = await cacheGetEntry<OutageRow[]>(key, TTL.outages);
+  if (!force) {
+    if (cached?.fresh) {
+      return {
+        data: cached.payload,
+        source: "cache",
+        status: cached.payload.length ? "cache" : "empty",
+        reason: cached.payload.length ? undefined : "entsoe_no_outage_publications",
+        fetched_at: cached.fetched_at,
+        last_success_at: cached.fetched_at,
+        attempts: [],
+      };
+    }
+  }
+  if (demo) {
+    const result = await staleCacheOrEmpty(key, emptyData, "demo_disabled");
+    return { ...result, attempts: [] };
+  }
+  if (!token()) {
+    const result = await staleCacheOrEmpty(key, emptyData, "entsoe_token_missing");
+    return { ...result, attempts: [] };
+  }
+
+  const tasks = chunkOutageRange(fromISO, toISO).flatMap((chunk) =>
+    [
+      ENTSOE_DOCUMENT_TYPES.production_unit_unavailability,
+      ENTSOE_DOCUMENT_TYPES.generation_unit_unavailability,
+    ].map((documentType) => async () => {
+      const start = new Date(`${chunk.from}T00:00:00Z`);
+      const end = new Date(`${addDaysIso(chunk.to, 1)}T00:00:00Z`);
+      const source = `ENTSO-E ${documentType} ${zone}`;
+      try {
+        const payload = await entsoePayload(
+          {
+            documentType,
+            biddingZone_Domain: ZONES[zone].eic,
+            periodStart: ymdh(start),
+            periodEnd: ymdh(end),
+          },
+          { source, from: chunk.from, to: chunk.to },
+          true,
+        );
+        const inspectedDocuments = payload.documents.map((xml) => ({
+          xml,
+          envelope: inspectEntsoeXml(xml),
+        }));
+        const dataDocuments = inspectedDocuments.filter(
+          (document) => document.envelope.kind === "data",
+        );
+        const documentErrors = inspectedDocuments.filter(
+          (document) => document.envelope.kind === "error",
+        );
+        if (!dataDocuments.length) {
+          throw new EntsoeRequestError(
+            documentErrors[0]?.envelope.reason ?? "entsoe_no_data",
+            false,
+            payload.status,
+            payload.contentType,
+          );
+        }
+        const rows = dataDocuments.flatMap(({ xml }) =>
+          parseOutageRows(xml, zone, chunk.from, chunk.to),
+        );
+        const partialReason = documentErrors.length ? "entsoe_partial_zip_documents" : undefined;
+        logSourceDiagnostic({
+          source,
+          from: chunk.from,
+          to: chunk.to,
+          http_status: payload.status,
+          content_type: payload.contentType,
+          records: rows.length,
+          reason: partialReason ?? (rows.length ? undefined : "entsoe_no_active_outages"),
+        });
+        const status: OutageAttemptStatus = {
+          zone,
+          document_type: documentType,
+          from: chunk.from,
+          to: chunk.to,
+          source,
+          status: partialReason ? "partial" : rows.length ? "live" : "empty",
+          reason: partialReason ?? (rows.length ? undefined : "entsoe_no_outage_publications"),
+          fetched_at: new Date().toISOString(),
+          last_success_at: new Date().toISOString(),
+          records: rows.length,
+        };
+        return { rows, status };
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "entsoe_error";
+        const noData = reason === "entsoe_no_data";
+        const status: OutageAttemptStatus = {
+          zone,
+          document_type: documentType,
+          from: chunk.from,
+          to: chunk.to,
+          source,
+          status: noData ? "empty" : "error",
+          reason: noData ? "entsoe_no_outage_publications" : reason,
+          fetched_at: new Date().toISOString(),
+          last_success_at: noData ? new Date().toISOString() : undefined,
+          records: 0,
+        };
+        return { rows: [] as OutageRow[], status };
+      }
+    }),
+  );
+  const settled = await allSettledBounded(tasks, 3);
+  const attempts: OutageAttemptStatus[] = settled.map((result) => {
+    if (result.status === "fulfilled") return result.value.status;
+    return {
+      zone,
+      document_type: "unknown",
+      from: fromISO,
+      to: toISO,
+      source: "ENTSO-E outages",
+      status: "error",
+      reason: result.reason instanceof Error ? result.reason.message : "entsoe_error",
+      fetched_at: new Date().toISOString(),
+      records: 0,
+    };
+  });
+  const rows = dedupeOutageRevisions(
+    settled.flatMap((result) => (result.status === "fulfilled" ? result.value.rows : [])),
+  );
+  const aggregate = aggregateDataStatus(attempts, "ENTSO-E outages");
+  const successfulEmpty = attempts.every((attempt) =>
+    ["live", "empty", "cache"].includes(attempt.status),
+  );
+
+  if (aggregate.status === "error" && cached?.payload) {
+    return {
+      data: cached.payload,
+      source: "cache",
+      status: "partial",
+      reason: `stale_cache_${aggregate.reason ?? "entsoe_error"}`,
+      fetched_at: cached.fetched_at,
+      last_success_at: cached.fetched_at,
+      stale: true,
+      attempts,
+    };
+  }
+  if (successfulEmpty || rows.length) {
+    if (aggregate.status !== "partial") {
+      await cacheSet(key, rows, TTL.outages);
+    }
+  }
+
+  return {
+    data: rows,
+    source: rows.length ? "live" : "empty",
+    status: rows.length && aggregate.status === "error" ? "partial" : aggregate.status,
+    reason:
+      rows.length && attempts.some((attempt) => attempt.status === "error")
+        ? "some_outage_sources_unavailable"
+        : aggregate.status === "empty"
+          ? "entsoe_no_outage_publications"
+          : aggregate.reason,
+    fetched_at: aggregate.fetched_at,
+    last_success_at: aggregate.last_success_at,
+    attempts,
+  };
 }
 
 export async function fetchOutages(
@@ -791,8 +1009,10 @@ export async function fetchOutages(
 
 export interface LoadGenPoint {
   ts: string;
-  load_mw: number;
-  gen_mw: number;
+  load_mw: number | null;
+  gen_mw: number | null;
+  loadDurationMinutes: number | null;
+  generationDurationMinutes: number | null;
 }
 export interface ActualLoadPoint {
   ts: string;
@@ -813,15 +1033,35 @@ export async function fetchActualLoadRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<{ zone: ZoneCode; points: ActualLoadPoint[] }>> {
-  const key = `actual_load_range:v1:${zone}:${fromISO}:${toISO}`;
+  const key = `actual_load_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData = { zone, points: [] as ActualLoadPoint[] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.loadgen_past : TTL.loadgen_today;
+  try {
+    assertValidDateRange(fromISO, toISO);
+  } catch (error) {
+    return {
+      data: emptyData,
+      source: "empty",
+      status: "error",
+      reason: error instanceof Error ? error.message : "invalid_date_range",
+      fetched_at: new Date().toISOString(),
+    };
+  }
+  const cached = await cacheGetEntry<typeof emptyData>(key, ttl);
   if (!force) {
-    const cached = await cacheGet<typeof emptyData>(key, ttl);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
+    if (cached?.fresh) {
+      return {
+        data: cached.payload,
+        source: "cache",
+        status: cached.payload.points.length ? "cache" : "empty",
+        reason: cached.payload.points.length ? undefined : "entsoe_no_load_data",
+        fetched_at: cached.fetched_at,
+        last_success_at: cached.fetched_at,
+      };
+    }
   }
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
+  if (!token()) return staleCacheOrEmpty(key, emptyData, "entsoe_token_missing");
   try {
     const startOffsetH = cetOffsetHours(fromISO);
     const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
@@ -830,25 +1070,45 @@ export async function fetchActualLoadRange(
       .slice(0, 10);
     const endOffsetH = cetOffsetHours(afterTo);
     const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-    const xml = await entsoeRaw({
-      documentType: ENTSOE_DOCUMENT_TYPES.system_total_load,
-      processType: "A16",
-      outBiddingZone_Domain: ZONES[zone].eic,
-      periodStart: ymdh(start),
-      periodEnd: ymdh(end),
-    });
+    const xml = await entsoeRaw(
+      {
+        documentType: ENTSOE_DOCUMENT_TYPES.system_total_load,
+        processType: "A16",
+        outBiddingZone_Domain: ZONES[zone].eic,
+        periodStart: ymdh(start),
+        periodEnd: ymdh(end),
+      },
+      { source: `ENTSO-E A65 ${zone}`, from: fromISO, to: toISO },
+    );
     const startMs = start.getTime();
     const endMs = end.getTime();
     const byTs = new Map<string, ActualLoadPoint>();
     for (const p of parseTimeSeriesIntervals(xml)) {
       const t = Date.parse(p.ts);
       if (t < startMs || t >= endMs) continue;
+      if (!Number.isFinite(p.value) || p.value < 0 || p.durationMinutes <= 0) continue;
       byTs.set(p.ts, { ts: p.ts, load_mw: p.value, durationMinutes: p.durationMinutes });
     }
     const payload = { zone, points: [...byTs.values()].sort((a, b) => a.ts.localeCompare(b.ts)) };
-    if (!payload.points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
+    logSourceDiagnostic({
+      source: `ENTSO-E A65 ${zone}`,
+      from: fromISO,
+      to: toISO,
+      http_status: 200,
+      content_type: "application/xml",
+      records: payload.points.length,
+      reason: payload.points.length ? undefined : "entsoe_no_load_data",
+    });
+    if (!payload.points.length) return staleCacheOrEmpty(key, emptyData, "entsoe_no_load_data");
     await cacheSet(key, payload, ttl);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
+    const fetchedAt = new Date().toISOString();
+    return {
+      data: payload,
+      source: "live",
+      status: "live",
+      fetched_at: fetchedAt,
+      last_success_at: fetchedAt,
+    };
   } catch (e) {
     const reason = e instanceof Error ? e.message : "error";
     return staleCacheOrEmpty(key, emptyData, reason);
@@ -862,15 +1122,35 @@ export async function fetchActualGenerationRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<{ zone: ZoneCode; points: ActualGenerationPoint[] }>> {
-  const key = `actual_generation_range:v1:${zone}:${fromISO}:${toISO}`;
+  const key = `actual_generation_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData = { zone, points: [] as ActualGenerationPoint[] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.loadgen_past : TTL.loadgen_today;
+  try {
+    assertValidDateRange(fromISO, toISO);
+  } catch (error) {
+    return {
+      data: emptyData,
+      source: "empty",
+      status: "error",
+      reason: error instanceof Error ? error.message : "invalid_date_range",
+      fetched_at: new Date().toISOString(),
+    };
+  }
+  const cached = await cacheGetEntry<typeof emptyData>(key, ttl);
   if (!force) {
-    const cached = await cacheGet<typeof emptyData>(key, ttl);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
+    if (cached?.fresh) {
+      return {
+        data: cached.payload,
+        source: "cache",
+        status: cached.payload.points.length ? "cache" : "empty",
+        reason: cached.payload.points.length ? undefined : "entsoe_no_generation_data",
+        fetched_at: cached.fetched_at,
+        last_success_at: cached.fetched_at,
+      };
+    }
   }
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
+  if (!token()) return staleCacheOrEmpty(key, emptyData, "entsoe_token_missing");
   try {
     const startOffsetH = cetOffsetHours(fromISO);
     const start = new Date(Date.parse(fromISO + "T00:00:00Z") - startOffsetH * 3600_000);
@@ -879,19 +1159,23 @@ export async function fetchActualGenerationRange(
       .slice(0, 10);
     const endOffsetH = cetOffsetHours(afterTo);
     const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-    const xml = await entsoeRaw({
-      documentType: ENTSOE_DOCUMENT_TYPES.actual_generation,
-      processType: "A16",
-      in_Domain: ZONES[zone].eic,
-      periodStart: ymdh(start),
-      periodEnd: ymdh(end),
-    });
+    const xml = await entsoeRaw(
+      {
+        documentType: ENTSOE_DOCUMENT_TYPES.actual_generation,
+        processType: "A16",
+        in_Domain: ZONES[zone].eic,
+        periodStart: ymdh(start),
+        periodEnd: ymdh(end),
+      },
+      { source: `ENTSO-E A75 ${zone}`, from: fromISO, to: toISO },
+    );
     const startMs = start.getTime();
     const endMs = end.getTime();
     const buckets = new Map<string, { durationMinutes: number; production: Map<string, number> }>();
     for (const p of parseTimeSeriesIntervals(xml)) {
       const t = Date.parse(p.ts);
       if (t < startMs || t >= endMs) continue;
+      if (!Number.isFinite(p.value) || p.value < 0 || p.durationMinutes <= 0) continue;
       const productionType = p.productionType ?? "unclassified";
       const cur = buckets.get(p.ts) ?? {
         durationMinutes: p.durationMinutes,
@@ -909,15 +1193,175 @@ export async function fetchActualGenerationRange(
         const gen_mw = useKeys.reduce((acc, k) => acc + (production[k] ?? 0), 0);
         return { ts, gen_mw, durationMinutes: b.durationMinutes, production };
       })
+      .filter((point) => Number.isFinite(point.gen_mw) && point.gen_mw >= 0)
       .sort((a, b) => a.ts.localeCompare(b.ts));
     const payload = { zone, points };
-    if (!payload.points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
+    logSourceDiagnostic({
+      source: `ENTSO-E A75 ${zone}`,
+      from: fromISO,
+      to: toISO,
+      http_status: 200,
+      content_type: "application/xml",
+      records: payload.points.length,
+      reason: payload.points.length ? undefined : "entsoe_no_generation_data",
+    });
+    if (!payload.points.length)
+      return staleCacheOrEmpty(key, emptyData, "entsoe_no_generation_data");
     await cacheSet(key, payload, ttl);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
+    const fetchedAt = new Date().toISOString();
+    return {
+      data: payload,
+      source: "live",
+      status: "live",
+      fetched_at: fetchedAt,
+      last_success_at: fetchedAt,
+    };
   } catch (e) {
     const reason = e instanceof Error ? e.message : "error";
     return staleCacheOrEmpty(key, emptyData, reason);
   }
+}
+
+export type LoadGenerationResult = FetchResult<LoadGenerationPoint[]> & {
+  load: DataSourceStatus;
+  generation: DataSourceStatus;
+};
+
+function fetchResultStatus<T>(source: string, result: FetchResult<T>): DataSourceStatus {
+  return {
+    source,
+    status:
+      result.status ??
+      (result.source === "live"
+        ? "live"
+        : result.source === "cache"
+          ? "cache"
+          : result.reason === "entsoe_no_data"
+            ? "empty"
+            : "error"),
+    reason: result.reason,
+    fetched_at: result.fetched_at,
+    last_success_at: result.last_success_at,
+    stale: result.stale,
+  };
+}
+
+export async function fetchLoadGenRange(
+  zone: ZoneCode,
+  fromISO: string,
+  toISO: string,
+  demo = false,
+  force = false,
+): Promise<LoadGenerationResult> {
+  try {
+    assertValidDateRange(fromISO, toISO);
+  } catch (error) {
+    const failed: DataSourceStatus = {
+      source: "ENTSO-E",
+      status: "error",
+      reason: error instanceof Error ? error.message : "invalid_date_range",
+      fetched_at: new Date().toISOString(),
+    };
+    return {
+      data: [],
+      source: "empty",
+      status: "error",
+      reason: failed.reason,
+      fetched_at: failed.fetched_at,
+      load: { ...failed, source: "ENTSO-E A65 actual load" },
+      generation: { ...failed, source: "ENTSO-E A75 actual generation" },
+    };
+  }
+
+  type ChunkResult =
+    | {
+        kind: "load";
+        result: Awaited<ReturnType<typeof fetchActualLoadRange>>;
+      }
+    | {
+        kind: "generation";
+        result: Awaited<ReturnType<typeof fetchActualGenerationRange>>;
+      };
+  const tasks: Array<() => Promise<ChunkResult>> = chunkOutageRange(fromISO, toISO).flatMap(
+    (chunk) => [
+      async () => ({
+        kind: "load" as const,
+        result: await fetchActualLoadRange(zone, chunk.from, chunk.to, demo, force),
+      }),
+      async () => ({
+        kind: "generation" as const,
+        result: await fetchActualGenerationRange(zone, chunk.from, chunk.to, demo, force),
+      }),
+    ],
+  );
+  const settled = await allSettledBounded(tasks, 4);
+
+  const loadPoints: ActualLoadPoint[] = [];
+  const generationPoints: ActualGenerationPoint[] = [];
+  const loadStatuses: DataSourceStatus[] = [];
+  const generationStatuses: DataSourceStatus[] = [];
+  settled.forEach((result, index) => {
+    const expectedKind = index % 2 === 0 ? "load" : "generation";
+    if (result.status === "rejected") {
+      const status: DataSourceStatus = {
+        source:
+          expectedKind === "load" ? "ENTSO-E A65 actual load" : "ENTSO-E A75 actual generation",
+        status: "error",
+        reason: result.reason instanceof Error ? result.reason.message : "entsoe_error",
+        fetched_at: new Date().toISOString(),
+      };
+      (expectedKind === "load" ? loadStatuses : generationStatuses).push(status);
+      return;
+    }
+    if (result.value.kind === "load") {
+      loadPoints.push(...result.value.result.data.points);
+      loadStatuses.push(fetchResultStatus("ENTSO-E A65 actual load", result.value.result));
+    } else {
+      generationPoints.push(...result.value.result.data.points);
+      generationStatuses.push(
+        fetchResultStatus("ENTSO-E A75 actual generation", result.value.result),
+      );
+    }
+  });
+
+  const load = aggregateDataStatus(loadStatuses, "ENTSO-E A65 actual load");
+  const generation = aggregateDataStatus(generationStatuses, "ENTSO-E A75 actual generation");
+  const data = mergeLoadGeneration(loadPoints, generationPoints);
+  const oneSeriesAvailable =
+    data.some((point) => point.load_mw != null) !== data.some((point) => point.gen_mw != null);
+  const bothUnavailable =
+    !data.some((point) => point.load_mw != null) && !data.some((point) => point.gen_mw != null);
+  const status: DataStatus = bothUnavailable
+    ? load.status === "empty" && generation.status === "empty"
+      ? "empty"
+      : "error"
+    : oneSeriesAvailable || load.status === "partial" || generation.status === "partial"
+      ? "partial"
+      : load.status === "cache" && generation.status === "cache"
+        ? "cache"
+        : "live";
+  const source =
+    status === "cache" ? "cache" : status === "error" || status === "empty" ? "empty" : "live";
+  const reasons = [
+    load.status === "error" || load.status === "partial" ? `load: ${load.reason}` : null,
+    generation.status === "error" || generation.status === "partial"
+      ? `generation: ${generation.reason}`
+      : null,
+  ].filter((reason): reason is string => Boolean(reason));
+  const fetchedAt =
+    [load.last_success_at, generation.last_success_at].filter(Boolean).sort().at(-1) ??
+    new Date().toISOString();
+  return {
+    data,
+    source,
+    status,
+    reason: reasons.length ? reasons.join("; ") : status === "empty" ? "entsoe_no_data" : undefined,
+    fetched_at: fetchedAt,
+    last_success_at: fetchedAt,
+    stale: load.stale || generation.stale,
+    load,
+    generation,
+  };
 }
 
 export async function fetchLoadGen(
@@ -925,36 +1369,6 @@ export async function fetchLoadGen(
   dayISO: string,
   demo = false,
   force = false,
-): Promise<FetchResult<LoadGenPoint[]>> {
-  const key = `loadgen:${zone}:${dayISO}`;
-  const emptyData: LoadGenPoint[] = [];
-  const cached = force ? null : await cacheGet<LoadGenPoint[]>(key, DEFAULT_TTL);
-  if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
-  if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
-  if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
-  const [load, gen] = await Promise.all([
-    fetchActualLoadRange(zone, dayISO, dayISO, false, force),
-    fetchActualGenerationRange(zone, dayISO, dayISO, false, force),
-  ]);
-  const genByTs = new Map(gen.data.points.map((p) => [p.ts, p.gen_mw]));
-  const rows = load.data.points
-    .filter((p) => genByTs.has(p.ts))
-    .map((p) => ({
-      ts: p.ts,
-      load_mw: p.load_mw,
-      gen_mw: genByTs.get(p.ts)!,
-    }));
-  if (!rows.length || !gen.data.points.length) {
-    return staleCacheOrEmpty(
-      key,
-      emptyData,
-      rows.length ? "generation_unavailable" : "load_unavailable",
-    );
-  }
-  await cacheSet(key, rows, ttlFor(TTL.loadgen_today, TTL.loadgen_past, dayISO));
-  return {
-    data: rows,
-    source: load.source === "live" || gen.source === "live" ? "live" : "cache",
-    fetched_at: new Date().toISOString(),
-  };
+): Promise<LoadGenerationResult> {
+  return fetchLoadGenRange(zone, dayISO, dayISO, demo, force);
 }

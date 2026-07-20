@@ -297,7 +297,11 @@ function TraderReportPage() {
           value={fmt(rs?.baseload)}
           unit="EUR/MWh"
         />
-        <KpiCard label={t("RS peakload", "RS vršno opterećenje")} value={fmt(rs?.peakload)} unit="EUR/MWh" />
+        <KpiCard
+          label={t("RS peakload", "RS vršno opterećenje")}
+          value={fmt(rs?.peakload)}
+          unit="EUR/MWh"
+        />
         <KpiCard
           label={t("RS volatility", "RS volatilnost")}
           value={fmt(rs?.volatility)}
@@ -525,7 +529,9 @@ function TraderReportPage() {
                 <th className="py-2 pr-3 text-right">Max</th>
                 <th className="py-2 pr-3 text-right">Std</th>
                 <th className="py-2 pr-3 text-right">{t("Neg h", "Neg. sati")}</th>
-                <th className="py-2 pr-3 text-right">{t("Spread vs RS", "Spread u odnosu na RS")}</th>
+                <th className="py-2 pr-3 text-right">
+                  {t("Spread vs RS", "Spread u odnosu na RS")}
+                </th>
                 <th className="py-2 pr-3 text-right">{t("Abs spread", "Aps. spread")}</th>
                 <th className="py-2 pr-3 text-right">{t("Cheaper than RS", "Jeftinije od RS")}</th>
                 <th className="py-2 pr-3 text-right">{t("Corr vs RS", "Korel. sa RS")}</th>
