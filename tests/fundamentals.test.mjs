@@ -49,11 +49,31 @@ await transpileModule(
   path.join(libOutdir, "entsoe-zip.mjs"),
   [['from "fflate"', `from "${fflateModuleUrl}"`]],
 );
+await transpileModule(
+  path.join(root, "src/lib/capture.functions.ts"),
+  path.join(libOutdir, "capture.functions.mjs"),
+  [
+    [
+      'import { z } from "zod";',
+      "const z = { string: () => ({ optional() { return this; } }), object: () => ({ parse(data) { return data ?? {}; } }) };",
+    ],
+    [
+      'import { createServerFn } from "@tanstack/react-start";',
+      "const createServerFn = () => ({ inputValidator() { return this; }, handler(fn) { return fn; } });",
+    ],
+    [
+      'import { fetchMarketPrices } from "@/lib/market.functions";',
+      "const fetchMarketPrices = async () => ({ points: [] });",
+    ],
+    ['import { getEntsoeToken } from "@/lib/entsoe-token";', "const getEntsoeToken = () => null;"],
+  ],
+);
 
 const fundamentals = await import(pathToFileURL(path.join(libOutdir, "fundamentals.mjs")).href);
 const outages = await import(pathToFileURL(path.join(libOutdir, "entsoe-outages.mjs")).href);
 const tokens = await import(pathToFileURL(path.join(libOutdir, "entsoe-token.mjs")).href);
 const entsoeZip = await import(pathToFileURL(path.join(libOutdir, "entsoe-zip.mjs")).href);
+const capture = await import(pathToFileURL(path.join(libOutdir, "capture.functions.mjs")).href);
 const outageXml = await readFile(
   path.join(root, "tests/fixtures/entsoe-outage.sample.xml"),
   "utf8",
@@ -342,4 +362,25 @@ test("empty source status remains distinct from source error", () => {
   );
   assert.equal(empty.status, "empty");
   assert.equal(error.status, "error");
+});
+
+test("capture generation ranges are split into bounded historical chunks", () => {
+  const chunks = capture.__captureInternals.chunkDateRange("2025-01-01", "2026-07-20");
+  assert.ok(chunks.length > 1);
+  assert.deepEqual(chunks[0], { from: "2025-01-01", to: "2025-04-02" });
+  assert.equal(chunks.at(-1).to, "2026-07-20");
+  for (const chunk of chunks) {
+    const days =
+      (Date.parse(`${chunk.to}T00:00:00Z`) - Date.parse(`${chunk.from}T00:00:00Z`)) / 86_400_000 +
+      1;
+    assert.ok(days <= 92);
+  }
+});
+
+test("capture generation request windows preserve Belgrade DST delivery days", () => {
+  const start = capture.__captureInternals.belgradeWindowStart("2025-03-30");
+  const end = capture.__captureInternals.belgradeWindowEnd("2025-03-30");
+  assert.equal(start.toISOString(), "2025-03-29T23:00:00.000Z");
+  assert.equal(end.toISOString(), "2025-03-30T22:00:00.000Z");
+  assert.equal((end.getTime() - start.getTime()) / 3_600_000, 23);
 });

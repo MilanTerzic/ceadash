@@ -15,6 +15,7 @@ export type CapturePoint = {
 // Belgrade representative location for clear-sky PV proxy.
 const SERBIA_LAT = 44.8;
 const SERBIA_LON = 20.5;
+const GENERATION_CHUNK_DAYS = 92;
 
 /** Modelled clear-sky PV proxy for Serbia (Belgrade coordinates).
  *  Returns a non-negative shape (0..~1) per hour; used ONLY as a weighting
@@ -64,17 +65,42 @@ function addDaysISO(dayISO: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function chunkDateRange(fromISO: string, toISO: string, maxDays = GENERATION_CHUNK_DAYS) {
+  const chunks: Array<{ from: string; to: string }> = [];
+  let cursor = Date.parse(fromISO + "T00:00:00Z");
+  const end = Date.parse(toISO + "T00:00:00Z");
+  if (!Number.isFinite(cursor) || !Number.isFinite(end) || end < cursor) return chunks;
+  while (cursor <= end) {
+    const chunkEnd = Math.min(end, cursor + (maxDays - 1) * 86_400_000);
+    chunks.push({
+      from: new Date(cursor).toISOString().slice(0, 10),
+      to: new Date(chunkEnd).toISOString().slice(0, 10),
+    });
+    cursor = chunkEnd + 86_400_000;
+  }
+  return chunks;
+}
+
 function cetOffsetHours(dayISO: string): number {
-  const noonUtc = new Date(dayISO + "T12:00:00Z");
+  const midnightUtc = new Date(dayISO + "T00:00:00Z");
   const part =
     new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/Belgrade",
       timeZoneName: "shortOffset",
     })
-      .formatToParts(noonUtc)
+      .formatToParts(midnightUtc)
       .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
   const m = /([+-]?\d+)/.exec(part);
   return m ? parseInt(m[1], 10) : 1;
+}
+
+function belgradeWindowStart(dayISO: string): Date {
+  return new Date(Date.parse(dayISO + "T00:00:00Z") - cetOffsetHours(dayISO) * 3600_000);
+}
+
+function belgradeWindowEnd(dayISO: string): Date {
+  const afterDay = addDaysISO(dayISO, 1);
+  return new Date(Date.parse(afterDay + "T00:00:00Z") - cetOffsetHours(afterDay) * 3600_000);
 }
 
 function stripNs(xml: string): string {
@@ -229,10 +255,64 @@ async function fetchGenerationRange(
   points: Array<{ ts: string; value: number }>;
   diagnostics: GenerationDiagnostics;
 }> {
-  const offsetFrom = cetOffsetHours(fromISO);
-  const offsetTo = cetOffsetHours(toISO);
-  const start = new Date(Date.parse(fromISO + "T00:00:00Z") - offsetFrom * 3600_000);
-  const end = new Date(Date.parse(toISO + "T00:00:00Z") + (24 - offsetTo) * 3600_000);
+  const chunks = chunkDateRange(fromISO, toISO);
+  if (chunks.length > 1) {
+    const points: Array<{ ts: string; value: number }> = [];
+    const failures: Array<{ reason?: EntsoeReason; apiMessage?: string; httpStatus?: number }> = [];
+    for (const chunk of chunks) {
+      const result = await fetchGenerationRange(psrType, chunk.from, chunk.to);
+      if (result.points.length) {
+        points.push(...result.points);
+      } else if (!result.ok) {
+        failures.push({
+          reason: result.reason,
+          apiMessage: result.diagnostics.apiMessage,
+          httpStatus: result.diagnostics.httpStatus,
+        });
+      }
+    }
+    const byTs = new Map<string, number>();
+    for (const point of points) {
+      if (Number.isFinite(point.value) && !Number.isNaN(Date.parse(point.ts))) {
+        byTs.set(new Date(point.ts).toISOString(), point.value);
+      }
+    }
+    const merged = [...byTs.entries()]
+      .map(([ts, value]) => ({ ts, value }))
+      .sort((a, b) => a.ts.localeCompare(b.ts));
+    const firstFailure = failures.find((failure) => failure.reason && failure.reason !== "no_data");
+    const reason =
+      merged.length > 0
+        ? failures.length
+          ? ("partial_generation_data" as EntsoeReason)
+          : undefined
+        : (firstFailure?.reason ?? failures[0]?.reason ?? "no_data");
+    const apiMessage =
+      firstFailure?.apiMessage ??
+      (failures.length && !merged.length
+        ? `${failures.length}/${chunks.length} generation chunks returned no data`
+        : undefined);
+    return {
+      ok: merged.length > 0,
+      reason,
+      points: merged,
+      diagnostics: {
+        ok: merged.length > 0,
+        reason,
+        apiMessage,
+        httpStatus: firstFailure?.httpStatus ?? failures[0]?.httpStatus,
+        psrType,
+        periodStart: ymdh(belgradeWindowStart(fromISO)),
+        periodEnd: ymdh(belgradeWindowEnd(toISO)),
+        parsedPoints: merged.length,
+        firstTimestamp: merged[0]?.ts ?? null,
+        lastTimestamp: merged[merged.length - 1]?.ts ?? null,
+      },
+    };
+  }
+
+  const start = belgradeWindowStart(fromISO);
+  const end = belgradeWindowEnd(toISO);
   const periodStart = ymdh(start);
   const periodEnd = ymdh(end);
   const r = await entsoeRaw({
@@ -405,3 +485,10 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       },
     };
   });
+
+export const __captureInternals = {
+  chunkDateRange,
+  belgradeWindowStart,
+  belgradeWindowEnd,
+  ymdh,
+};
