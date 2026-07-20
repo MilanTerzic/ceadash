@@ -921,7 +921,7 @@ export const getWeather = createServerFn({ method: "GET" })
     const zones: ZoneCode[] = ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "AL"];
     const settled = await allSettledBounded(
       zones.map((zone) => () => fetchWeatherRange(zone, from, to, Boolean(data?.force))),
-      4,
+      2,
     );
     const rows = settled.map((result, index) =>
       result.status === "fulfilled"
@@ -937,17 +937,17 @@ export const getWeather = createServerFn({ method: "GET" })
           },
     );
     const aggregate = aggregateDataStatus(rows, "Open-Meteo weather");
-    const failedZones = rows.filter((row) => row.status === "error");
+    const degradedZones = rows.filter((row) => row.status === "error" || row.status === "partial");
     const hasData = rows.some((row) => row.data.length);
     return {
       day: from,
       from,
       to,
       ...aggregate,
-      status: failedZones.length && hasData ? ("partial" as const) : aggregate.status,
+      status: degradedZones.length && hasData ? ("partial" as const) : aggregate.status,
       reason:
-        failedZones.length && hasData
-          ? `weather_unavailable_for_${failedZones.length}_of_${zones.length}_zones`
+        degradedZones.length && hasData
+          ? `weather_unavailable_for_${degradedZones.length}_of_${zones.length}_zones`
           : aggregate.reason,
       rows,
     };
@@ -1008,7 +1008,7 @@ export const getDanubeDischarge = createServerFn({ method: "GET" })
           Boolean(data?.force),
         )),
       })),
-      3,
+      1,
     );
     const results = settled.map((result, index) => {
       if (result.status === "fulfilled") return result.value;

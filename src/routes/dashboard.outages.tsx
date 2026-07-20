@@ -59,7 +59,14 @@ function sourceReason(reason?: string): string | undefined {
   }
   if (reason.includes("invalid_date")) return "Request exceeded the supported date range";
   if (reason.includes("request_timeout")) return "The source request timed out";
+  if (reason.includes("http_429")) return "Open-Meteo rate limit reached; retry shortly";
   if (reason.includes("stale_cache")) return "Live source failed; showing stale cached data";
+  if (reason.includes("weather_segments_unavailable")) {
+    return "Some Open-Meteo weather segments are temporarily unavailable";
+  }
+  if (reason.includes("no_plausible_danube_grid_cell")) {
+    return "Open-Meteo does not provide a plausible Danube grid cell for this station";
+  }
   return reason.replaceAll("_", " ");
 }
 
