@@ -124,9 +124,11 @@ function parseDayKey(key: string): Date {
 export function DateRangeControl({
   firstAvailable,
   latestAvailable,
+  disabled = false,
 }: {
   firstAvailable?: Date;
   latestAvailable?: Date;
+  disabled?: boolean;
 }) {
   const { t } = useLang();
   const navigate = useNavigate();
@@ -202,6 +204,7 @@ export function DateRangeControl({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
+                disabled={disabled}
                 className={cn(
                   "mt-1.5 w-[280px] justify-start text-left font-normal",
                   !range && "text-muted-foreground",
@@ -227,6 +230,7 @@ export function DateRangeControl({
                       value={draftFromKey}
                       min={selectableBounds.min}
                       max={selectableBounds.max}
+                      disabled={disabled}
                       onChange={(e) => setDraftFromKey(e.target.value)}
                     />
                   </div>
@@ -243,6 +247,7 @@ export function DateRangeControl({
                       value={draftToKey}
                       min={draftFromKey || selectableBounds.min}
                       max={selectableBounds.max}
+                      disabled={disabled}
                       onChange={(e) => setDraftToKey(e.target.value)}
                     />
                   </div>
@@ -276,6 +281,7 @@ export function DateRangeControl({
               size="sm"
               variant={preset === p.key ? "default" : "outline"}
               className="h-8 px-3 text-xs"
+              disabled={disabled}
               onClick={() => setPreset(p.key)}
             >
               {p.label}
@@ -285,6 +291,7 @@ export function DateRangeControl({
             size="sm"
             variant={preset === "custom" ? "default" : "outline"}
             className="h-8 px-3 text-xs"
+            disabled={disabled}
             onClick={() => {
               setPreset("custom");
               setOpen(true);
@@ -303,8 +310,9 @@ export function DateRangeControl({
           <select
             id="compare-with"
             value={comparison}
+            disabled={disabled}
             onChange={(event) => setComparison(event.target.value)}
-            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground"
+            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="previous_equivalent">
               {t("Previous equivalent period", "Prethodni ekvivalentni period")}
