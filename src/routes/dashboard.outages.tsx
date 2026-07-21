@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  Loader2,
   RefreshCw,
   Wrench,
 } from "lucide-react";
@@ -261,7 +262,19 @@ function OutagesPage() {
         hideRange
       />
       <div className="space-y-5 p-6">
-        <DateRangeControl />
+        <DateRangeControl disabled={isFetchingAll} />
+
+        {isFetchingAll && (
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-medium text-primary shadow-sm">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>
+                Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi
+                izvori.
+              </span>
+            </div>
+          </div>
+        )}
 
         <Panel title="Data source status">
           <StatusRow
