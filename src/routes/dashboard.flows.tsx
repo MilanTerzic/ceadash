@@ -658,18 +658,26 @@ function Legend2() {
     { c: "oklch(0.65 0.14 145)", l: "<50%" },
     { c: "oklch(0.72 0.13 200)", l: "50–80%" },
     { c: "oklch(0.75 0.16 70)", l: "80–90%" },
-    { c: "oklch(0.62 0.22 25)", l: ">90% congested" },
+    { c: "oklch(0.62 0.22 25)", l: ">90% zagušeno" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-[11px] text-muted-foreground">
       {items.map((i) => (
         <span key={i.l} className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-1 rounded-sm" style={{ background: i.c }} />
+          <span
+            className="w-3.5 h-1.5 rounded-full"
+            style={{ background: i.c, boxShadow: `0 0 6px ${i.c}` }}
+          />
           {i.l}
         </span>
       ))}
-      <span className="inline-flex items-center gap-1.5 ml-2">
-        <ArrowLeftRight className="w-3 h-3" /> arrow = avg flow direction
+      <span className="inline-flex items-center gap-1.5 pl-2 border-l border-border/60">
+        <ArrowLeftRight className="w-3 h-3" /> strelica = prosečan smer toka
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="w-4 h-[2px] bg-muted-foreground/60" />
+        <span className="w-4 h-[6px] bg-muted-foreground/60" />
+        debljina = |neto MW|
       </span>
     </div>
   );
@@ -694,63 +702,96 @@ function NetworkDiagram({
   onSelect: (n: ZoneCode) => void;
   selected: ZoneCode;
 }) {
-  const w = 560,
-    h = 320;
-  const cx = w / 2,
-    cy = h / 2;
-  const r = 120;
+  const w = 620;
+  const h = 360;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = 135;
+  const centerR = 34;
+  const nodeR = 28;
   const items = summary.map((s, i) => {
     const angle = -Math.PI / 2 + i * ((2 * Math.PI) / Math.max(1, summary.length));
-    return { ...s, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    return {
+      ...s,
+      x: cx + r * Math.cos(angle),
+      y: cy + r * Math.sin(angle),
+      angle,
+    };
   });
   const maxMag = Math.max(1, ...items.map((i) => Math.abs(i.avgNet ?? 0)));
   return (
     <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[320px]">
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full h-[360px]"
+        role="img"
+        aria-label="Serbia cross-border network diagram"
+      >
         <defs>
-          {items.map((it, idx) => (
+          <radialGradient id="rs-center" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="oklch(0.45 0.12 260)" />
+            <stop offset="100%" stopColor="oklch(0.22 0.06 260)" />
+          </radialGradient>
+          {items.map((it) => (
             <marker
-              key={idx}
+              key={it.neighbour}
               id={`arr-${it.neighbour}`}
               viewBox="0 0 10 10"
-              refX="9"
+              refX="8"
               refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto"
+              markerWidth="5"
+              markerHeight="5"
+              orient="auto-start-reverse"
             >
               <path d="M0,0 L10,5 L0,10 z" fill={utilColor(it.avgUtil)} />
             </marker>
           ))}
         </defs>
-        {/* edges */}
+
+        {/* edges (trimmed to node borders) */}
         {items.map((it) => {
-          const importing = (it.avgNet ?? 0) >= 0;
-          const x1 = importing ? it.x : cx;
-          const y1 = importing ? it.y : cy;
-          const x2 = importing ? cx : it.x;
-          const y2 = importing ? cy : it.y;
-          const thickness = 1 + (Math.abs(it.avgNet ?? 0) / maxMag) * 7;
+          const net = it.avgNet ?? 0;
+          const importing = net >= 0;
+          const dx = it.x - cx;
+          const dy = it.y - cy;
+          const len = Math.max(1, Math.hypot(dx, dy));
+          const ux = dx / len;
+          const uy = dy / len;
+          const sx = cx + ux * centerR;
+          const sy = cy + uy * centerR;
+          const ex = it.x - ux * nodeR;
+          const ey = it.y - uy * nodeR;
+          const [x1, y1, x2, y2] = importing ? [ex, ey, sx, sy] : [sx, sy, ex, ey];
+          const thickness = 1.5 + (Math.abs(net) / maxMag) * 6;
+          const isSelected = selected === it.neighbour;
           return (
-            <line
+            <g
               key={it.neighbour}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={utilColor(it.avgUtil)}
-              strokeWidth={thickness}
-              strokeOpacity={0.85}
-              markerEnd={`url(#arr-${it.neighbour})`}
-            />
+              className="cursor-pointer"
+              onClick={() => onSelect(it.neighbour)}
+            >
+              <title>{`${it.label} · net ${net >= 0 ? "+" : ""}${Math.round(net)} MW · imp ${Math.round(it.avgImp)} · exp ${Math.round(it.avgExp)}${it.avgUtil != null ? ` · util ${Math.round(it.avgUtil)}%` : ""}`}</title>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={utilColor(it.avgUtil)}
+                strokeWidth={thickness}
+                strokeOpacity={isSelected ? 1 : 0.75}
+                strokeLinecap="round"
+                markerEnd={`url(#arr-${it.neighbour})`}
+              />
+            </g>
           );
         })}
+
         {/* RS center */}
         <circle
           cx={cx}
           cy={cy}
-          r={32}
-          fill="oklch(0.25 0.05 260)"
+          r={centerR}
+          fill="url(#rs-center)"
           stroke="var(--primary)"
           strokeWidth={2}
         />
@@ -758,56 +799,82 @@ function NetworkDiagram({
           x={cx}
           y={cy + 5}
           textAnchor="middle"
-          fill="var(--foreground)"
-          fontSize="14"
-          fontWeight={600}
+          fill="#fff"
+          fontSize="15"
+          fontWeight={700}
+          style={{ letterSpacing: 0.5 }}
         >
           RS
         </text>
+
         {/* neighbours */}
-        {items.map((it) => (
-          <g key={it.neighbour} className="cursor-pointer" onClick={() => onSelect(it.neighbour)}>
-            <circle
-              cx={it.x}
-              cy={it.y}
-              r={26}
-              fill={selected === it.neighbour ? "oklch(0.3 0.08 260)" : "var(--surface-2)"}
-              stroke={selected === it.neighbour ? "var(--primary)" : "var(--border)"}
-              strokeWidth={selected === it.neighbour ? 2 : 1}
-            />
-            <text
-              x={it.x}
-              y={it.y - 2}
-              textAnchor="middle"
-              fill="var(--foreground)"
-              fontSize="12"
-              fontWeight={600}
+        {items.map((it) => {
+          const isSelected = selected === it.neighbour;
+          const net = it.avgNet;
+          const lx = it.x + Math.cos(it.angle) * (nodeR + 16);
+          const ly = it.y + Math.sin(it.angle) * (nodeR + 16) + 3;
+          return (
+            <g
+              key={it.neighbour}
+              className="cursor-pointer"
+              onClick={() => onSelect(it.neighbour)}
             >
-              {it.neighbour}
-            </text>
-            <text
-              x={it.x}
-              y={it.y + 12}
-              textAnchor="middle"
-              fill="var(--muted-foreground)"
-              fontSize="9"
-            >
-              {it.avgNet == null ? "—" : `${it.avgNet >= 0 ? "+" : ""}${Math.round(it.avgNet)} MW`}
-            </text>
-            {it.avgUtil != null && (
+              <title>{`${it.label} · net ${net == null ? "—" : `${net >= 0 ? "+" : ""}${Math.round(net)} MW`}`}</title>
+              <circle
+                cx={it.x}
+                cy={it.y}
+                r={nodeR}
+                fill={isSelected ? "oklch(0.32 0.09 260)" : "oklch(0.24 0.04 260)"}
+                stroke={isSelected ? "var(--primary)" : utilColor(it.avgUtil)}
+                strokeWidth={isSelected ? 2.5 : 1.5}
+              />
               <text
                 x={it.x}
-                y={it.y + 42}
+                y={it.y - 2}
                 textAnchor="middle"
-                fill={utilColor(it.avgUtil)}
-                fontSize="10"
-                fontWeight={600}
+                fill="#fff"
+                fontSize="13"
+                fontWeight={700}
               >
-                {Math.round(it.avgUtil)}%
+                {it.neighbour}
               </text>
-            )}
-          </g>
-        ))}
+              <text
+                x={it.x}
+                y={it.y + 12}
+                textAnchor="middle"
+                fill="rgba(255,255,255,0.78)"
+                fontSize="9.5"
+                fontWeight={500}
+              >
+                {net == null ? "—" : `${net >= 0 ? "+" : ""}${Math.round(net)} MW`}
+              </text>
+              {it.avgUtil != null && (
+                <g>
+                  <rect
+                    x={lx - 20}
+                    y={ly - 10}
+                    width={40}
+                    height={14}
+                    rx={7}
+                    fill="color-mix(in oklab, var(--surface-2) 92%, transparent)"
+                    stroke={utilColor(it.avgUtil)}
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={lx}
+                    y={ly}
+                    textAnchor="middle"
+                    fill={utilColor(it.avgUtil)}
+                    fontSize="10"
+                    fontWeight={700}
+                  >
+                    {Math.round(it.avgUtil)}%
+                  </text>
+                </g>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
