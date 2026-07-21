@@ -264,7 +264,7 @@ export function DateRangeControl({
                   <Button
                     size="sm"
                     className="h-8 px-3 text-xs"
-                    disabled={!canApply}
+                    disabled={!canApply || disabled}
                     onClick={handleApply}
                   >
                     {t("Apply", "Primeni")}
