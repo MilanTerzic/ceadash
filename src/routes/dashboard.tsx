@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { DateRangeControl } from "@/components/dashboard/DateRangeControl";
 import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
@@ -54,7 +55,8 @@ function DashboardLayout() {
           </div>
         </section>
         <DashboardTabs />
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
+          <DateRangeControl />
           <Outlet />
         </div>
       </div>

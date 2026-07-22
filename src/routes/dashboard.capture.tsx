@@ -19,7 +19,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
 import {
-  DateRangeControl,
   useDashboardRange,
   useRequestedRangeKeys,
 } from "@/components/dashboard/DateRangeControl";
@@ -418,7 +417,7 @@ function CapturePage() {
         warning={warning}
       />
 
-      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
+
 
       <ChartCard title={t("Methodology", "Metodologija")} description={methodologyHint}>
         <div className="grid gap-3 md:grid-cols-3 text-sm">
