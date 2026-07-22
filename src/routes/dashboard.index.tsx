@@ -21,7 +21,6 @@ import {
   PageLoadingSkeleton,
 } from "@/components/dashboard/atoms";
 import {
-  DateRangeControl,
   useDashboardRange,
   useRequestedRangeKeys,
 } from "@/components/dashboard/DateRangeControl";
