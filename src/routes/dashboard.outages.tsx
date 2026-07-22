@@ -12,7 +12,7 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { DateRangeControl, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import { useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { DataBadge } from "@/components/data-badge";
 import { KPI } from "@/components/kpi";
 import { Panel } from "@/components/panel";
