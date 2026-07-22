@@ -19,7 +19,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
 import {
-  DateRangeControl,
   useDashboardRange,
   useRequestedRangeKeys,
 } from "@/components/dashboard/DateRangeControl";
