@@ -184,7 +184,7 @@ function TraderReportPage() {
   if (reportQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <DateRangeControl />
+
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
           <p className="text-sm text-muted-foreground">
             {t("Building CEA report...", "Priprema CEA izveštaja...")}

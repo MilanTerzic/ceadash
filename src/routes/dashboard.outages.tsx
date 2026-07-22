@@ -262,7 +262,7 @@ function OutagesPage() {
         hideRange
       />
       <div className="space-y-5 p-6">
-        <DateRangeControl disabled={isFetchingAll} />
+
 
         {isFetchingAll && (
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-medium text-primary shadow-sm">

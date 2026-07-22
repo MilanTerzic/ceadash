@@ -418,7 +418,7 @@ function CapturePage() {
         warning={warning}
       />
 
-      <DateRangeControl firstAvailable={firstAvailable} latestAvailable={latestAvailable} />
+
 
       <ChartCard title={t("Methodology", "Metodologija")} description={methodologyHint}>
         <div className="grid gap-3 md:grid-cols-3 text-sm">
