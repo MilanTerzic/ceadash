@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import { DateRangeControl, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
+import { useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { useLang } from "@/lib/i18n";
 import { getCeaTraderReport, type CeaTraderReport } from "@/lib/report.functions";
 import type { CaptureSummary, MarketPriceSummary } from "@/lib/report.analytics";
@@ -197,8 +197,8 @@ function TraderReportPage() {
   if (!report) {
     return (
       <div className="space-y-6">
-        <DateRangeControl />
         <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm">
+
           {t(
             "No report data is available for this period.",
             "Nema dostupnih podataka za izveštaj u ovom periodu.",
@@ -215,9 +215,8 @@ function TraderReportPage() {
 
   return (
     <div className="space-y-6 print:bg-white">
-      <div className="print:hidden">
-        <DateRangeControl />
-      </div>
+
+
 
       <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
