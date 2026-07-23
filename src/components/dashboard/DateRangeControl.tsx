@@ -1,39 +1,151 @@
-import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon, Clock3, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { CalendarIcon, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { belgradeDateISO } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
-import { belgradeDayKey } from "@/lib/baseload";
+import { cn } from "@/lib/utils";
 
-export type PresetKey = "7d" | "30d" | "mtd" | "prev_month" | "ytd" | "custom";
+export type PresetKey = "today" | "d1" | "7d" | "30d" | "mtd" | "prev_month" | "ytd" | "custom";
 
-function presetRange(preset: PresetKey, latest: Date): { from: Date; to: Date } {
-  const to = new Date(latest);
-  const from = new Date(latest);
+export type ComparisonKey = "previous_equivalent" | "previous_month" | "previous_year" | "none";
+
+export type DateRangeKeys = { from: string; to: string };
+
+const OVERVIEW_PRESETS: PresetKey[] = ["7d", "30d", "mtd", "prev_month", "ytd", "custom"];
+
+function parseDayKey(key: string): Date {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
+function addDaysKey(dayKey: string, days: number) {
+  const date = parseDayKey(dayKey);
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatDayKey(date);
+}
+
+function formatDayKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function monthStartKey(dayKey: string) {
+  return `${dayKey.slice(0, 7)}-01`;
+}
+
+function previousMonthRange(dayKey: string): DateRangeKeys {
+  const [year, month] = dayKey.split("-").map(Number);
+  const from = new Date(Date.UTC(year, month - 2, 1, 12));
+  const to = new Date(Date.UTC(year, month - 1, 0, 12));
+  return { from: formatDayKey(from), to: formatDayKey(to) };
+}
+
+function previousYearRange(dayKey: string): DateRangeKeys {
+  const [year] = dayKey.split("-").map(Number);
+  return { from: `${year - 1}-01-01`, to: `${year - 1}-12-31` };
+}
+
+function presetRangeKeys(preset: PresetKey, todayKey = belgradeDateISO()): DateRangeKeys {
   switch (preset) {
-    case "7d":
-      from.setDate(to.getDate() - 6);
-      return { from, to };
-    case "30d":
-      from.setDate(to.getDate() - 29);
-      return { from, to };
-    case "mtd":
-      return { from: new Date(to.getFullYear(), to.getMonth(), 1), to };
-    case "prev_month": {
-      const f = new Date(to.getFullYear(), to.getMonth() - 1, 1);
-      const t = new Date(to.getFullYear(), to.getMonth(), 0);
-      return { from: f, to: t };
+    case "today":
+      return { from: todayKey, to: todayKey };
+    case "d1": {
+      const tomorrow = addDaysKey(todayKey, 1);
+      return { from: tomorrow, to: tomorrow };
     }
+    case "7d":
+      return { from: addDaysKey(todayKey, -6), to: todayKey };
+    case "30d":
+      return { from: addDaysKey(todayKey, -29), to: todayKey };
+    case "mtd":
+      return { from: monthStartKey(todayKey), to: todayKey };
+    case "prev_month":
+      return previousMonthRange(todayKey);
     case "ytd":
-      return { from: new Date(to.getFullYear(), 0, 1), to };
+      return { from: `${todayKey.slice(0, 4)}-01-01`, to: todayKey };
     default:
-      return { from, to };
+      return { from: todayKey, to: todayKey };
   }
+}
+
+function comparisonRangeKeys(
+  range: DateRangeKeys,
+  comparison: ComparisonKey,
+): DateRangeKeys | undefined {
+  if (comparison === "none") return undefined;
+  if (comparison === "previous_month") return previousMonthRange(range.to);
+  if (comparison === "previous_year") return previousYearRange(range.to);
+
+  const from = parseDayKey(range.from);
+  const to = parseDayKey(range.to);
+  const days = Math.max(1, Math.round((+to - +from) / 86_400_000) + 1);
+  const previousTo = addDaysKey(range.from, -1);
+  return { from: addDaysKey(previousTo, -(days - 1)), to: previousTo };
+}
+
+function sameRange(a: DateRangeKeys, b: DateRangeKeys) {
+  return a.from === b.from && a.to === b.to;
+}
+
+function matchingPreset(range: DateRangeKeys, presets: PresetKey[]) {
+  const todayKey = belgradeDateISO();
+  return presets.find(
+    (preset) => preset !== "custom" && sameRange(range, presetRangeKeys(preset, todayKey)),
+  );
+}
+
+function labelForPreset(preset: PresetKey, t: (en: string, sr: string) => string) {
+  switch (preset) {
+    case "today":
+      return t("Today", "Danas");
+    case "d1":
+      return "D+1";
+    case "7d":
+      return t("Last 7d", "Poslednjih 7 dana");
+    case "30d":
+      return t("Last 30d", "Poslednjih 30 dana");
+    case "mtd":
+      return t("MTD", "Od pocetka meseca");
+    case "prev_month":
+      return t("Prev. month", "Prethodni mesec");
+    case "ytd":
+      return t("YTD", "Od pocetka godine");
+    default:
+      return t("Custom", "Prilagodjeno");
+  }
+}
+
+function formatRangeLabel(range?: DateRangeKeys) {
+  if (!range) return "";
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Belgrade",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const from = formatter.format(parseDayKey(range.from));
+  const to = formatter.format(parseDayKey(range.to));
+  return range.from === range.to ? from : `${from} - ${to}`;
+}
+
+function checkedTimeLabel(value?: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Belgrade",
+  });
 }
 
 /** Resolve the requested analysis-period start (Belgrade YYYY-MM-DD) from URL
@@ -49,48 +161,35 @@ export function useRequestedFromKey(): string {
 export function useRequestedRangeKeys(): { fromKey: string; toKey: string; preset: PresetKey } {
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
   const preset: PresetKey = search.preset ?? "30d";
-  const now = new Date();
-  let from: Date;
-  let to: Date;
-  if (preset === "custom") {
-    from = search.from ? new Date(search.from) : presetRange("30d", now).from;
-    to = search.to ? new Date(search.to) : now;
-  } else {
-    const r = presetRange(preset, now);
-    from = r.from;
-    to = r.to;
-  }
-  const fmt = (d: Date) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Belgrade",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(d);
-  return { fromKey: fmt(from), toKey: fmt(to), preset };
+  const fallback = presetRangeKeys("30d");
+  const range =
+    preset === "custom"
+      ? {
+          from: search.from ?? fallback.from,
+          to: search.to ?? fallback.to,
+        }
+      : presetRangeKeys(preset);
+  return { fromKey: range.from, toKey: range.to, preset };
 }
 
 export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable?: Date }) {
   const search = useSearch({ strict: false }) as { from?: string; to?: string; preset?: PresetKey };
   const navigate = useNavigate();
-
-  // Presets are anchored to "today" (Belgrade), NOT to the latest available
-  // data point. Otherwise a partially-loaded dataset would silently clamp
-  // YTD/MTD/30d to whatever we happen to have cached.
-  const today = new Date();
   const preset: PresetKey = search.preset ?? "30d";
 
-  const range = useMemo<{ from: Date; to: Date } | undefined>(() => {
-    if (preset !== "custom") {
-      return presetRange(preset, today);
-    }
-    if (search.from && search.to) {
-      return { from: new Date(search.from), to: new Date(search.to) };
-    }
-    return presetRange("30d", today);
-    // today is intentionally excluded from deps — a new Date() each render is fine
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const rangeKeys = useMemo<DateRangeKeys>(() => {
+    if (preset !== "custom") return presetRangeKeys(preset);
+    const fallback = presetRangeKeys("30d");
+    return {
+      from: search.from ?? fallback.from,
+      to: search.to ?? fallback.to,
+    };
   }, [preset, search.from, search.to]);
+
+  const range = useMemo(
+    () => ({ from: parseDayKey(rangeKeys.from), to: parseDayKey(rangeKeys.to) }),
+    [rangeKeys.from, rangeKeys.to],
+  );
 
   const setPreset = (p: PresetKey) => {
     navigate({
@@ -105,98 +204,147 @@ export function useDashboardRange(opts: { firstAvailable?: Date; latestAvailable
     });
   };
 
-  return {
-    preset,
-    range,
-    fromKey: range ? belgradeDayKey(range.from) : undefined,
-    toKey: range ? belgradeDayKey(range.to) : undefined,
-    setPreset,
-    firstAvailable: opts.firstAvailable,
-    latestAvailable: opts.latestAvailable,
-  };
-}
-
-function parseDayKey(key: string): Date {
-  const [year, month, day] = key.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-export function DateRangeControl({
-  firstAvailable,
-  latestAvailable,
-  disabled = false,
-}: {
-  firstAvailable?: Date;
-  latestAvailable?: Date;
-  disabled?: boolean;
-}) {
-  const { t } = useLang();
-  const navigate = useNavigate();
-  const { preset, range, setPreset } = useDashboardRange({ firstAvailable, latestAvailable });
-
-  const [open, setOpen] = useState(false);
-  const [comparison, setComparison] = useState("previous_equivalent");
-  const [draftFromKey, setDraftFromKey] = useState(range ? belgradeDayKey(range.from) : "");
-  const [draftToKey, setDraftToKey] = useState(range ? belgradeDayKey(range.to) : "");
-
-  useEffect(() => {
-    setDraftFromKey(range ? belgradeDayKey(range.from) : "");
-    setDraftToKey(range ? belgradeDayKey(range.to) : "");
-  }, [range]);
-
-  const presets: { key: PresetKey; label: string }[] = [
-    { key: "7d", label: t("Last 7d", "Poslednjih 7 dana") },
-    { key: "30d", label: t("Last 30d", "Poslednjih 30 dana") },
-    { key: "mtd", label: t("MTD", "Od početka meseca") },
-    { key: "prev_month", label: t("Prev. month", "Prethodni mesec") },
-    { key: "ytd", label: t("YTD", "Od početka godine") },
-  ];
-
-  const label = range
-    ? belgradeDayKey(range.from) === belgradeDayKey(range.to)
-      ? format(range.from, "d MMM yyyy")
-      : `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`
-    : t("Pick a range", "Izaberite period");
-
-  const selectableBounds = useMemo(() => {
-    const today = new Date();
-    const minDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
-    return { min: belgradeDayKey(minDate), max: belgradeDayKey(today) };
-  }, []);
-
-  const applyRange = (from: Date, to: Date) => {
+  const setRangeKeys = (next: DateRangeKeys) => {
     navigate({
       to: ".",
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         preset: "custom" as const,
-        from: belgradeDayKey(from),
-        to: belgradeDayKey(to),
+        from: next.from,
+        to: next.to,
       }),
       replace: true,
     });
+  };
+
+  return {
+    preset,
+    range,
+    rangeKeys,
+    fromKey: rangeKeys.from,
+    toKey: rangeKeys.to,
+    setPreset,
+    setRangeKeys,
+    firstAvailable: opts.firstAvailable,
+    latestAvailable: opts.latestAvailable,
+  };
+}
+
+type DateRangeControlProps = {
+  firstAvailable?: Date;
+  latestAvailable?: Date;
+  disabled?: boolean;
+  range?: DateRangeKeys;
+  activePreset?: PresetKey;
+  presets?: PresetKey[];
+  onRangeChange?: (range: DateRangeKeys, preset: PresetKey) => void;
+  comparison?: ComparisonKey;
+  onComparisonChange?: (comparison: ComparisonKey, comparisonRange?: DateRangeKeys) => void;
+  coverage?: ReactNode;
+  lastRefresh?: string;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+  maxFutureDays?: number;
+};
+
+export function DateRangeControl({
+  firstAvailable,
+  latestAvailable,
+  disabled = false,
+  range: controlledRange,
+  activePreset,
+  presets = OVERVIEW_PRESETS,
+  onRangeChange,
+  comparison: controlledComparison,
+  onComparisonChange,
+  coverage,
+  lastRefresh,
+  onRefresh,
+  isRefreshing = false,
+  maxFutureDays = 0,
+}: DateRangeControlProps) {
+  const { t } = useLang();
+  const dashboardRange = useDashboardRange({ firstAvailable, latestAvailable });
+  const isControlled = Boolean(controlledRange && onRangeChange);
+  const rangeKeys = controlledRange ?? dashboardRange.rangeKeys;
+  const selectedPreset =
+    activePreset ??
+    matchingPreset(rangeKeys, presets) ??
+    (isControlled ? "custom" : dashboardRange.preset);
+  const [open, setOpen] = useState(false);
+  const [internalComparison, setInternalComparison] =
+    useState<ComparisonKey>("previous_equivalent");
+  const comparison = controlledComparison ?? internalComparison;
+  const [draftFromKey, setDraftFromKey] = useState(rangeKeys.from);
+  const [draftToKey, setDraftToKey] = useState(rangeKeys.to);
+
+  useEffect(() => {
+    setDraftFromKey(rangeKeys.from);
+    setDraftToKey(rangeKeys.to);
+  }, [rangeKeys.from, rangeKeys.to]);
+
+  useEffect(() => {
+    onComparisonChange?.(comparison, comparisonRangeKeys(rangeKeys, comparison));
+  }, [comparison, onComparisonChange, rangeKeys]);
+
+  const label = rangeKeys ? formatRangeLabel(rangeKeys) : t("Pick a range", "Izaberite period");
+  const comparisonRange = comparisonRangeKeys(rangeKeys, comparison);
+
+  const selectableBounds = useMemo(() => {
+    const today = belgradeDateISO();
+    return {
+      min: `${Number(today.slice(0, 4)) - 5}${today.slice(4)}`,
+      max: addDaysKey(today, maxFutureDays),
+    };
+  }, [maxFutureDays]);
+
+  const applyRange = (next: DateRangeKeys, preset: PresetKey) => {
+    if (isControlled) {
+      onRangeChange?.(next, preset);
+      return;
+    }
+    if (preset === "custom") {
+      dashboardRange.setRangeKeys(next);
+    } else {
+      dashboardRange.setPreset(preset);
+    }
   };
 
   const canApply = Boolean(draftFromKey && draftToKey && draftFromKey <= draftToKey);
 
   const handleApply = () => {
     if (!canApply) return;
-    applyRange(parseDayKey(draftFromKey), parseDayKey(draftToKey));
+    applyRange({ from: draftFromKey, to: draftToKey }, "custom");
     setOpen(false);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setDraftFromKey(range ? belgradeDayKey(range.from) : "");
-      setDraftToKey(range ? belgradeDayKey(range.to) : "");
+      setDraftFromKey(rangeKeys.from);
+      setDraftToKey(rangeKeys.to);
     }
+  };
+
+  const handlePresetClick = (preset: PresetKey) => {
+    if (preset === "custom") {
+      setOpen(true);
+      return;
+    }
+    applyRange(presetRangeKeys(preset), preset);
+  };
+
+  const handleComparisonChange = (value: ComparisonKey) => {
+    if (controlledComparison === undefined) {
+      setInternalComparison(value);
+    }
+    onComparisonChange?.(value, comparisonRangeKeys(rangeKeys, value));
   };
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-end gap-4">
-        <div>
+        <div className="min-w-0">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             {t("Analysis period", "Period analize")}
           </Label>
@@ -206,8 +354,8 @@ export function DateRangeControl({
                 variant="outline"
                 disabled={disabled}
                 className={cn(
-                  "mt-1.5 w-[280px] justify-start text-left font-normal",
-                  !range && "text-muted-foreground",
+                  "mt-1.5 w-full min-w-[240px] justify-start text-left font-normal sm:w-[280px]",
+                  !rangeKeys && "text-muted-foreground",
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -257,7 +405,7 @@ export function DateRangeControl({
                     {!canApply && draftFromKey && draftToKey
                       ? t(
                           "End date must be after start date",
-                          "Krajnji datum mora biti posle početnog",
+                          "Krajnji datum mora biti posle pocetnog",
                         )
                       : t("Choose both dates, then apply", "Izaberite oba datuma, zatim primenite")}
                   </span>
@@ -275,32 +423,20 @@ export function DateRangeControl({
           </Popover>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {presets.map((p) => (
+          {presets.map((preset) => (
             <Button
-              key={p.key}
+              key={preset}
               size="sm"
-              variant={preset === p.key ? "default" : "outline"}
+              variant={selectedPreset === preset ? "default" : "outline"}
               className="h-8 px-3 text-xs"
               disabled={disabled}
-              onClick={() => setPreset(p.key)}
+              onClick={() => handlePresetClick(preset)}
             >
-              {p.label}
+              {labelForPreset(preset, t)}
             </Button>
           ))}
-          <Button
-            size="sm"
-            variant={preset === "custom" ? "default" : "outline"}
-            className="h-8 px-3 text-xs"
-            disabled={disabled}
-            onClick={() => {
-              setPreset("custom");
-              setOpen(true);
-            }}
-          >
-            {t("Custom", "Prilagođeno")}
-          </Button>
         </div>
-        <div className="min-w-[220px]">
+        <div className="min-w-[220px] flex-1 sm:flex-none">
           <Label
             htmlFor="compare-with"
             className="text-xs uppercase tracking-wider text-muted-foreground"
@@ -311,15 +447,15 @@ export function DateRangeControl({
             id="compare-with"
             value={comparison}
             disabled={disabled}
-            onChange={(event) => setComparison(event.target.value)}
-            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+            onChange={(event) => handleComparisonChange(event.target.value as ComparisonKey)}
+            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="previous_equivalent">
               {t("Previous equivalent period", "Prethodni ekvivalentni period")}
             </option>
             <option value="previous_month">{t("Previous month", "Prethodni mesec")}</option>
             <option value="previous_year">{t("Previous year", "Prethodna godina")}</option>
-            <option value="none">{t("No comparison", "Bez poređenja")}</option>
+            <option value="none">{t("No comparison", "Bez poredjenja")}</option>
           </select>
         </div>
       </div>
@@ -335,11 +471,36 @@ export function DateRangeControl({
         </span>
         <span className="inline-flex items-center gap-1.5">
           <ShieldCheck className="h-3.5 w-3.5 text-positive" />
-          {t(
-            "Data coverage is shown beside each dataset.",
-            "Pokrivenost podataka je prikazana uz svaki dataset.",
-          )}
+          {coverage ??
+            t(
+              "Data coverage is shown beside each dataset.",
+              "Pokrivenost podataka je prikazana uz svaki dataset.",
+            )}
         </span>
+        {comparisonRange && (
+          <span>
+            {t("Compare", "Uporedi")}:{" "}
+            <span className="text-foreground">{formatRangeLabel(comparisonRange)}</span>
+          </span>
+        )}
+        {lastRefresh && (
+          <span className="num">
+            {t("Checked", "Provereno")}:{" "}
+            <span className="text-foreground">{checkedTimeLabel(lastRefresh)}</span>
+          </span>
+        )}
+        {onRefresh && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onRefresh}
+            className="ml-auto h-8 gap-1.5"
+            disabled={isRefreshing || disabled}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            {t("Refresh", "Osvezi")}
+          </Button>
+        )}
       </div>
     </div>
   );

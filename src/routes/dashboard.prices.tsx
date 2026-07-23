@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -15,6 +15,11 @@ import {
 import { Download, SlidersHorizontal, X } from "lucide-react";
 
 import { DataBadge } from "@/components/data-badge";
+import {
+  DateRangeControl,
+  type ComparisonKey,
+  type DateRangeKeys,
+} from "@/components/dashboard/DateRangeControl";
 import { Panel } from "@/components/panel";
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
@@ -53,6 +58,17 @@ export const Route = createFileRoute("/dashboard/prices")({
 
 type MarketPresetId = "serbia" | "core" | "see" | "wb6" | "all";
 
+const PRICE_PERIOD_PRESETS = [
+  "today",
+  "d1",
+  "7d",
+  "30d",
+  "mtd",
+  "prev_month",
+  "ytd",
+  "custom",
+] as const;
+
 const COMPACT_MARKET_PRESETS: Record<
   MarketPresetId,
   { label: string; markets: PriceMarketCode[] }
@@ -66,7 +82,7 @@ const COMPACT_MARKET_PRESETS: Record<
 
 function PricesPage() {
   const fn = useServerFn(getAverageDAProfile);
-  const { range } = useDateRange();
+  const { range, setRange } = useDateRange();
   const { t } = useLang();
   const [selectedMarkets, setSelectedMarkets] = useState<PriceMarketCode[]>(
     MARKET_PRESETS.serbiaOnly,
@@ -74,6 +90,8 @@ function PricesPage() {
   const [preset, setPreset] = useState<MarketPresetId>("serbia");
   const [marketSearch, setMarketSearch] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [comparison, setComparison] = useState<ComparisonKey>("previous_equivalent");
+  const [comparisonRange, setComparisonRange] = useState<DateRangeKeys | undefined>();
 
   const q = useQuery({
     queryKey: ["da_profile", range.from, range.to, refreshNonce],
@@ -83,7 +101,23 @@ function PricesPage() {
     retry: 1,
   });
 
-  const rows = q.data?.rows ?? [];
+  const comparisonQuery = useQuery({
+    queryKey: ["da_profile_comparison", comparisonRange?.from, comparisonRange?.to, refreshNonce],
+    queryFn: () =>
+      fn({
+        data: {
+          from: comparisonRange!.from,
+          to: comparisonRange!.to,
+          force: refreshNonce > 0,
+        },
+      }),
+    enabled: Boolean(comparisonRange),
+    staleTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  const rows = useMemo(() => q.data?.rows ?? [], [q.data]);
   const selectedSet = useMemo(() => new Set(selectedMarkets), [selectedMarkets]);
 
   const chartData = useMemo(
@@ -126,6 +160,16 @@ function PricesPage() {
   );
 
   const selectedStats = stats.filter((row) => selectedSet.has(row.zone));
+  const comparisonStats = useMemo(
+    () =>
+      (comparisonQuery.data?.rows ?? []).map((r) => ({
+        receivedIntervals: r.stats.receivedIntervals,
+        expectedIntervals: r.stats.expectedIntervals,
+        completeDays: r.stats.completeDays,
+        daysWithData: r.stats.daysWithData,
+      })),
+    [comparisonQuery.data],
+  );
   const serbiaStats = stats.find((row) => row.zone === "RS");
   const spreadRows = stats
     .filter((row) => row.zone !== "RS")
@@ -145,6 +189,52 @@ function PricesPage() {
     }));
 
   const rangeLabel = range.from === range.to ? range.from : `${range.from} -> ${range.to}`;
+  const coverage = useMemo(() => {
+    if (!stats.length) {
+      return q.isFetching
+        ? t("Loading Prices & Spreads coverage...", "Ucitavanje pokrivenosti cena i spreadova...")
+        : t("No Prices & Spreads data loaded yet.", "Podaci za cene i spreadove jos nisu ucitani.");
+    }
+
+    const totals = stats.reduce(
+      (acc, row) => ({
+        received: acc.received + row.receivedIntervals,
+        expected: acc.expected + row.expectedIntervals,
+        complete: acc.complete + row.completeDays,
+        requested: acc.requested + row.daysWithData,
+      }),
+      { received: 0, expected: 0, complete: 0, requested: 0 },
+    );
+    const base = t(
+      `Prices & Spreads: ${totals.received}/${totals.expected} intervals, ${totals.complete}/${totals.requested} complete market-days.`,
+      `Cene i spreadovi: ${totals.received}/${totals.expected} intervala, ${totals.complete}/${totals.requested} kompletnih trzisnih dana.`,
+    );
+
+    if (!comparisonRange) return base;
+    if (comparisonQuery.isFetching && !comparisonStats.length) {
+      return `${base} ${t("Comparison coverage loading.", "Pokrivenost poredjenja se ucitava.")}`;
+    }
+    if (!comparisonStats.length) return base;
+
+    const comparisonTotals = comparisonStats.reduce(
+      (acc, row) => ({
+        received: acc.received + row.receivedIntervals,
+        expected: acc.expected + row.expectedIntervals,
+        complete: acc.complete + row.completeDays,
+        requested: acc.requested + row.daysWithData,
+      }),
+      { received: 0, expected: 0, complete: 0, requested: 0 },
+    );
+    return `${base} ${t(
+      `Comparison: ${comparisonTotals.received}/${comparisonTotals.expected} intervals, ${comparisonTotals.complete}/${comparisonTotals.requested} complete market-days.`,
+      `Poredjenje: ${comparisonTotals.received}/${comparisonTotals.expected} intervala, ${comparisonTotals.complete}/${comparisonTotals.requested} kompletnih trzisnih dana.`,
+    )}`;
+  }, [comparisonQuery.isFetching, comparisonRange, comparisonStats, q.isFetching, stats, t]);
+
+  const handleComparisonChange = useCallback((value: ComparisonKey, nextRange?: DateRangeKeys) => {
+    setComparison(value);
+    setComparisonRange(nextRange);
+  }, []);
 
   return (
     <>
@@ -154,11 +244,22 @@ function PricesPage() {
           `Market summary, hourly profiles and regional spreads for ${rangeLabel} in Europe/Belgrade local time`,
           `Pregled tržišta, satni profili i regionalni spreadovi za ${rangeLabel} u vremenu Europe/Belgrade`,
         )}
-        onRefresh={() => setRefreshNonce((value) => value + 1)}
-        isRefreshing={q.isFetching}
-        lastRefresh={rows[0]?.fetched_at}
+        hideRange
       />
       <div className="space-y-5 p-6">
+        <DateRangeControl
+          range={range}
+          presets={[...PRICE_PERIOD_PRESETS]}
+          onRangeChange={(next) => setRange(next)}
+          comparison={comparison}
+          onComparisonChange={handleComparisonChange}
+          coverage={coverage}
+          lastRefresh={rows[0]?.fetched_at}
+          onRefresh={() => setRefreshNonce((value) => value + 1)}
+          isRefreshing={q.isFetching}
+          maxFutureDays={1}
+        />
+
         <Panel
           title={t("Market summary", "Pregled tržišta")}
           actions={<ExportMenu chartData={chartData} stats={stats} spreadRows={spreadRows} t={t} />}
