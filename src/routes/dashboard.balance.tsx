@@ -89,6 +89,7 @@ function BalancePage() {
         }}
         isRefreshing={balance.isFetching || wb6.isFetching}
         lastRefresh={wb6.data?.fetched_at}
+        hideRange
       />
       <div className="space-y-5 p-6">
         <Panel title={t("Serbia market position", "Pozicija tržišta Srbije")}>

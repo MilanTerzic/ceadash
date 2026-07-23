@@ -245,6 +245,7 @@ function FlowsPage() {
         subtitle="Cross-border flow analytics, capacity utilization & congestion"
         onRefresh={() => q.refetch()}
         lastRefresh={q.data?.fetched_at}
+        hideRange
       />
       <div className="p-6 space-y-5">
         {/* KPIs */}
@@ -765,11 +766,7 @@ function NetworkDiagram({
           const thickness = 1.5 + (Math.abs(net) / maxMag) * 6;
           const isSelected = selected === it.neighbour;
           return (
-            <g
-              key={it.neighbour}
-              className="cursor-pointer"
-              onClick={() => onSelect(it.neighbour)}
-            >
+            <g key={it.neighbour} className="cursor-pointer" onClick={() => onSelect(it.neighbour)}>
               <title>{`${it.label} · net ${net >= 0 ? "+" : ""}${Math.round(net)} MW · imp ${Math.round(it.avgImp)} · exp ${Math.round(it.avgExp)}${it.avgUtil != null ? ` · util ${Math.round(it.avgUtil)}%` : ""}`}</title>
               <line
                 x1={x1}
@@ -814,11 +811,7 @@ function NetworkDiagram({
           const lx = it.x + Math.cos(it.angle) * (nodeR + 16);
           const ly = it.y + Math.sin(it.angle) * (nodeR + 16) + 3;
           return (
-            <g
-              key={it.neighbour}
-              className="cursor-pointer"
-              onClick={() => onSelect(it.neighbour)}
-            >
+            <g key={it.neighbour} className="cursor-pointer" onClick={() => onSelect(it.neighbour)}>
               <title>{`${it.label} · net ${net == null ? "—" : `${net >= 0 ? "+" : ""}${Math.round(net)} MW`}`}</title>
               <circle
                 cx={it.x}

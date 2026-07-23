@@ -16,7 +16,16 @@ export type ComparisonKey = "previous_equivalent" | "previous_month" | "previous
 
 export type DateRangeKeys = { from: string; to: string };
 
-const OVERVIEW_PRESETS: PresetKey[] = ["7d", "30d", "mtd", "prev_month", "ytd", "custom"];
+const DEFAULT_PRESETS: PresetKey[] = [
+  "today",
+  "d1",
+  "7d",
+  "30d",
+  "mtd",
+  "prev_month",
+  "ytd",
+  "custom",
+];
 
 function parseDayKey(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);
@@ -253,7 +262,7 @@ export function DateRangeControl({
   disabled = false,
   range: controlledRange,
   activePreset,
-  presets = OVERVIEW_PRESETS,
+  presets = DEFAULT_PRESETS,
   onRangeChange,
   comparison: controlledComparison,
   onComparisonChange,

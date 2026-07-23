@@ -2,7 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
-import { DateRangeControl } from "@/components/dashboard/DateRangeControl";
+import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
 import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
@@ -30,8 +30,9 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardLayout() {
   const { t } = useLang();
+  const dashboardRange = useDashboardRange({});
   return (
-    <DateRangeProvider>
+    <DateRangeProvider range={dashboardRange.rangeKeys} setRange={dashboardRange.setRangeKeys}>
       <div>
         <section className="border-b border-border/60 bg-surface/70">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
@@ -56,7 +57,7 @@ function DashboardLayout() {
         </section>
         <DashboardTabs />
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-          <DateRangeControl />
+          <DateRangeControl maxFutureDays={1} />
           <Outlet />
         </div>
       </div>
