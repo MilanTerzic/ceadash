@@ -329,6 +329,34 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
             price: point.price,
             durationMinutes: point.durationMinutes,
           }));
+          // Persist newly fetched hourly points to market_prices_hourly so
+          // subsequent long-range (YTD) requests are cache hits instead of
+          // reissuing dozens of ENTSO-E round-trips.
+          if (livePoints.length) {
+            try {
+              const market = `DA_${z}`;
+              const cachedTs = new Set(cachedPoints.map((p) => p.ts));
+              const rows = livePoints
+                .filter((p) => Number.isFinite(p.price) && !cachedTs.has(p.ts))
+                .map((p) => ({
+                  datetime: p.ts,
+                  market,
+                  price_eur_mwh: p.price,
+                  source: "ENTSO-E",
+                }));
+              if (rows.length) {
+                // Chunk inserts to keep payloads reasonable.
+                const CHUNK = 500;
+                for (let i = 0; i < rows.length; i += CHUNK) {
+                  await supabaseAdmin
+                    .from("market_prices_hourly")
+                    .upsert(rows.slice(i, i + CHUNK), { onConflict: "market,datetime" });
+                }
+              }
+            } catch {
+              // Cache persistence is best-effort; do not fail the request.
+            }
+          }
           points = mergeDaPricePoints(points, livePoints);
           source = live.source === "empty" && points.length ? source : live.source;
           reason = live.reason;
@@ -347,6 +375,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
           fetched_at: fetchedAt,
         };
       }),
+      8,
     );
     const out = zones.map((z, index) => {
       const result = outResults[index];
