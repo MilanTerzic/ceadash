@@ -517,33 +517,36 @@ export async function fetchDayAheadPricesRange(
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
   if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
   try {
-    const points: IntervalPriceSeries["points"] = [];
-    for (const chunk of chunkDateRange(fromISO, toISO, 92)) {
-      const startOffsetH = cetOffsetHours(chunk.from);
-      const start = new Date(Date.parse(chunk.from + "T00:00:00Z") - startOffsetH * 3600_000);
-      const afterTo = new Date(Date.parse(chunk.to + "T00:00:00Z") + 24 * 3600_000)
-        .toISOString()
-        .slice(0, 10);
-      const endOffsetH = cetOffsetHours(afterTo);
-      const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-      const xml = await entsoeRaw({
-        documentType: ENTSOE_DOCUMENT_TYPES.day_ahead_prices,
-        in_Domain: PRICE_MARKETS[zone].eic,
-        out_Domain: PRICE_MARKETS[zone].eic,
-        periodStart: ymdh(start),
-        periodEnd: ymdh(end),
-      });
-      const startMs = start.getTime();
-      const endMs = end.getTime();
-      points.push(
-        ...parseTimeSeriesIntervals(xml)
+    // Parallelize chunk fetches so long ranges (e.g. YTD) don't serialize
+    // 3+ ENTSO-E round-trips per zone.
+    const chunks = chunkDateRange(fromISO, toISO, 92);
+    const chunkResults = await Promise.all(
+      chunks.map(async (chunk) => {
+        const startOffsetH = cetOffsetHours(chunk.from);
+        const start = new Date(Date.parse(chunk.from + "T00:00:00Z") - startOffsetH * 3600_000);
+        const afterTo = new Date(Date.parse(chunk.to + "T00:00:00Z") + 24 * 3600_000)
+          .toISOString()
+          .slice(0, 10);
+        const endOffsetH = cetOffsetHours(afterTo);
+        const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
+        const xml = await entsoeRaw({
+          documentType: ENTSOE_DOCUMENT_TYPES.day_ahead_prices,
+          in_Domain: PRICE_MARKETS[zone].eic,
+          out_Domain: PRICE_MARKETS[zone].eic,
+          periodStart: ymdh(start),
+          periodEnd: ymdh(end),
+        });
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        return parseTimeSeriesIntervals(xml)
           .filter((p) => {
             const t = Date.parse(p.ts);
             return t >= startMs && t < endMs;
           })
-          .map((p) => ({ ts: p.ts, price: p.value, durationMinutes: p.durationMinutes })),
-      );
-    }
+          .map((p) => ({ ts: p.ts, price: p.value, durationMinutes: p.durationMinutes }));
+      }),
+    );
+    const points: IntervalPriceSeries["points"] = chunkResults.flat();
     if (!points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
     const byTs = new Map(points.map((point) => [point.ts, point]));
     const payload = {
