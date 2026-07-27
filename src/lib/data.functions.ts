@@ -350,7 +350,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
                 for (let i = 0; i < rows.length; i += CHUNK) {
                   await supabaseAdmin
                     .from("market_prices_hourly")
-                    .upsert(rows.slice(i, i + CHUNK), { onConflict: "market,datetime" });
+                    .upsert(rows.slice(i, i + CHUNK), { onConflict: "datetime,market" });
                 }
               }
             } catch {
