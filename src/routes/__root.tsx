@@ -144,8 +144,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function SiteHeader() {
   const { t } = useLang();
   return (
-    <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-30">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-header text-header-foreground">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
         <Link to="/" className="flex items-center gap-3">
           <img
             src={ceaLogo.url}
@@ -154,23 +154,23 @@ function SiteHeader() {
           />
 
           <div className="leading-tight">
-            <div className="font-display text-lg text-foreground">CEA</div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            <div className="font-display text-lg font-semibold text-header-foreground">CEA</div>
+            <div className="text-[10px] uppercase tracking-widest text-header-foreground/60">
               {t("Centar za energetske analize", "Centar za energetske analize")}
             </div>
           </div>
         </Link>
-        <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+        <nav className="hidden md:flex items-center gap-7 text-sm text-header-foreground/70">
+          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
             {t("About CEA", "O CEA")}
           </a>
-          <Link to="/" className="hover:text-foreground">
+          <Link to="/" className="hover:text-header-foreground">
             {t("Dashboard", "Kontrolna tabla")}
           </Link>
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
             {t("Projects", "Projekti")}
           </a>
-          <a href="https://www.cea.org.rs/" className="hover:text-foreground">
+          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
             {t("News", "Vesti")}
           </a>
         </nav>
