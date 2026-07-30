@@ -18,7 +18,7 @@ export function MetricLabel({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground",
+        "flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground",
         className,
       )}
     >
@@ -55,14 +55,14 @@ export function KpiCard({
   demo?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+    <div className="flex h-full min-h-[104px] flex-col justify-between rounded-[10px] border border-border/70 bg-card px-4 py-3">
       <div className="flex items-start justify-between">
         <MetricLabel label={label} hint={hint} />
         {demo && <DemoBadge />}
       </div>
-      <div className="mt-3 flex items-baseline gap-1.5">
-        <div className="font-display text-3xl text-foreground">{value}</div>
-        {unit && <div className="text-xs text-muted-foreground">{unit}</div>}
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <div className="num text-2xl font-semibold leading-none text-foreground">{value}</div>
+        {unit && <div className="text-[11px] text-muted-foreground">{unit}</div>}
       </div>
       {trend && (
         <div
@@ -102,12 +102,12 @@ export function ChartCard({
   demo?: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
-      <header className="flex flex-wrap items-start justify-between gap-3 mb-4">
+    <section className="rounded-[10px] border border-border/70 bg-card p-4">
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-xl text-foreground">{title}</h3>
+          <h3 className="font-display text-base font-semibold text-foreground">{title}</h3>
           {description && (
-            <p className="mt-1 text-sm text-muted-foreground max-w-2xl">{description}</p>
+            <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{description}</p>
           )}
         </div>
         <div className="flex items-center gap-2">

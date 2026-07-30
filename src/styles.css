@@ -18,12 +18,18 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
 
-  --font-display: "DM Serif Display", ui-serif, Georgia, serif;
+  --font-display: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-elevated: var(--elevated);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -64,90 +70,84 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-card: 0 1px 2px oklch(0.2 0.02 110 / 0.04), 0 8px 24px -12px oklch(0.2 0.02 110 / 0.08);
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.02), 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 0.625rem;
 
-  /* Cream #FEFFF2 */
-  --background: oklch(0.992 0.018 105);
-  --foreground: oklch(0.2 0.02 115);
+  /* Dark analytical workspace */
+  --background: #0b1117;
+  --foreground: #f1f4f2;
 
-  /* Sage #D4D5BC band */
-  --surface: oklch(0.86 0.025 105);
+  --surface: #121a22;
+  --surface-2: #17222c;
+  --elevated: #17222c;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.02 110);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.02 110);
+  /* Light CEA header */
+  --header: #f7f4e8;
+  --header-foreground: #171a18;
 
-  /* Deeper sage for contrast on cream */
-  --primary: oklch(0.38 0.04 120);
-  --primary-foreground: oklch(0.992 0.018 105);
+  --card: #121a22;
+  --card-foreground: #f1f4f2;
+  --popover: #17222c;
+  --popover-foreground: #f1f4f2;
 
-  --secondary: oklch(0.86 0.025 105);
-  --secondary-foreground: oklch(0.22 0.03 115);
+  /* CEA olive */
+  --primary: #46502f;
+  --primary-foreground: #f1f4f2;
 
-  --muted: oklch(0.86 0.025 105);
-  --muted-foreground: oklch(0.34 0.02 115);
+  --secondary: #17222c;
+  --secondary-foreground: #f1f4f2;
 
-  --accent: oklch(0.86 0.025 105);
-  --accent-foreground: oklch(0.2 0.03 110);
+  --muted: #17222c;
+  --muted-foreground: #9caab4;
 
-  --destructive: oklch(0.5 0.18 28);
-  --destructive-foreground: oklch(0.99 0.01 95);
+  --accent: #17222c;
+  --accent-foreground: #8f9b63;
 
-  --border: oklch(0.78 0.025 105);
-  --input: oklch(0.82 0.022 105);
-  --ring: oklch(0.45 0.05 120);
+  --destructive: #e25c5c;
+  --destructive-foreground: #0b1117;
+
+  --border: #293640;
+  --input: #293640;
+  --ring: #8f9b63;
 
   /* Signal palette */
-  --positive: oklch(0.58 0.1 150);
-  --warning: oklch(0.7 0.13 75);
-  --critical: oklch(0.55 0.16 28);
-  --neutral: oklch(0.6 0.02 110);
+  --positive: #39b77a;
+  --warning: #e2a33b;
+  --critical: #e25c5c;
+  --neutral: #9caab4;
 
-  /* Chart palette — sage-tinted earthy */
-  --chart-1: oklch(0.5 0.05 120); /* sage */
-  --chart-2: oklch(0.55 0.09 240); /* sky */
-  --chart-3: oklch(0.65 0.13 70); /* amber */
-  --chart-4: oklch(0.5 0.1 25); /* clay */
-  --chart-5: oklch(0.45 0.04 200); /* slate */
-  --chart-6: oklch(0.6 0.09 300); /* mauve */
+  /* Chart palette */
+  --chart-1: #48a9c5; /* baseload / primary */
+  --chart-2: #9a84d8; /* comparison */
+  --chart-3: #e2a33b; /* peakload / secondary */
+  --chart-4: #39b77a; /* positive */
+  --chart-5: #e25c5c; /* negative */
+  --chart-6: #8f9b63; /* olive accent */
 
-  --sidebar: oklch(0.86 0.025 105);
-  --sidebar-foreground: oklch(0.22 0.02 115);
-  --sidebar-primary: oklch(0.38 0.04 120);
-  --sidebar-primary-foreground: oklch(0.992 0.018 105);
-  --sidebar-accent: oklch(0.92 0.02 105);
-  --sidebar-accent-foreground: oklch(0.22 0.03 115);
-  --sidebar-border: oklch(0.78 0.025 105);
-  --sidebar-ring: oklch(0.5 0.05 120);
+  --sidebar: #121a22;
+  --sidebar-foreground: #f1f4f2;
+  --sidebar-primary: #46502f;
+  --sidebar-primary-foreground: #f1f4f2;
+  --sidebar-accent: #17222c;
+  --sidebar-accent-foreground: #8f9b63;
+  --sidebar-border: #293640;
+  --sidebar-ring: #8f9b63;
 }
 
+
+/* The workspace is dark by default; .dark inherits the same tokens. */
 .dark {
-  --background: oklch(0.18 0.012 110);
-  --foreground: oklch(0.94 0.01 95);
-  --surface: oklch(0.22 0.014 110);
-  --card: oklch(0.22 0.014 110);
-  --card-foreground: oklch(0.94 0.01 95);
-  --popover: oklch(0.22 0.014 110);
-  --popover-foreground: oklch(0.94 0.01 95);
-  --primary: oklch(0.75 0.06 120);
-  --primary-foreground: oklch(0.2 0.02 110);
-  --secondary: oklch(0.28 0.02 110);
-  --secondary-foreground: oklch(0.94 0.01 95);
-  --muted: oklch(0.28 0.02 110);
-  --muted-foreground: oklch(0.7 0.02 105);
-  --accent: oklch(0.32 0.03 100);
-  --accent-foreground: oklch(0.94 0.01 95);
-  --destructive: oklch(0.6 0.18 28);
-  --destructive-foreground: oklch(0.98 0.01 95);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.55 0.05 120);
+  color-scheme: dark;
 }
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
 
 @layer base {
   * {
@@ -165,9 +165,10 @@
   }
 
   body {
-    font-size: 15.5px;
-    line-height: 1.6;
+    font-size: 14.5px;
+    line-height: 1.5;
   }
+
 
   h1,
   h2,

@@ -216,7 +216,7 @@ function OverviewPage() {
     : "—";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DataStatusBanner
         source={(live.data?.source as "entsoe" | "cache" | "none") ?? "none"}
         lastUpdate={lastTs}
@@ -242,7 +242,7 @@ function OverviewPage() {
 
 
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4">
         <KpiCard
           label={t("Baseload (period)", "Bazna cena u periodu")}
           value={fmt(period.baseload)}
@@ -331,7 +331,7 @@ function OverviewPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title={t("Hourly day-ahead price", "Satna day-ahead cena")}
           description={t(
@@ -341,10 +341,10 @@ function OverviewPage() {
         >
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
               <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
+              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
               <Line
                 type="monotone"
@@ -366,10 +366,10 @@ function OverviewPage() {
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={inRangeDaily}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
+              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Legend />
               <Bar
                 dataKey="baseload"
@@ -388,13 +388,13 @@ function OverviewPage() {
         <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
               />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
+              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Line
                 type="monotone"
                 dataKey="baseload"
@@ -410,21 +410,21 @@ function OverviewPage() {
         >
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
               />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip />
+              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Bar dataKey="negHours" fill="var(--color-critical)" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card text-sm space-y-2">
-        <h3 className="font-display text-lg">
+      <div className="space-y-2 rounded-[10px] border border-border/70 bg-card p-4 text-sm">
+        <h3 className="font-display text-base font-semibold">
           {t("Data check & methodology", "Provera podataka i metodologija")}
         </h3>
         <p className="text-muted-foreground">

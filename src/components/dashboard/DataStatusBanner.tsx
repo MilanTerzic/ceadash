@@ -126,7 +126,7 @@ export function DataStatusBanner({
   return (
     <div className="space-y-2">
       <div
-        className={`rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-x-6 gap-y-1 ${tone}`}
+        className={`rounded-[10px] border px-3 py-2 text-xs flex flex-wrap items-center gap-x-5 gap-y-1 ${tone}`}
       >
         <span className="inline-flex items-center gap-2 font-medium">
           <Icon className="h-4 w-4" />
@@ -199,7 +199,7 @@ export function DataStatusBanner({
       </div>
 
       {hasDiagnostics && (
-        <div className="rounded-2xl border border-border/70 bg-card/40 text-xs">
+        <div className="rounded-[10px] border border-border/70 bg-card/40 text-xs">
           <button
             type="button"
             onClick={() => setDiagOpen((v) => !v)}

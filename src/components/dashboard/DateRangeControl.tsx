@@ -351,10 +351,10 @@ export function DateRangeControl({
   };
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
-      <div className="flex flex-wrap items-end gap-4">
+    <div className="rounded-[10px] border border-border/70 bg-card px-3 py-2.5">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+          <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             {t("Analysis period", "Period analize")}
           </Label>
           <Popover open={open} onOpenChange={handleOpenChange}>
@@ -377,7 +377,7 @@ export function DateRangeControl({
                   <div className="space-y-1.5">
                     <Label
                       htmlFor="analysis-from"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                      className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
                     >
                       {t("From", "Od")}
                     </Label>
@@ -394,7 +394,7 @@ export function DateRangeControl({
                   <div className="space-y-1.5">
                     <Label
                       htmlFor="analysis-to"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                      className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
                     >
                       {t("To", "Do")}
                     </Label>
@@ -448,7 +448,7 @@ export function DateRangeControl({
         <div className="min-w-[220px] flex-1 sm:flex-none">
           <Label
             htmlFor="compare-with"
-            className="text-xs uppercase tracking-wider text-muted-foreground"
+            className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
           >
             {t("Compare with", "Uporedi sa")}
           </Label>
@@ -457,7 +457,7 @@ export function DateRangeControl({
             value={comparison}
             disabled={disabled}
             onChange={(event) => handleComparisonChange(event.target.value as ComparisonKey)}
-            className="mt-1.5 h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-1 h-8 w-full rounded-md border border-border/70 bg-elevated px-2.5 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="previous_equivalent">
               {t("Previous equivalent period", "Prethodni ekvivalentni period")}
@@ -468,7 +468,7 @@ export function DateRangeControl({
           </select>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/70 pt-2 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <CalendarIcon className="h-3.5 w-3.5" />
           {t("Selected", "Izabrano")}: <span className="text-foreground">{label}</span>
