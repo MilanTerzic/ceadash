@@ -507,7 +507,7 @@ export async function fetchDayAheadPricesRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<IntervalPriceSeries>> {
-  const key = `da_prices_range:v1:${zone}:${fromISO}:${toISO}`;
+  const key = `da_prices_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData: IntervalPriceSeries = { zone, points: [] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.da_past : TTL.da_today;
   if (!force) {
@@ -516,50 +516,109 @@ export async function fetchDayAheadPricesRange(
   }
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
   if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
-  try {
-    // Parallelize chunk fetches so long ranges (e.g. YTD) don't serialize
-    // 3+ ENTSO-E round-trips per zone.
-    const chunks = chunkDateRange(fromISO, toISO, 92);
-    const chunkResults = await Promise.all(
-      chunks.map(async (chunk) => {
-        const startOffsetH = cetOffsetHours(chunk.from);
-        const start = new Date(Date.parse(chunk.from + "T00:00:00Z") - startOffsetH * 3600_000);
-        const afterTo = new Date(Date.parse(chunk.to + "T00:00:00Z") + 24 * 3600_000)
-          .toISOString()
-          .slice(0, 10);
-        const endOffsetH = cetOffsetHours(afterTo);
-        const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
-        const xml = await entsoeRaw({
-          documentType: ENTSOE_DOCUMENT_TYPES.day_ahead_prices,
-          in_Domain: PRICE_MARKETS[zone].eic,
-          out_Domain: PRICE_MARKETS[zone].eic,
-          periodStart: ymdh(start),
-          periodEnd: ymdh(end),
-        });
-        const startMs = start.getTime();
-        const endMs = end.getTime();
-        return parseTimeSeriesIntervals(xml)
-          .filter((p) => {
-            const t = Date.parse(p.ts);
-            return t >= startMs && t < endMs;
-          })
-          .map((p) => ({ ts: p.ts, price: p.value, durationMinutes: p.durationMinutes }));
-      }),
-    );
-    const points: IntervalPriceSeries["points"] = chunkResults.flat();
-    if (!points.length) return staleCacheOrEmpty(key, emptyData, "no_data");
-    const byTs = new Map(points.map((point) => [point.ts, point]));
-    const payload = {
-      zone,
-      points: [...byTs.values()].sort((a, b) => a.ts.localeCompare(b.ts)),
-    };
-    await cacheSet(key, payload, ttl);
-    return { data: payload, source: "live", fetched_at: new Date().toISOString() };
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : "error";
-    return staleCacheOrEmpty(key, emptyData, reason);
+
+  const eic = PRICE_MARKETS[zone].eic;
+  const byTs = new Map<string, { ts: string; price: number; durationMinutes: number }>();
+
+  async function fetchWindow(start: Date, end: Date) {
+    const xml = await entsoeRaw({
+      documentType: ENTSOE_DOCUMENT_TYPES.day_ahead_prices,
+      in_Domain: eic,
+      out_Domain: eic,
+      periodStart: ymdh(start),
+      periodEnd: ymdh(end),
+    });
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    for (const p of parseTimeSeriesIntervals(xml)) {
+      const t = Date.parse(p.ts);
+      if (t < startMs || t >= endMs) continue;
+      if (!Number.isFinite(p.value)) continue;
+      byTs.set(p.ts, { ts: p.ts, price: p.value, durationMinutes: p.durationMinutes });
+    }
   }
+
+  let lastError: string | undefined;
+
+  // 1) Bulk chunk fetches (fast path). A failing chunk must not void the range.
+  const chunks = chunkDateRange(fromISO, toISO, 92);
+  const chunkResults = await Promise.allSettled(
+    chunks.map(async (chunk) => {
+      const startOffsetH = cetOffsetHours(chunk.from);
+      const start = new Date(Date.parse(chunk.from + "T00:00:00Z") - startOffsetH * 3600_000);
+      const afterTo = new Date(Date.parse(chunk.to + "T00:00:00Z") + 24 * 3600_000)
+        .toISOString()
+        .slice(0, 10);
+      const endOffsetH = cetOffsetHours(afterTo);
+      const end = new Date(Date.parse(afterTo + "T00:00:00Z") - endOffsetH * 3600_000);
+      await fetchWindow(start, end);
+    }),
+  );
+  for (const r of chunkResults) {
+    if (r.status === "rejected") {
+      lastError = r.reason instanceof Error ? r.reason.message : "chunk_error";
+    }
+  }
+
+  // 2) Per-day backfill for every Belgrade delivery day that is still short.
+  //    ENTSO-E frequently truncates multi-week A44 responses; single-day
+  //    requests reliably return the missing days.
+  const days: string[] = [];
+  for (
+    let t = Date.parse(fromISO + "T00:00:00Z");
+    t <= Date.parse(toISO + "T00:00:00Z");
+    t += 86400_000
+  ) {
+    days.push(new Date(t).toISOString().slice(0, 10));
+  }
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const missing = days.filter((day) => {
+    const { start, end } = belgradeDeliveryWindow(day);
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    let minutes = 0;
+    for (const p of byTs.values()) {
+      const t = Date.parse(p.ts);
+      if (t >= startMs && t < endMs) minutes += p.durationMinutes || 60;
+    }
+    const expectedMinutes = (endMs - startMs) / 60_000;
+    // Tolerate the currently-running / not-yet-published day.
+    if (day > todayIso && minutes === 0) return false;
+    return minutes < expectedMinutes;
+  });
+
+  if (missing.length) {
+    const CONCURRENCY = 6;
+    for (let i = 0; i < missing.length; i += CONCURRENCY) {
+      await Promise.allSettled(
+        missing.slice(i, i + CONCURRENCY).map(async (day) => {
+          const { start, end } = belgradeDeliveryWindow(day);
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await fetchWindow(start, end);
+              return;
+            } catch (e) {
+              lastError = e instanceof Error ? e.message : "day_error";
+              if (attempt === 0) await new Promise((r) => setTimeout(r, 300));
+            }
+          }
+        }),
+      );
+    }
+  }
+
+  const points = [...byTs.values()].sort((a, b) => a.ts.localeCompare(b.ts));
+  if (!points.length) return staleCacheOrEmpty(key, emptyData, lastError ?? "no_data");
+  const payload: IntervalPriceSeries = { zone, points };
+  await cacheSet(key, payload, ttl);
+  return {
+    data: payload,
+    source: "live",
+    reason: lastError,
+    fetched_at: new Date().toISOString(),
+  };
 }
+
 
 function chunkDateRange(fromISO: string, toISO: string, maxDays: number) {
   const chunks: Array<{ from: string; to: string }> = [];
