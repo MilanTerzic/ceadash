@@ -57,9 +57,11 @@ function DashboardLayout() {
         </section>
         <DashboardTabs />
         <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6">
+          <LoadingBar />
           <DateRangeControl maxFutureDays={1} />
           <Outlet />
         </div>
+
       </div>
     </DateRangeProvider>
   );
