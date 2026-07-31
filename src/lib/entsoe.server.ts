@@ -587,9 +587,15 @@ export async function fetchDayAheadPricesRange(
     return minutes < expectedMinutes;
   });
 
-  if (missing.length) {
+  // Zones that genuinely publish no A44 data (chunks succeeded but returned
+  // nothing) are skipped — otherwise we'd issue one useless request per day.
+  const zoneHasData = byTs.size > 0;
+  const MAX_BACKFILL_DAYS = 120;
+  if (zoneHasData && missing.length) {
     const CONCURRENCY = 6;
-    for (let i = 0; i < missing.length; i += CONCURRENCY) {
+    const toBackfill = missing.slice(0, MAX_BACKFILL_DAYS);
+    for (let i = 0; i < toBackfill.length; i += CONCURRENCY) {
+
       await Promise.allSettled(
         missing.slice(i, i + CONCURRENCY).map(async (day) => {
           const { start, end } = belgradeDeliveryWindow(day);
