@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { LoadingBar } from "@/components/dashboard/LoadingBar";
+
 import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
@@ -57,9 +59,11 @@ function DashboardLayout() {
         </section>
         <DashboardTabs />
         <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6">
+          <LoadingBar />
           <DateRangeControl maxFutureDays={1} />
           <Outlet />
         </div>
+
       </div>
     </DateRangeProvider>
   );
