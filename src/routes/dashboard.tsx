@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { LoadingBar } from "@/components/dashboard/LoadingBar";
+
 import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
