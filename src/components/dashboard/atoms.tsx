@@ -46,6 +46,7 @@ export function KpiCard({
   unit,
   trend,
   demo,
+  loading,
 }: {
   label: ReactNode;
   hint?: ReactNode;
@@ -53,6 +54,7 @@ export function KpiCard({
   unit?: string;
   trend?: { delta: number; suffix?: string };
   demo?: boolean;
+  loading?: boolean;
 }) {
   return (
     <div className="flex h-full min-h-[104px] flex-col justify-between rounded-[10px] border border-border/70 bg-card px-4 py-3">
@@ -60,24 +62,34 @@ export function KpiCard({
         <MetricLabel label={label} hint={hint} />
         {demo && <DemoBadge />}
       </div>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <div className="num text-2xl font-semibold leading-none text-foreground">{value}</div>
-        {unit && <div className="text-[11px] text-muted-foreground">{unit}</div>}
-      </div>
-      {trend && (
-        <div
-          className={cn(
-            "mt-1 text-xs",
-            trend.delta > 0
-              ? "text-positive"
-              : trend.delta < 0
-                ? "text-critical"
-                : "text-muted-foreground",
+      {loading ? (
+        <>
+          <Skeleton className="mt-3 h-7 w-24" />
+          <Skeleton className="mt-2 h-3 w-14" />
+        </>
+      ) : (
+        <>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <div className="num text-2xl font-semibold leading-none text-foreground">{value}</div>
+            {unit && <div className="text-[11px] text-muted-foreground">{unit}</div>}
+          </div>
+          {trend && (
+            <div
+              className={cn(
+                "mt-1 text-xs",
+                trend.delta > 0
+                  ? "text-positive"
+                  : trend.delta < 0
+                    ? "text-critical"
+                    : "text-muted-foreground",
+              )}
+            >
+              {trend.delta > 0 ? "▲" : trend.delta < 0 ? "▼" : "·"}{" "}
+              {Math.abs(trend.delta).toFixed(1)}
+              {trend.suffix ?? "%"}
+            </div>
           )}
-        >
-          {trend.delta > 0 ? "▲" : trend.delta < 0 ? "▼" : "·"} {Math.abs(trend.delta).toFixed(1)}
-          {trend.suffix ?? "%"}
-        </div>
+        </>
       )}
     </div>
   );
@@ -88,18 +100,35 @@ export function DemoBadge() {
   return null;
 }
 
+export function ChartSkeleton({ height = 240 }: { height?: number }) {
+  return (
+    <div className="flex flex-col gap-2" style={{ height }} aria-busy="true">
+      <div className="flex flex-1 items-end gap-2">
+        {[62, 88, 45, 74, 96, 58, 80, 40, 68, 90, 52, 78].map((h, i) => (
+          <Skeleton key={i} className="flex-1" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <Skeleton className="h-3 w-full" />
+    </div>
+  );
+}
+
 export function ChartCard({
   title,
   description,
   children,
   right,
   demo,
+  loading,
+  skeletonHeight,
 }: {
   title: ReactNode;
   description?: ReactNode;
   children: ReactNode;
   right?: ReactNode;
   demo?: boolean;
+  loading?: boolean;
+  skeletonHeight?: number;
 }) {
   return (
     <section className="rounded-[10px] border border-border/70 bg-card p-4">
@@ -115,10 +144,11 @@ export function ChartCard({
           {right}
         </div>
       </header>
-      <div>{children}</div>
+      <div>{loading ? <ChartSkeleton height={skeletonHeight} /> : children}</div>
     </section>
   );
 }
+
 
 export function SignalPill({
   signal,
