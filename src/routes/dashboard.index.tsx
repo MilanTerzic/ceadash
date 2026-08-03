@@ -190,6 +190,8 @@ function OverviewPage() {
     [data],
   );
 
+  const refreshing = live.isFetching;
+
   if (live.isLoading) {
     return <PageLoadingSkeleton />;
   }
@@ -244,6 +246,7 @@ function OverviewPage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4">
         <KpiCard
+          loading={refreshing}
           label={t("Baseload (period)", "Bazna cena u periodu")}
           value={fmt(period.baseload)}
           unit="EUR/MWh"
@@ -258,6 +261,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
+          loading={refreshing}
           label={t("Peakload (period)", "Vršno opterećenje u periodu")}
           value={fmt(period.peakload ?? NaN)}
           unit="EUR/MWh"
@@ -272,6 +276,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
+          loading={refreshing}
           label={t("Negative hours", "Sati sa negativnom cenom")}
           value={period.negHours}
           unit={t("hours", "sati")}
@@ -284,6 +289,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
+          loading={refreshing}
           label={t("Volatility (σ)", "Volatilnost (σ)")}
           value={fmt(period.sd)}
           unit="EUR/MWh"
@@ -296,16 +302,19 @@ function OverviewPage() {
           })}
         />
         <KpiCard
+          loading={refreshing}
           label={t("Min hour", "Najniži sat")}
           value={fmt(period.minHour, 0)}
           unit="EUR/MWh"
         />
         <KpiCard
+          loading={refreshing}
           label={t("Max hour", "Najviši sat")}
           value={fmt(period.maxHour, 0)}
           unit="EUR/MWh"
         />
         <KpiCard
+          loading={refreshing}
           label={t("7-day baseload", "Bazna cena 7 dana")}
           value={fmt(baseload7)}
           unit="EUR/MWh"
@@ -318,6 +327,7 @@ function OverviewPage() {
           })}
         />
         <KpiCard
+          loading={refreshing}
           label={t("30-day baseload", "Bazna cena 30 dana")}
           value={fmt(baseload30)}
           unit="EUR/MWh"
@@ -333,6 +343,7 @@ function OverviewPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
+          loading={refreshing}
           title={t("Hourly day-ahead price", "Satna day-ahead cena")}
           description={t(
             "Last 48 hours of SEEPEX-style hourly prices.",
@@ -358,6 +369,7 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
+          loading={refreshing}
           title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")}
           description={t(
             "In selected range. Peakload = Mon–Fri 08:00–20:00.",
@@ -385,7 +397,9 @@ function OverviewPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}>
+        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}
+          loading={refreshing}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
@@ -406,6 +420,7 @@ function OverviewPage() {
         </ChartCard>
 
         <ChartCard
+          loading={refreshing}
           title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}
         >
           <ResponsiveContainer width="100%" height={260}>
