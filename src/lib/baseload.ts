@@ -4,13 +4,14 @@
  * Methodology — aligned with SEEPEX day-ahead convention:
  *  - Hourly DA prices are grouped by Europe/Belgrade calendar day (CET/CEST),
  *    NOT UTC, so DST shifts don't split days incorrectly.
- *  - A day's "baseload" = simple arithmetic mean of its 24 hourly prices.
- *  - Incomplete days (DST 23h/25h, missing hours, today-so-far) are EXCLUDED
- *    by default to avoid misleading averages.
- *  - A period "baseload" = simple mean of daily baseloads over complete days
- *    in the range. This matches exchange-published period averages and
- *    avoids over-weighting days that happen to have more data.
- *  - "Peakload" = mean of hours Mon–Fri 08:00–20:00 local Belgrade time.
+ *  - A day is complete when at least 20 of its 24 local Belgrade hour buckets
+ *    are observed. Incomplete days (DST-related gaps, missing hours,
+ *    today-so-far) are excluded from baseload, peakload and volatility.
+ *  - Period baseload = arithmetic mean of hourly prices on complete days only.
+ *  - Volatility (σ) uses the same complete-day hourly sample as baseload.
+ *  - Negative-hour counts and min/max include all observed hours in the range.
+ *  - Peakload = mean of hours Mon–Fri 08:00–20:00 local Belgrade time on
+ *    complete days only.
  */
 
 export type HourlyPrice = { ts: Date; price: number };
@@ -39,7 +40,6 @@ export function dateFromBelgradeKey(key: string): Date {
 }
 
 function belgradeHour(d: Date): number {
-  // en-GB hour formatter returns "23" or "00"
   return Number(
     BELGRADE_PARTS.formatToParts(d).find((p) => p.type === "hour")?.value ?? d.getUTCHours(),
   );
@@ -51,7 +51,7 @@ function belgradeWeekday(d: Date): string {
 
 export function isBelgradePeakHour(d: Date): boolean {
   const h = belgradeHour(d);
-  const wd = belgradeWeekday(d); // Mon, Tue, …, Sat, Sun
+  const wd = belgradeWeekday(d);
   if (wd === "Sat" || wd === "Sun") return false;
   return h >= 8 && h < 20;
 }
@@ -65,18 +65,17 @@ export type DayBucket = {
   peakload: number | null;
 };
 
-/** Minimum distinct local hours in a Belgrade day to treat it as "complete"
- *  for KPI/baseload aggregation. ENTSO-E often publishes 20–23 hours for
- *  Serbia on some days; requiring exactly 24 excluded too much data. Range
- *  is clamped to [1, 24]. */
-export const DEFAULT_MIN_COMPLETE_HOURS = 1;
+/** Minimum distinct local hours in a Belgrade day to treat it as complete for
+ *  KPI/baseload aggregation. Days with fewer than 20 of 24 local hours are
+ *  excluded from baseload, peakload and volatility. Range is clamped to
+ *  [1, 24]. */
+export const DEFAULT_MIN_COMPLETE_HOURS = 20;
 
 export function bucketByBelgradeDay(
   points: HourlyPrice[],
   minCompleteHours: number = DEFAULT_MIN_COMPLETE_HOURS,
 ): DayBucket[] {
   const threshold = Math.max(1, Math.min(24, Math.floor(minCompleteHours)));
-  // Dedupe duplicate hours: same ISO ts wins last.
   const dedup = new Map<string, HourlyPrice>();
   for (const p of points) dedup.set(p.ts.toISOString(), p);
   const cleaned = Array.from(dedup.values()).sort((a, b) => +a.ts - +b.ts);
@@ -90,7 +89,6 @@ export function bucketByBelgradeDay(
   return Array.from(m.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, hrs]) => {
-      // count unique local hours-of-day (handles DST 23h/25h days too)
       const localHours = new Set(hrs.map((p) => belgradeHour(p.ts)));
       const peak = hrs.filter((p) => isBelgradePeakHour(p.ts));
       const baseload = hrs.reduce((a, b) => a + b.price, 0) / hrs.length;
@@ -107,7 +105,7 @@ export function bucketByBelgradeDay(
 }
 
 export type PeriodAggregate = {
-  baseload: number; // mean of daily baseloads over completeDays in range
+  baseload: number; // mean of hourly prices over complete days in range
   peakload: number | null;
   hoursCount: number;
   daysCount: number;
@@ -119,7 +117,7 @@ export type PeriodAggregate = {
   highHours: number; // > 150 EUR/MWh
   minHour: number;
   maxHour: number;
-  sd: number;
+  sd: number; // population standard deviation over the complete-day hourly sample
 };
 
 export function aggregatePeriod(
@@ -134,9 +132,6 @@ export function aggregatePeriod(
   const allHours = inRange.flatMap((b) => b.hours);
   const prices = allHours.map((p) => p.price);
   const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
-  // Baseload = simple mean of all hourly prices in range (hour-weighted).
-  // This matches exchange-published period averages and avoids over-weighting
-  // partial days when the completeness threshold is low.
   const completeHours = completeOnly.flatMap((d) => d.hours).map((p) => p.price);
   const baseload = mean(completeHours);
   const peakHours = completeOnly
@@ -144,8 +139,9 @@ export function aggregatePeriod(
     .filter((p) => isBelgradePeakHour(p.ts))
     .map((p) => p.price);
   const peakload = peakHours.length ? mean(peakHours) : null;
-  const variance = prices.length
-    ? prices.reduce((a, b) => a + (b - mean(prices)) ** 2, 0) / prices.length
+  const completeMean = mean(completeHours);
+  const variance = completeHours.length
+    ? completeHours.reduce((a, b) => a + (b - completeMean) ** 2, 0) / completeHours.length
     : 0;
   return {
     baseload,

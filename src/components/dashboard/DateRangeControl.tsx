@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  comparisonRangeKeys,
+  parseComparisonKey,
+  previousMonthRangeKeys,
+  type ComparisonKey,
+  type DateRangeKeys,
+} from "@/lib/comparison";
 import { belgradeDateISO } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export type PresetKey = "today" | "d1" | "7d" | "30d" | "mtd" | "prev_month" | "ytd" | "custom";
-
-export type ComparisonKey = "previous_equivalent" | "previous_month" | "previous_year" | "none";
-
-export type DateRangeKeys = { from: string; to: string };
 
 const DEFAULT_PRESETS: PresetKey[] = [
   "today",
@@ -51,18 +54,6 @@ function monthStartKey(dayKey: string) {
   return `${dayKey.slice(0, 7)}-01`;
 }
 
-function previousMonthRange(dayKey: string): DateRangeKeys {
-  const [year, month] = dayKey.split("-").map(Number);
-  const from = new Date(Date.UTC(year, month - 2, 1, 12));
-  const to = new Date(Date.UTC(year, month - 1, 0, 12));
-  return { from: formatDayKey(from), to: formatDayKey(to) };
-}
-
-function previousYearRange(dayKey: string): DateRangeKeys {
-  const [year] = dayKey.split("-").map(Number);
-  return { from: `${year - 1}-01-01`, to: `${year - 1}-12-31` };
-}
-
 function presetRangeKeys(preset: PresetKey, todayKey = belgradeDateISO()): DateRangeKeys {
   switch (preset) {
     case "today":
@@ -78,27 +69,12 @@ function presetRangeKeys(preset: PresetKey, todayKey = belgradeDateISO()): DateR
     case "mtd":
       return { from: monthStartKey(todayKey), to: todayKey };
     case "prev_month":
-      return previousMonthRange(todayKey);
+      return previousMonthRangeKeys(todayKey);
     case "ytd":
       return { from: `${todayKey.slice(0, 4)}-01-01`, to: todayKey };
     default:
       return { from: todayKey, to: todayKey };
   }
-}
-
-function comparisonRangeKeys(
-  range: DateRangeKeys,
-  comparison: ComparisonKey,
-): DateRangeKeys | undefined {
-  if (comparison === "none") return undefined;
-  if (comparison === "previous_month") return previousMonthRange(range.to);
-  if (comparison === "previous_year") return previousYearRange(range.to);
-
-  const from = parseDayKey(range.from);
-  const to = parseDayKey(range.to);
-  const days = Math.max(1, Math.round((+to - +from) / 86_400_000) + 1);
-  const previousTo = addDaysKey(range.from, -1);
-  return { from: addDaysKey(previousTo, -(days - 1)), to: previousTo };
 }
 
 function sameRange(a: DateRangeKeys, b: DateRangeKeys) {
@@ -275,15 +251,17 @@ export function DateRangeControl({
   const { t } = useLang();
   const dashboardRange = useDashboardRange({ firstAvailable, latestAvailable });
   const isControlled = Boolean(controlledRange && onRangeChange);
+  const search = useSearch({ strict: false }) as { compare?: string };
+  const navigate = useNavigate();
   const rangeKeys = controlledRange ?? dashboardRange.rangeKeys;
   const selectedPreset =
     activePreset ??
     matchingPreset(rangeKeys, presets) ??
     (isControlled ? "custom" : dashboardRange.preset);
   const [open, setOpen] = useState(false);
-  const [internalComparison, setInternalComparison] =
-    useState<ComparisonKey>("previous_equivalent");
-  const comparison = controlledComparison ?? internalComparison;
+  const comparison = isControlled
+    ? (controlledComparison ?? "previous_equivalent")
+    : parseComparisonKey(search.compare);
   const [draftFromKey, setDraftFromKey] = useState(rangeKeys.from);
   const [draftToKey, setDraftToKey] = useState(rangeKeys.to);
 
@@ -291,10 +269,6 @@ export function DateRangeControl({
     setDraftFromKey(rangeKeys.from);
     setDraftToKey(rangeKeys.to);
   }, [rangeKeys.from, rangeKeys.to]);
-
-  useEffect(() => {
-    onComparisonChange?.(comparison, comparisonRangeKeys(rangeKeys, comparison));
-  }, [comparison, onComparisonChange, rangeKeys]);
 
   const label = rangeKeys ? formatRangeLabel(rangeKeys) : t("Pick a range", "Izaberite period");
   const comparisonRange = comparisonRangeKeys(rangeKeys, comparison);
@@ -344,8 +318,12 @@ export function DateRangeControl({
   };
 
   const handleComparisonChange = (value: ComparisonKey) => {
-    if (controlledComparison === undefined) {
-      setInternalComparison(value);
+    if (!isControlled) {
+      navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, compare: value }),
+        replace: true,
+      });
     }
     onComparisonChange?.(value, comparisonRangeKeys(rangeKeys, value));
   };

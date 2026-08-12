@@ -12,6 +12,7 @@ const searchSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   preset: z.enum(["today", "d1", "7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
+  compare: z.enum(["previous_equivalent", "previous_month", "previous_year", "none"]).optional(),
   asset: z.enum(["solar", "wind", "bess", "hybrid"]).optional(),
 });
 

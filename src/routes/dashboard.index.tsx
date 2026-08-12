@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   BarChart,
   Bar,
   ReferenceLine,
+  ComposedChart,
 } from "recharts";
 import {
   ChartCard,
@@ -28,6 +29,13 @@ import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
 import { bucketByBelgradeDay, aggregatePeriod, type HourlyPrice } from "@/lib/baseload";
+import {
+  comparisonRangeKeys,
+  monthKeysBetween,
+  monthOffsetBetween,
+  parseComparisonKey,
+  shiftMonthKey,
+} from "@/lib/comparison";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -54,6 +62,7 @@ const fmt = (n: number, d = 1) => (isFinite(n) ? n.toFixed(d) : "—");
 function methodology(opts: {
   metric: string;
   range: string;
+  comparison?: string;
   hours: number;
   days: number;
   formula: string;
@@ -69,6 +78,11 @@ function methodology(opts: {
       <div>
         <span className="text-muted-foreground">Range:</span> {opts.range}
       </div>
+      {opts.comparison && (
+        <div>
+          <span className="text-muted-foreground">Comparison:</span> {opts.comparison}
+        </div>
+      )}
       <div>
         <span className="text-muted-foreground">Time zone:</span> Europe/Belgrade
       </div>
@@ -89,8 +103,35 @@ function methodology(opts: {
   );
 }
 
+function percentTrend(current?: number | null, previous?: number | null) {
+  if (
+    current == null ||
+    previous == null ||
+    previous === 0 ||
+    !Number.isFinite(current) ||
+    !Number.isFinite(previous)
+  ) {
+    return undefined;
+  }
+  return { delta: ((current - previous) / Math.abs(previous)) * 100 };
+}
+
+function hoursTrend(current?: number | null, previous?: number | null) {
+  if (
+    current == null ||
+    previous == null ||
+    !Number.isFinite(current) ||
+    !Number.isFinite(previous)
+  ) {
+    return undefined;
+  }
+  return { delta: current - previous, suffix: "h" };
+}
+
 function OverviewPage() {
   const { t } = useLang();
+  const search = useSearch({ strict: false }) as { compare?: string };
+  const comparison = parseComparisonKey(search.compare);
   const requestedRange = useRequestedRangeKeys();
   const live = useQuery({
     queryKey: [
@@ -122,6 +163,38 @@ function OverviewPage() {
   const { fromKey, toKey, range } = useDashboardRange({ firstAvailable, latestAvailable });
 
   const period = useMemo(() => aggregatePeriod(buckets, fromKey, toKey), [buckets, fromKey, toKey]);
+  const comparisonRange = useMemo(
+    () => comparisonRangeKeys({ from: fromKey, to: toKey }, comparison),
+    [comparison, fromKey, toKey],
+  );
+  const cmpFrom = comparisonRange?.from;
+  const cmpTo = comparisonRange?.to;
+  const comparisonQuery = useQuery({
+    queryKey: ["market-prices", cmpFrom, cmpTo],
+    queryFn: () => fetchMarketPrices({ data: { from: cmpFrom!, to: cmpTo! } }),
+    enabled: Boolean(comparisonRange),
+    staleTime: 5 * 60_000,
+  });
+  const comparisonData = useMemo<HourlyPrice[]>(
+    () =>
+      (comparisonQuery.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
+    [comparisonQuery.data],
+  );
+  const comparisonBuckets = useMemo(
+    () => bucketByBelgradeDay(comparisonData),
+    [comparisonData],
+  );
+  const comparisonCompleteDays = useMemo(
+    () => comparisonBuckets.filter((b) => b.complete),
+    [comparisonBuckets],
+  );
+  const comparisonPeriod = useMemo(
+    () =>
+      comparisonRange
+        ? aggregatePeriod(comparisonBuckets, comparisonRange.from, comparisonRange.to)
+        : undefined,
+    [comparisonBuckets, comparisonRange],
+  );
 
   // Rolling references (independent of selected range)
   const last7 = useMemo(() => completeDays.slice(-7), [completeDays]);
@@ -131,66 +204,78 @@ function OverviewPage() {
     ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length
     : NaN;
 
-  // Monthly series — every month spanned by the selected analysis range
+  // Monthly series — every month spanned by the selected analysis range.
   const monthly = useMemo(() => {
     if (completeDays.length === 0 || !fromKey || !toKey) return [];
-    const agg = new Map<string, { sum: number; n: number; neg: number }>();
+    const currentAgg = new Map<string, { sum: number; n: number; neg: number }>();
     for (const b of completeDays) {
       if (b.key < fromKey || b.key > toKey) continue;
-      const k = b.key.slice(0, 7); // YYYY-MM
-      const cur = agg.get(k) ?? { sum: 0, n: 0, neg: 0 };
+      const key = b.key.slice(0, 7);
+      const cur = currentAgg.get(key) ?? { sum: 0, n: 0, neg: 0 };
       cur.sum += b.baseload;
       cur.n += 1;
       cur.neg += b.hours.filter((h) => h.price < 0).length;
-      agg.set(k, cur);
+      currentAgg.set(key, cur);
     }
-    const months: string[] = [];
-    const [fy, fm] = fromKey.split("-").map(Number);
-    const [ty, tm] = toKey.split("-").map(Number);
-    let y = fy,
-      m = fm;
-    while (y < ty || (y === ty && m <= tm)) {
-      months.push(`${y}-${String(m).padStart(2, "0")}`);
-      m += 1;
-      if (m > 12) {
-        m = 1;
-        y += 1;
+
+    const comparisonAgg = new Map<string, { sum: number; n: number }>();
+    if (comparisonRange) {
+      for (const b of comparisonCompleteDays) {
+        if (b.key < comparisonRange.from || b.key > comparisonRange.to) continue;
+        const key = b.key.slice(0, 7);
+        const cur = comparisonAgg.get(key) ?? { sum: 0, n: 0 };
+        cur.sum += b.baseload;
+        cur.n += 1;
+        comparisonAgg.set(key, cur);
       }
     }
-    const sameYear = fy === ty;
-    return months.map((ym) => {
-      const v = agg.get(ym);
+
+    const months = monthKeysBetween(fromKey, toKey);
+    const sameYear = fromKey.slice(0, 4) === toKey.slice(0, 4);
+    const offset = comparisonRange ? monthOffsetBetween(comparisonRange.from, fromKey) : 0;
+
+    return months.map((month) => {
+      const current = currentAgg.get(month);
+      const comparisonMonth = comparisonRange ? shiftMonthKey(month, -offset) : undefined;
+      const previous = comparisonMonth ? comparisonAgg.get(comparisonMonth) : undefined;
       return {
-        month: sameYear ? ym.slice(5) : ym,
-        baseload: v && v.n ? +(v.sum / v.n).toFixed(1) : null,
-        negHours: v ? v.neg : 0,
+        month: sameYear ? month.slice(5) : month,
+        baseload: current && current.n ? +(current.sum / current.n).toFixed(1) : null,
+        prevBaseload: previous && previous.n ? +(previous.sum / previous.n).toFixed(1) : null,
+        negHours: current ? current.neg : 0,
       };
     });
-  }, [completeDays, fromKey, toKey]);
+  }, [completeDays, comparisonCompleteDays, comparisonRange, fromKey, toKey]);
 
-  // Daily chart (in-range)
-  const inRangeDaily = useMemo(
-    () =>
-      buckets
-        .filter((b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey))
-        .map((b) => ({
-          day: b.key.slice(5),
-          baseload: +b.baseload.toFixed(1),
-          peakload: b.peakload != null ? +b.peakload.toFixed(1) : null,
-        })),
-    [buckets, fromKey, toKey],
-  );
+  // Daily chart (in-range), with the comparison period aligned by day index.
+  const inRangeDaily = useMemo(() => {
+    const current = buckets.filter(
+      (b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey),
+    );
+    const previous = comparisonRange
+      ? comparisonBuckets.filter(
+          (b) => b.key >= comparisonRange.from && b.key <= comparisonRange.to,
+        )
+      : [];
+    return current.map((b, index) => ({
+      day: b.key.slice(5),
+      baseload: +b.baseload.toFixed(1),
+      peakload: b.peakload != null ? +b.peakload.toFixed(1) : null,
+      prevBaseload: previous[index] ? +previous[index].baseload.toFixed(1) : null,
+    }));
+  }, [buckets, comparisonBuckets, comparisonRange, fromKey, toKey]);
 
-  const last48Chart = useMemo(
-    () =>
-      data.slice(-48).map((p) => ({
-        t: p.ts.toISOString().slice(5, 16).replace("T", " "),
-        price: +p.price.toFixed(1),
-      })),
-    [data],
-  );
+  const last48Chart = useMemo(() => {
+    const current = data.slice(-48);
+    const previous = comparisonData.slice(-48);
+    return current.map((p, index) => ({
+      t: p.ts.toISOString().slice(5, 16).replace("T", " "),
+      price: +p.price.toFixed(1),
+      prevPrice: previous[index] ? +previous[index].price.toFixed(1) : null,
+    }));
+  }, [comparisonData, data]);
 
-  const refreshing = live.isFetching;
+  const refreshing = live.isFetching || comparisonQuery.isFetching;
 
   if (live.isLoading) {
     return <PageLoadingSkeleton />;
@@ -216,6 +301,9 @@ function OverviewPage() {
   const rangeLabel = range
     ? `${range.from.toISOString().slice(0, 10)} → ${range.to.toISOString().slice(0, 10)}`
     : "—";
+  const comparisonLabel = comparisonRange
+    ? `${comparisonRange.from} → ${comparisonRange.to}`
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -242,21 +330,21 @@ function OverviewPage() {
         debugSummary={live.data?.debugSummary}
       />
 
-
-
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4">
         <KpiCard
           loading={refreshing}
           label={t("Baseload (period)", "Bazna cena u periodu")}
           value={fmt(period.baseload)}
           unit="EUR/MWh"
+          trend={percentTrend(period.baseload, comparisonPeriod?.baseload)}
           hint={methodology({
             metric: "Period baseload",
             range: rangeLabel,
+            comparison: comparisonLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
             formula:
-              "Mean of daily baseloads (each = mean of 24 hourly prices) over complete days only.",
+              "Mean of hourly prices on complete days (≥20 of 24 local Belgrade hours); incomplete days are excluded.",
             lastUpdate: lastTs,
           })}
         />
@@ -265,13 +353,15 @@ function OverviewPage() {
           label={t("Peakload (period)", "Vršno opterećenje u periodu")}
           value={fmt(period.peakload ?? NaN)}
           unit="EUR/MWh"
+          trend={percentTrend(period.peakload, comparisonPeriod?.peakload)}
           hint={methodology({
             metric: "Period peakload",
             range: rangeLabel,
+            comparison: comparisonLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
             formula:
-              "Mean of daily peakloads (Mon–Fri 08:00–20:00 Europe/Belgrade) over complete days.",
+              "Mean of Mon–Fri 08:00–20:00 Europe/Belgrade prices on complete days (≥20 of 24 local hours).",
             lastUpdate: lastTs,
           })}
         />
@@ -280,12 +370,15 @@ function OverviewPage() {
           label={t("Negative hours", "Sati sa negativnom cenom")}
           value={period.negHours}
           unit={t("hours", "sati")}
+          trend={hoursTrend(period.negHours, comparisonPeriod?.negHours)}
           hint={methodology({
             metric: "Negative price hours",
             range: rangeLabel,
+            comparison: comparisonLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
-            formula: "Count of hourly DA prices < 0 EUR/MWh in the selected range.",
+            formula:
+              "Count of all observed hourly DA prices < 0 EUR/MWh in the selected range, including incomplete days.",
           })}
         />
         <KpiCard
@@ -293,12 +386,15 @@ function OverviewPage() {
           label={t("Volatility (σ)", "Volatilnost (σ)")}
           value={fmt(period.sd)}
           unit="EUR/MWh"
+          trend={percentTrend(period.sd, comparisonPeriod?.sd)}
           hint={methodology({
             metric: "Volatility",
             range: rangeLabel,
+            comparison: comparisonLabel,
             hours: period.hoursCount,
             days: period.completeDaysCount,
-            formula: "Population standard deviation of hourly DA prices in the range.",
+            formula:
+              "Population standard deviation of hourly DA prices on the same complete-day sample as baseload.",
           })}
         />
         <KpiCard
@@ -356,6 +452,7 @@ function OverviewPage() {
               <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <Legend />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
               <Line
                 type="monotone"
@@ -363,6 +460,16 @@ function OverviewPage() {
                 stroke="var(--color-chart-1)"
                 strokeWidth={2}
                 dot={false}
+                name={t("Current period", "Tekući period")}
+              />
+              <Line
+                type="monotone"
+                dataKey="prevPrice"
+                stroke="var(--color-chart-3)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -377,7 +484,7 @@ function OverviewPage() {
           )}
         >
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={inRangeDaily}>
+            <ComposedChart data={inRangeDaily}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
@@ -393,13 +500,20 @@ function OverviewPage() {
                 fill="var(--color-chart-3)"
                 name={t("Peakload", "Vršno opterećenje")}
               />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="prevBaseload"
+                stroke="var(--color-chart-2)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")}
-          loading={refreshing}
-        >
+        <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")} loading={refreshing}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
@@ -409,11 +523,22 @@ function OverviewPage() {
               />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <Legend />
               <Line
                 type="monotone"
                 dataKey="baseload"
                 stroke="var(--color-chart-2)"
                 strokeWidth={2}
+                name={t("Baseload", "Bazna cena")}
+              />
+              <Line
+                type="monotone"
+                dataKey="prevBaseload"
+                stroke="var(--color-chart-3)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -444,14 +569,14 @@ function OverviewPage() {
         </h3>
         <p className="text-muted-foreground">
           {t(
-            "Baseload prices are computed as the simple mean of daily baseloads, where each daily baseload is the simple mean of that day's 24 hourly SEEPEX DA prices in Europe/Belgrade local time. Incomplete days (DST or today-so-far) are excluded so that month-to-date numbers are comparable with exchange-published averages.",
-            "Bazne cene se računaju kao prost prosek dnevnih baznih cena, pri čemu je dnevna bazna cena prost prosek satnih SEEPEX DA cena u lokalnom vremenu Europe/Belgrade. Nepotpuni dani, uključujući DST dane ili tekući dan, izuzimaju se kako bi MTD vrednosti bile uporedive sa berzanskim prosekom.",
+            "Period baseload is the mean of hourly SEEPEX DA prices on complete days, where a complete day has at least 20 of its 24 local Europe/Belgrade hours. Incomplete days caused by DST-related gaps, missing data or today-so-far are excluded; volatility uses the same complete-day sample. When a comparison period is selected, KPI deltas are shown against that period.",
+            "Bazna cena za period je prosek satnih SEEPEX DA cena tokom potpunih dana, pri čemu potpuni dan ima najmanje 20 od 24 lokalna sata u vremenskoj zoni Europe/Belgrade. Nepotpuni dani usled DST odstupanja, nedostajućih podataka ili tekućeg dana izuzimaju se, a volatilnost koristi isti uzorak potpunih dana. Kada je izabran period za poređenje, KPI kartice prikazuju promene u odnosu na taj period.",
           )}
         </p>
         <p className="text-muted-foreground">
           {t(
-            "If you see a small gap vs SEEPEX WB — note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on any KPI to see exact range, hours included and last update.",
-            "Ako vidite manje odstupanje u odnosu na SEEPEX WB, imajte u vidu da je SEEPEX WB regionalna referenca za Zapadni Balkan; ova platforma koristi srpsku bidding zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na KPI karticama za tačan period, uključene sate i poslednje ažuriranje.",
+            "Negative-hour counts and min/max use all observed hours, including incomplete days. If you see a small gap vs SEEPEX WB, note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on the four comparison KPIs to see the selected and comparison ranges; deltas appear only when a comparison period is selected.",
+            "Broj sati sa negativnom cenom i minimalna/maksimalna cena koriste sve zabeležene sate, uključujući nepotpune dane. Ako vidite manje odstupanje u odnosu na SEEPEX WB, imajte u vidu da je SEEPEX WB regionalna referenca za Zapadni Balkan; ova platforma koristi srpsku bidding zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na četiri KPI kartice za poređenje da vidite izabrani i uporedni period; promene se prikazuju samo kada je period za poređenje izabran.",
           )}
         </p>
       </div>
