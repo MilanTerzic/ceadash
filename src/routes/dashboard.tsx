@@ -1,9 +1,10 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
 import { LoadingBar } from "@/components/dashboard/LoadingBar";
+import { MorningMarketSnapshot } from "@/components/dashboard/MorningMarketSnapshot";
 
 import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
@@ -34,6 +35,8 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardLayout() {
   const { t } = useLang();
   const dashboardRange = useDashboardRange({});
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const isOverview = pathname === "/dashboard" || pathname === "/dashboard/";
   return (
     <DateRangeProvider range={dashboardRange.rangeKeys} setRange={dashboardRange.setRangeKeys}>
       <div>
@@ -62,9 +65,9 @@ function DashboardLayout() {
         <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6">
           <LoadingBar />
           <DateRangeControl maxFutureDays={1} />
+          {isOverview && <MorningMarketSnapshot />}
           <Outlet />
         </div>
-
       </div>
     </DateRangeProvider>
   );
