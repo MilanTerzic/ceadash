@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertCircle,
@@ -63,7 +63,7 @@ function sourceReason(reason?: string): string | undefined {
   if (reason.includes("http_429")) return "Open-Meteo rate limit reached; retry shortly";
   if (reason.includes("stale_cache")) return "Live source failed; showing stale cached data";
   if (reason.includes("weather_segments_unavailable")) {
-    return "Some Open-Meteo weather segments are temporarily unavailable";
+    return "Some weather segments are temporarily unavailable";
   }
   if (reason.includes("no_plausible_danube_grid_cell")) {
     return "Open-Meteo does not provide a plausible Danube grid cell for this station";
@@ -128,7 +128,6 @@ function OutagesPage() {
   const weatherFn = useServerFn(getWeather);
   const danubeFn = useServerFn(getDanubeDischarge);
   const balanceFn = useServerFn(getBalance);
-  const queryClient = useQueryClient();
   const { fromKey, toKey } = useRequestedRangeKeys();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -208,21 +207,15 @@ function OutagesPage() {
   const refreshAll = async () => {
     setIsRefreshing(true);
     try {
-      const results = await Promise.allSettled([
-        outagesFn({ data: { from: fromKey, to: toKey, force: true } }),
-        weatherFn({ data: { from: fromKey, to: toKey, force: true } }),
-        danubeFn({ data: { from: fromKey, to: toKey, force: true } }),
-        balanceFn({ data: { from: fromKey, to: toKey, force: true } }),
+      // Refetch through each query's normal server function so persisted source
+      // caches are respected. This avoids re-downloading unchanged ENTSO-E
+      // history on every click while still refreshing once its TTL expires.
+      await Promise.allSettled([
+        outages.refetch(),
+        weather.refetch(),
+        danube.refetch(),
+        balance.refetch(),
       ]);
-      const keys = [
-        ["outages", fromKey, toKey],
-        ["fundamentals-weather", fromKey, toKey],
-        ["fundamentals-danube", fromKey, toKey],
-        ["fundamentals-balance", fromKey, toKey],
-      ];
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") queryClient.setQueryData(keys[index], result.value);
-      });
     } finally {
       setIsRefreshing(false);
     }
@@ -262,8 +255,6 @@ function OutagesPage() {
         hideRange
       />
       <div className="space-y-5 p-6">
-
-
         {isFetchingAll && (
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-medium text-primary shadow-sm">
             <div className="flex items-center gap-3">
@@ -296,7 +287,7 @@ function OutagesPage() {
             onRetry={retryBalance}
           />
           <StatusRow
-            label="Open-Meteo weather"
+            label="Weather (Open-Meteo → Visual Crossing fallback)"
             status={weather.data}
             loading={weather.isFetching}
             onRetry={retryWeather}
