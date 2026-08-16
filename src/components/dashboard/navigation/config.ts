@@ -88,8 +88,17 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
         to: "/dashboard/outages",
         label: { en: "System Fundamentals", sr: "Fundamenti sistema" },
         description: {
-          en: "Outages, weather and hydrology",
-          sr: "Ispadi, vreme i hidrologija",
+          en: "Outages, load, generation and weather",
+          sr: "Ispadi, potrošnja, proizvodnja i vreme",
+        },
+      },
+      {
+        id: "danube-hydrology",
+        to: "/dashboard/danube",
+        label: { en: "Danube Hydrology", sr: "Hidrologija Dunava" },
+        description: {
+          en: "Official RHMZ water levels and seven-day station trends",
+          sr: "Zvanični RHMZ vodostaji i sedmodnevni trendovi po stanicama",
         },
       },
     ],
