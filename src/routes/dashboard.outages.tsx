@@ -437,23 +437,23 @@ function OutagesPage() {
 
         <div className="grid gap-5 md:grid-cols-2">
           <Panel
-            title="Weather by zone"
+            title={t("Weather by zone", "Vreme po zonama")}
             actions={weather.data ? <DataBadge source={weather.data.status} /> : undefined}
           >
             {weather.isPending && !weather.data ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Loading weather observations...
+                {t("Loading weather observations...", "Učitavanje osmatranja vremena...")}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="py-1.5 text-left">Zone</th>
-                      <th className="text-right">Avg. temp</th>
-                      <th className="text-right">Avg. wind</th>
-                      <th className="text-right">Hours</th>
-                      <th className="text-right">Source</th>
+                      <th className="py-1.5 text-left">{t("Zone", "Zona")}</th>
+                      <th className="text-right">{t("Avg. temp", "Prosečna temp.")}</th>
+                      <th className="text-right">{t("Avg. wind", "Prosečan vetar")}</th>
+                      <th className="text-right">{t("Hours", "Sati")}</th>
+                      <th className="text-right">{t("Source", "Izvor")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -473,7 +473,7 @@ function OutagesPage() {
                             </div>
                             {!points.length && row.reason ? (
                               <div className="text-xs text-destructive">
-                                {sourceReason(row.reason)}
+                                {sourceReason(row.reason, t)}
                               </div>
                             ) : null}
                           </td>
@@ -498,7 +498,8 @@ function OutagesPage() {
                     {!weatherRows.length && (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          Weather data unavailable. {sourceReason(weather.data?.reason)}
+                          {t("Weather data unavailable.", "Podaci o vremenu nisu dostupni.")}{" "}
+                          {sourceReason(weather.data?.reason, t)}
                         </td>
                       </tr>
                     )}
@@ -509,23 +510,26 @@ function OutagesPage() {
           </Panel>
 
           <Panel
-            title="Hydrology - Danube stations"
+            title={t("Hydrology - Danube stations", "Hidrologija - stanice na Dunavu")}
             actions={danube.data ? <DataBadge source={danube.data.status} /> : undefined}
           >
             {danube.isPending && !danube.data ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Loading river-discharge observations...
+                {t(
+                  "Loading river-discharge observations...",
+                  "Učitavanje osmatranja protoka reke...",
+                )}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="py-1.5 text-left">Station</th>
-                      <th className="text-right">Latest</th>
-                      <th className="text-right">Period avg.</th>
-                      <th className="text-right">Latest date</th>
-                      <th className="text-right">Source</th>
+                      <th className="py-1.5 text-left">{t("Station", "Stanica")}</th>
+                      <th className="text-right">{t("Latest", "Poslednje")}</th>
+                      <th className="text-right">{t("Period avg.", "Prosek perioda")}</th>
+                      <th className="text-right">{t("Latest date", "Poslednji datum")}</th>
+                      <th className="text-right">{t("Source", "Izvor")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -543,11 +547,12 @@ function OutagesPage() {
                             <div className="font-medium">{station.name}</div>
                             {selected ? (
                               <div className="text-[10px] text-muted-foreground">
-                                Grid {selected.lat.toFixed(3)}, {selected.lon.toFixed(3)}
+                                {t("Grid", "Mreža")} {selected.lat.toFixed(3)},{" "}
+                                {selected.lon.toFixed(3)}
                               </div>
                             ) : station.reason ? (
                               <div className="text-xs text-destructive">
-                                {sourceReason(station.reason)}
+                                {sourceReason(station.reason, t)}
                               </div>
                             ) : null}
                           </td>
@@ -574,7 +579,11 @@ function OutagesPage() {
                     {!danubeStations.length && (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          River-discharge data unavailable. {sourceReason(danube.data?.reason)}
+                          {t(
+                            "River-discharge data unavailable.",
+                            "Podaci o protoku reke nisu dostupni.",
+                          )}{" "}
+                          {sourceReason(danube.data?.reason, t)}
                         </td>
                       </tr>
                     )}
