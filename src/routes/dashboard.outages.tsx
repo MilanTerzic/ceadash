@@ -666,7 +666,7 @@ function OutagesPage() {
             title={
               <span className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                Largest forced outages
+                {t("Largest forced outages", "Najveći prinudni ispadi")}
               </span>
             }
             dense
@@ -693,7 +693,7 @@ function OutagesPage() {
                 ))}
               {!forcedRows.length && (
                 <li className="py-3 text-center text-xs text-muted-foreground">
-                  No calculable forced outages
+                  {t("No calculable forced outages", "Nema merljivih prinudnih ispada")}
                 </li>
               )}
             </ul>
@@ -702,7 +702,7 @@ function OutagesPage() {
             title={
               <span className="flex items-center gap-1.5">
                 <Wrench className="h-3.5 w-3.5 text-info" />
-                Largest planned outages
+                {t("Largest planned outages", "Najveći planirani ispadi")}
               </span>
             }
             dense
@@ -727,7 +727,7 @@ function OutagesPage() {
                 ))}
               {!plannedRows.length && (
                 <li className="py-3 text-center text-xs text-muted-foreground">
-                  No calculable planned outages
+                  {t("No calculable planned outages", "Nema merljivih planiranih ispada")}
                 </li>
               )}
             </ul>
@@ -735,7 +735,7 @@ function OutagesPage() {
         </div>
 
         <Panel
-          title="All outage publications"
+          title={t("All outage publications", "Sve objave o ispadima")}
           actions={
             <Button
               size="sm"
@@ -753,15 +753,15 @@ function OutagesPage() {
             <table className="w-full min-w-[980px] text-sm">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="py-1.5 text-left">Zone</th>
-                  <th className="text-left">Unit</th>
-                  <th className="text-right">Unavailable MW</th>
-                  <th className="text-right">Available MW</th>
-                  <th className="text-right">Normal MW</th>
-                  <th>Type</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th className="text-right">Source</th>
+                  <th className="py-1.5 text-left">{t("Zone", "Zona")}</th>
+                  <th className="text-left">{t("Unit", "Jedinica")}</th>
+                  <th className="text-right">{t("Unavailable MW", "Nedostupno MW")}</th>
+                  <th className="text-right">{t("Available MW", "Dostupno MW")}</th>
+                  <th className="text-right">{t("Normal MW", "Normalno MW")}</th>
+                  <th>{t("Type", "Tip")}</th>
+                  <th>{t("Start", "Početak")}</th>
+                  <th>{t("End", "Kraj")}</th>
+                  <th className="text-right">{t("Source", "Izvor")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -791,7 +791,11 @@ function OutagesPage() {
                             : "text-muted-foreground"
                       }
                     >
-                      {row.outage_type}
+                      {row.outage_type === "forced"
+                        ? t("forced", "prinudni")
+                        : row.outage_type === "planned"
+                          ? t("planned", "planirani")
+                          : row.outage_type}
                     </td>
                     <td className="num text-xs text-muted-foreground">
                       {new Date(row.start).toLocaleDateString("en-GB")}
@@ -813,10 +817,16 @@ function OutagesPage() {
                       }`}
                     >
                       {outageLoading
-                        ? "Loading outage publications..."
+                        ? t("Loading outage publications...", "Učitavanje objava o ispadima...")
                         : outages.data?.status === "empty"
-                          ? "No outages reported by ENTSO-E for the selected period."
-                          : `Outage data unavailable. ${sourceReason(outages.data?.reason) ?? ""}`}
+                          ? t(
+                              "No outages reported by ENTSO-E for the selected period.",
+                              "ENTSO-E nije prijavio ispade za izabrani period.",
+                            )
+                          : t(
+                              `Outage data unavailable. ${sourceReason(outages.data?.reason, t) ?? ""}`,
+                              `Podaci o ispadima nisu dostupni. ${sourceReason(outages.data?.reason, t) ?? ""}`,
+                            )}
                     </td>
                   </tr>
                 )}
