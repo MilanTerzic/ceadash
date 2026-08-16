@@ -25,6 +25,7 @@ import {
   type DataStatus,
 } from "@/lib/fundamentals";
 import { downloadCSV, fmtMW, fmtNum } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/outages")({
   head: () => ({ meta: [{ title: "System Fundamentals - CEA Power Dashboard" }] }),
@@ -33,40 +34,82 @@ export const Route = createFileRoute("/dashboard/outages")({
 
 type QueryStatus = DataSourceStatus | undefined;
 
-function sourceReason(reason?: string): string | undefined {
+function sourceReason(
+  reason: string | undefined,
+  t: (en: string, sr: string) => string,
+): string | undefined {
   if (!reason) return undefined;
   if (reason.includes("entsoe_token_missing")) {
-    return "ENTSO-E token is not configured on the server";
+    return t(
+      "ENTSO-E token is not configured on the server",
+      "ENTSO-E token nije podešen na serveru",
+    );
   }
   if (reason.includes("entsoe_unauthorized")) {
-    return "ENTSO-E rejected the configured token";
+    return t("ENTSO-E rejected the configured token", "ENTSO-E je odbio podešeni token");
   }
   if (reason.includes("entsoe_rate_limited")) {
-    return "ENTSO-E rate limit reached; retry shortly";
+    return t(
+      "ENTSO-E rate limit reached; retry shortly",
+      "Dostignut je limit ENTSO-E zahteva; pokušajte ponovo uskoro",
+    );
   }
-  if (reason.includes("entsoe_timeout")) return "ENTSO-E request timed out";
-  if (reason.includes("entsoe_invalid_request")) return "ENTSO-E rejected the request parameters";
+  if (reason.includes("entsoe_timeout"))
+    return t("ENTSO-E request timed out", "ENTSO-E zahtev je istekao");
+  if (reason.includes("entsoe_invalid_request"))
+    return t(
+      "ENTSO-E rejected the request parameters",
+      "ENTSO-E je odbio parametre zahteva",
+    );
   if (reason.includes("entsoe_no_outage_publications")) {
-    return "ENTSO-E returned no outage publications for this period";
+    return t(
+      "ENTSO-E returned no outage publications for this period",
+      "ENTSO-E nije vratio objave o ispadima za ovaj period",
+    );
   }
   if (reason.includes("weather_unavailable_for_")) {
     const match = /weather_unavailable_for_(\d+)_of_(\d+)_zones/.exec(reason);
     return match
-      ? `Weather data is unavailable for ${match[1]} of ${match[2]} zones`
-      : "Weather data is partially unavailable";
+      ? t(
+          `Weather data is unavailable for ${match[1]} of ${match[2]} zones`,
+          `Podaci o vremenu nisu dostupni za ${match[1]} od ${match[2]} zona`,
+        )
+      : t("Weather data is partially unavailable", "Podaci o vremenu su delimično nedostupni");
   }
   if (reason.includes("river_discharge_unavailable_for_")) {
-    return `River-discharge data is unavailable for ${reason.split("_for_")[1]}`;
+    return t(
+      `River-discharge data is unavailable for ${reason.split("_for_")[1]}`,
+      `Podaci o protoku reke nisu dostupni za ${reason.split("_for_")[1]}`,
+    );
   }
-  if (reason.includes("invalid_date")) return "Request exceeded the supported date range";
-  if (reason.includes("request_timeout")) return "The source request timed out";
-  if (reason.includes("http_429")) return "Open-Meteo rate limit reached; retry shortly";
-  if (reason.includes("stale_cache")) return "Live source failed; showing stale cached data";
+  if (reason.includes("invalid_date"))
+    return t(
+      "Request exceeded the supported date range",
+      "Zahtev prevazilazi podržani opseg datuma",
+    );
+  if (reason.includes("request_timeout"))
+    return t("The source request timed out", "Zahtev ka izvoru je istekao");
+  if (reason.includes("http_429"))
+    return t(
+      "Open-Meteo rate limit reached; retry shortly",
+      "Dostignut je limit Open-Meteo zahteva; pokušajte ponovo uskoro",
+    );
+  if (reason.includes("stale_cache"))
+    return t(
+      "Live source failed; showing stale cached data",
+      "Neuspešno preuzimanje uživo; prikazuju se zastareli keširani podaci",
+    );
   if (reason.includes("weather_segments_unavailable")) {
-    return "Some Open-Meteo weather segments are temporarily unavailable";
+    return t(
+      "Some Open-Meteo weather segments are temporarily unavailable",
+      "Neki Open-Meteo segmenti vremena su privremeno nedostupni",
+    );
   }
   if (reason.includes("no_plausible_danube_grid_cell")) {
-    return "Open-Meteo does not provide a plausible Danube grid cell for this station";
+    return t(
+      "Open-Meteo does not provide a plausible Danube grid cell for this station",
+      "Open-Meteo ne pruža verodostojnu mrežnu ćeliju Dunava za ovu stanicu",
+    );
   }
   return reason.replaceAll("_", " ");
 }
@@ -82,6 +125,7 @@ function StatusRow({
   loading: boolean;
   onRetry: () => void;
 }) {
+  const { t } = useLang();
   const displayStatus: DataStatus = loading ? "partial" : (status?.status ?? "error");
   const Icon = displayStatus === "live" || displayStatus === "cache" ? CheckCircle2 : AlertCircle;
   const fetchedAt = status?.last_success_at ?? status?.fetched_at;
@@ -102,11 +146,14 @@ function StatusRow({
       <span>{loading ? <DataBadge source="partial" /> : <DataBadge source={displayStatus} />}</span>
       <span className="text-xs text-muted-foreground">
         {loading
-          ? "Loading selected period..."
-          : (sourceReason(status?.reason) ??
+          ? t("Loading selected period...", "Učitavanje izabranog perioda...")
+          : (sourceReason(status?.reason, t) ??
             (fetchedAt
-              ? `Last successful fetch ${new Date(fetchedAt).toLocaleString("en-GB")}`
-              : "No successful fetch recorded"))}
+              ? t(
+                  `Last successful fetch ${new Date(fetchedAt).toLocaleString("en-GB")}`,
+                  `Poslednje uspešno preuzimanje ${new Date(fetchedAt).toLocaleString("sr-RS")}`,
+                )
+              : t("No successful fetch recorded", "Nema zabeleženog uspešnog preuzimanja")))}
       </span>
       <Button
         type="button"
@@ -117,13 +164,14 @@ function StatusRow({
         disabled={loading}
       >
         <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-        Retry
+        {t("Retry", "Pokušaj ponovo")}
       </Button>
     </div>
   );
 }
 
 function OutagesPage() {
+  const { t } = useLang();
   const outagesFn = useServerFn(getOutages);
   const weatherFn = useServerFn(getWeather);
   const danubeFn = useServerFn(getDanubeDischarge);
@@ -244,17 +292,23 @@ function OutagesPage() {
     .sort()
     .at(-1);
   const outageSubtitle = outageLoading
-    ? "Loading ENTSO-E outage publications"
+    ? t("Loading ENTSO-E outage publications", "Učitavanje ENTSO-E objava o ispadima")
     : outageFailed
-      ? "Outage data unavailable"
+      ? t("Outage data unavailable", "Podaci o ispadima nisu dostupni")
       : outages.data?.status === "empty"
-        ? "No outage publications for the selected period"
-        : `${rows.length} outage records - ${fmtMW(totalMW)} calculable impact`;
+        ? t(
+            "No outage publications for the selected period",
+            "Nema objava o ispadima za izabrani period",
+          )
+        : t(
+            `${rows.length} outage records - ${fmtMW(totalMW)} calculable impact`,
+            `${rows.length} zapisa o ispadima - ${fmtMW(totalMW)} merljivog uticaja`,
+          );
 
   return (
     <>
       <TopBar
-        title="System Fundamentals"
+        title={t("System Fundamentals", "Osnove sistema")}
         subtitle={outageSubtitle}
         onRefresh={refreshAll}
         isRefreshing={isFetchingAll}
@@ -269,40 +323,42 @@ function OutagesPage() {
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span>
-                Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi
-                izvori.
+                {t(
+                  "Loading data for the selected period… Please wait while all sources refresh.",
+                  "Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi izvori.",
+                )}
               </span>
             </div>
           </div>
         )}
 
-        <Panel title="Data source status">
+        <Panel title={t("Data source status", "Status izvora podataka")}>
           <StatusRow
-            label="ENTSO-E outages"
+            label={t("ENTSO-E outages", "ENTSO-E ispadi")}
             status={outages.data}
             loading={outages.isFetching}
             onRetry={retryOutages}
           />
           <StatusRow
-            label="ENTSO-E load"
+            label={t("ENTSO-E load", "ENTSO-E potrošnja")}
             status={balance.data?.load}
             loading={balance.isFetching}
             onRetry={retryBalance}
           />
           <StatusRow
-            label="ENTSO-E generation"
+            label={t("ENTSO-E generation", "ENTSO-E proizvodnja")}
             status={balance.data?.generation}
             loading={balance.isFetching}
             onRetry={retryBalance}
           />
           <StatusRow
-            label="Open-Meteo weather"
+            label={t("Open-Meteo weather", "Open-Meteo vreme")}
             status={weather.data}
             loading={weather.isFetching}
             onRetry={retryWeather}
           />
           <StatusRow
-            label="Open-Meteo hydrology"
+            label={t("Open-Meteo hydrology", "Open-Meteo hidrologija")}
             status={danube.data}
             loading={danube.isFetching}
             onRetry={retryDanube}
@@ -311,29 +367,35 @@ function OutagesPage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <KPI
-            label="Total impacted"
+            label={t("Total impacted", "Ukupno pogođeno")}
             value={outageFailed || outageLoading ? "-" : fmtMW(totalMW)}
             accent="warning"
             sub={
               availableOnlyCount
-                ? `${rowsWithUnavailable.length} calculable, ${availableOnlyCount} available-only`
-                : `${rowsWithUnavailable.length} calculable records`
+                ? t(
+                    `${rowsWithUnavailable.length} calculable, ${availableOnlyCount} available-only`,
+                    `${rowsWithUnavailable.length} merljivo, ${availableOnlyCount} samo dostupno`,
+                  )
+                : t(
+                    `${rowsWithUnavailable.length} calculable records`,
+                    `${rowsWithUnavailable.length} merljivih zapisa`,
+                  )
             }
           />
           <KPI
-            label="Forced"
+            label={t("Forced", "Prinudni")}
             value={outageFailed || outageLoading ? "-" : fmtMW(forcedMW)}
             accent="destructive"
-            sub={`${forcedRows.length} records`}
+            sub={t(`${forcedRows.length} records`, `${forcedRows.length} zapisa`)}
           />
           <KPI
-            label="Planned"
+            label={t("Planned", "Planirani")}
             value={outageFailed || outageLoading ? "-" : fmtMW(plannedMW)}
             accent="info"
-            sub={`${plannedRows.length} records`}
+            sub={t(`${plannedRows.length} records`, `${plannedRows.length} zapisa`)}
           />
           <KPI
-            label="Zones affected"
+            label={t("Zones affected", "Pogođene zone")}
             value={
               outageFailed || outageLoading ? "-" : String(new Set(rows.map((r) => r.zone)).size)
             }
@@ -343,50 +405,57 @@ function OutagesPage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <KPI
-            label="Serbia avg. load"
+            label={t("Serbia avg. load", "Prosečna potrošnja - Srbija")}
             value={fmtMW(avgLoad)}
-            sub={`${loadPointCount} intervals`}
+            sub={t(`${loadPointCount} intervals`, `${loadPointCount} intervala`)}
             source={balance.data?.load.status}
           />
           <KPI
-            label="Serbia avg. generation"
+            label={t("Serbia avg. generation", "Prosečna proizvodnja - Srbija")}
             value={fmtMW(avgGen)}
-            sub={`${generationPointCount} intervals`}
+            sub={t(`${generationPointCount} intervals`, `${generationPointCount} intervala`)}
             source={balance.data?.generation.status}
           />
           <KPI
-            label="Serbia weather"
+            label={t("Serbia weather", "Vreme - Srbija")}
             value={avgTemp == null ? "-" : `${fmtNum(avgTemp)} °C`}
-            sub={avgWind == null ? "Wind unavailable" : `Wind ${fmtNum(avgWind)} m/s`}
+            sub={
+              avgWind == null
+                ? t("Wind unavailable", "Vetar nije dostupan")
+                : t(`Wind ${fmtNum(avgWind)} m/s`, `Vetar ${fmtNum(avgWind)} m/s`)
+            }
             source={rsWeather?.status}
           />
           <KPI
-            label="Danube - Zemun"
+            label={t("Danube - Zemun", "Dunav - Zemun")}
             value={latestDischarge == null ? "-" : `${fmtNum(latestDischarge, 0)} m³/s`}
-            sub={zemun?.latest_observation ?? "Latest observation unavailable"}
+            sub={
+              zemun?.latest_observation ??
+              t("Latest observation unavailable", "Poslednje osmatranje nije dostupno")
+            }
             source={zemun?.status}
           />
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
           <Panel
-            title="Weather by zone"
+            title={t("Weather by zone", "Vreme po zonama")}
             actions={weather.data ? <DataBadge source={weather.data.status} /> : undefined}
           >
             {weather.isPending && !weather.data ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Loading weather observations...
+                {t("Loading weather observations...", "Učitavanje osmatranja vremena...")}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="py-1.5 text-left">Zone</th>
-                      <th className="text-right">Avg. temp</th>
-                      <th className="text-right">Avg. wind</th>
-                      <th className="text-right">Hours</th>
-                      <th className="text-right">Source</th>
+                      <th className="py-1.5 text-left">{t("Zone", "Zona")}</th>
+                      <th className="text-right">{t("Avg. temp", "Prosečna temp.")}</th>
+                      <th className="text-right">{t("Avg. wind", "Prosečan vetar")}</th>
+                      <th className="text-right">{t("Hours", "Sati")}</th>
+                      <th className="text-right">{t("Source", "Izvor")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -406,7 +475,7 @@ function OutagesPage() {
                             </div>
                             {!points.length && row.reason ? (
                               <div className="text-xs text-destructive">
-                                {sourceReason(row.reason)}
+                                {sourceReason(row.reason, t)}
                               </div>
                             ) : null}
                           </td>
@@ -431,7 +500,8 @@ function OutagesPage() {
                     {!weatherRows.length && (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          Weather data unavailable. {sourceReason(weather.data?.reason)}
+                          {t("Weather data unavailable.", "Podaci o vremenu nisu dostupni.")}{" "}
+                          {sourceReason(weather.data?.reason, t)}
                         </td>
                       </tr>
                     )}
@@ -442,23 +512,26 @@ function OutagesPage() {
           </Panel>
 
           <Panel
-            title="Hydrology - Danube stations"
+            title={t("Hydrology - Danube stations", "Hidrologija - stanice na Dunavu")}
             actions={danube.data ? <DataBadge source={danube.data.status} /> : undefined}
           >
             {danube.isPending && !danube.data ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Loading river-discharge observations...
+                {t(
+                  "Loading river-discharge observations...",
+                  "Učitavanje osmatranja protoka reke...",
+                )}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="py-1.5 text-left">Station</th>
-                      <th className="text-right">Latest</th>
-                      <th className="text-right">Period avg.</th>
-                      <th className="text-right">Latest date</th>
-                      <th className="text-right">Source</th>
+                      <th className="py-1.5 text-left">{t("Station", "Stanica")}</th>
+                      <th className="text-right">{t("Latest", "Poslednje")}</th>
+                      <th className="text-right">{t("Period avg.", "Prosek perioda")}</th>
+                      <th className="text-right">{t("Latest date", "Poslednji datum")}</th>
+                      <th className="text-right">{t("Source", "Izvor")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -476,11 +549,12 @@ function OutagesPage() {
                             <div className="font-medium">{station.name}</div>
                             {selected ? (
                               <div className="text-[10px] text-muted-foreground">
-                                Grid {selected.lat.toFixed(3)}, {selected.lon.toFixed(3)}
+                                {t("Grid", "Mreža")} {selected.lat.toFixed(3)},{" "}
+                                {selected.lon.toFixed(3)}
                               </div>
                             ) : station.reason ? (
                               <div className="text-xs text-destructive">
-                                {sourceReason(station.reason)}
+                                {sourceReason(station.reason, t)}
                               </div>
                             ) : null}
                           </td>
@@ -507,7 +581,11 @@ function OutagesPage() {
                     {!danubeStations.length && (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          River-discharge data unavailable. {sourceReason(danube.data?.reason)}
+                          {t(
+                            "River-discharge data unavailable.",
+                            "Podaci o protoku reke nisu dostupni.",
+                          )}{" "}
+                          {sourceReason(danube.data?.reason, t)}
                         </td>
                       </tr>
                     )}
@@ -518,33 +596,40 @@ function OutagesPage() {
           </Panel>
         </div>
 
-        <Panel title="Impact by zone (MW unavailable)">
+        <Panel title={t("Impact by zone (MW unavailable)", "Uticaj po zonama (MW nedostupno)")}>
           {outageLoading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Loading outage publications...
+              {t("Loading outage publications...", "Učitavanje objava o ispadima...")}
             </p>
           ) : outages.data?.status === "empty" ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No outages reported by ENTSO-E for the selected period.
+              {t(
+                "No outages reported by ENTSO-E for the selected period.",
+                "ENTSO-E nije prijavio ispade za izabrani period.",
+              )}
             </p>
           ) : outageFailed || (!byZone.length && outages.data?.status === "partial") ? (
             <p className="py-6 text-center text-sm text-destructive">
-              Outage data unavailable. {sourceReason(outages.data?.reason)}
+              {t("Outage data unavailable.", "Podaci o ispadima nisu dostupni.")}{" "}
+              {sourceReason(outages.data?.reason, t)}
             </p>
           ) : byZone.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Outage publications were returned, but unavailable capacity cannot be calculated.
+              {t(
+                "Outage publications were returned, but unavailable capacity cannot be calculated.",
+                "Objave o ispadima su vraćene, ali nedostupni kapacitet ne može da se izračuna.",
+              )}
             </p>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-4 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-destructive" />
-                  Forced
+                  {t("Forced", "Prinudni")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-info" />
-                  Planned
+                  {t("Planned", "Planirani")}
                 </span>
               </div>
               {byZone.map((zone) => {
@@ -556,16 +641,19 @@ function OutagesPage() {
                       <div
                         className="h-full bg-destructive transition-all"
                         style={{ width: `${(zone.forced / maxZoneMW) * 100}%` }}
-                        title={`Forced: ${fmtMW(zone.forced)}`}
+                        title={t(`Forced: ${fmtMW(zone.forced)}`, `Prinudni: ${fmtMW(zone.forced)}`)}
                       />
                       <div
                         className="h-full bg-info transition-all"
                         style={{ width: `${(zone.planned / maxZoneMW) * 100}%` }}
-                        title={`Planned: ${fmtMW(zone.planned)}`}
+                        title={t(
+                          `Planned: ${fmtMW(zone.planned)}`,
+                          `Planirani: ${fmtMW(zone.planned)}`,
+                        )}
                       />
                     </div>
                     <span className="num w-16 text-right text-xs text-muted-foreground">
-                      {zone.units} records
+                      {t(`${zone.units} records`, `${zone.units} zapisa`)}
                     </span>
                     <span className="num w-24 text-right font-semibold">{fmtMW(total)}</span>
                   </div>
@@ -580,7 +668,7 @@ function OutagesPage() {
             title={
               <span className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                Largest forced outages
+                {t("Largest forced outages", "Najveći prinudni ispadi")}
               </span>
             }
             dense
@@ -607,7 +695,7 @@ function OutagesPage() {
                 ))}
               {!forcedRows.length && (
                 <li className="py-3 text-center text-xs text-muted-foreground">
-                  No calculable forced outages
+                  {t("No calculable forced outages", "Nema merljivih prinudnih ispada")}
                 </li>
               )}
             </ul>
@@ -616,7 +704,7 @@ function OutagesPage() {
             title={
               <span className="flex items-center gap-1.5">
                 <Wrench className="h-3.5 w-3.5 text-info" />
-                Largest planned outages
+                {t("Largest planned outages", "Najveći planirani ispadi")}
               </span>
             }
             dense
@@ -641,7 +729,7 @@ function OutagesPage() {
                 ))}
               {!plannedRows.length && (
                 <li className="py-3 text-center text-xs text-muted-foreground">
-                  No calculable planned outages
+                  {t("No calculable planned outages", "Nema merljivih planiranih ispada")}
                 </li>
               )}
             </ul>
@@ -649,7 +737,7 @@ function OutagesPage() {
         </div>
 
         <Panel
-          title="All outage publications"
+          title={t("All outage publications", "Sve objave o ispadima")}
           actions={
             <Button
               size="sm"
@@ -667,15 +755,15 @@ function OutagesPage() {
             <table className="w-full min-w-[980px] text-sm">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="py-1.5 text-left">Zone</th>
-                  <th className="text-left">Unit</th>
-                  <th className="text-right">Unavailable MW</th>
-                  <th className="text-right">Available MW</th>
-                  <th className="text-right">Normal MW</th>
-                  <th>Type</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th className="text-right">Source</th>
+                  <th className="py-1.5 text-left">{t("Zone", "Zona")}</th>
+                  <th className="text-left">{t("Unit", "Jedinica")}</th>
+                  <th className="text-right">{t("Unavailable MW", "Nedostupno MW")}</th>
+                  <th className="text-right">{t("Available MW", "Dostupno MW")}</th>
+                  <th className="text-right">{t("Normal MW", "Normalno MW")}</th>
+                  <th>{t("Type", "Tip")}</th>
+                  <th>{t("Start", "Početak")}</th>
+                  <th>{t("End", "Kraj")}</th>
+                  <th className="text-right">{t("Source", "Izvor")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -705,7 +793,11 @@ function OutagesPage() {
                             : "text-muted-foreground"
                       }
                     >
-                      {row.outage_type}
+                      {row.outage_type === "forced"
+                        ? t("forced", "prinudni")
+                        : row.outage_type === "planned"
+                          ? t("planned", "planirani")
+                          : row.outage_type}
                     </td>
                     <td className="num text-xs text-muted-foreground">
                       {new Date(row.start).toLocaleDateString("en-GB")}
@@ -727,10 +819,16 @@ function OutagesPage() {
                       }`}
                     >
                       {outageLoading
-                        ? "Loading outage publications..."
+                        ? t("Loading outage publications...", "Učitavanje objava o ispadima...")
                         : outages.data?.status === "empty"
-                          ? "No outages reported by ENTSO-E for the selected period."
-                          : `Outage data unavailable. ${sourceReason(outages.data?.reason) ?? ""}`}
+                          ? t(
+                              "No outages reported by ENTSO-E for the selected period.",
+                              "ENTSO-E nije prijavio ispade za izabrani period.",
+                            )
+                          : t(
+                              `Outage data unavailable. ${sourceReason(outages.data?.reason, t) ?? ""}`,
+                              `Podaci o ispadima nisu dostupni. ${sourceReason(outages.data?.reason, t) ?? ""}`,
+                            )}
                     </td>
                   </tr>
                 )}

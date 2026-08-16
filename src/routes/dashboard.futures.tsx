@@ -35,6 +35,7 @@ import {
   type FuturesPrice,
 } from "@/lib/futures";
 import { downloadCSV, fmtNum, fmtPrice } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/futures")({
   head: () => ({ meta: [{ title: "Futures - CEA Power Dashboard" }] }),
@@ -57,6 +58,7 @@ const EMPTY_CURVES: Awaited<ReturnType<typeof getFuturesDashboard>>["curves"] = 
 const EMPTY_MARKETS: Awaited<ReturnType<typeof getFuturesDashboard>>["markets"] = [];
 
 function FuturesPage() {
+  const { t } = useLang();
   const fn = useServerFn(getFuturesDashboard);
   const importFn = useServerFn(importManualFuturesData);
   const refreshPublicFn = useServerFn(refreshPublicFuturesSnapshots);
@@ -134,10 +136,10 @@ function FuturesPage() {
   const historyRows = buildHistoryRows(history, selectedMarket, loadType);
   const latestStatus =
     q.data?.provider === "eex-datasource"
-      ? "Licensed EEX DataSource"
+      ? t("Licensed EEX DataSource", "Licencirani EEX DataSource")
       : q.data?.latestTradingDate
-        ? "Cached public snapshot"
-        : "No data collected yet";
+        ? t("Cached public snapshot", "Keširani javni snimak")
+        : t("No data collected yet", "Podaci još nisu prikupljeni");
 
   const handleRefresh = async () => {
     setRefreshResult(null);
@@ -159,28 +161,34 @@ function FuturesPage() {
   return (
     <>
       <TopBar
-        title="Futures"
-        subtitle="Regional EEX/PXE electricity forward curves, settlement spreads and contract history."
+        title={t("Futures", "Fjučersi")}
+        subtitle={t(
+          "Regional EEX/PXE electricity forward curves, settlement spreads and contract history.",
+          "Regionalne EEX/PXE forward krive za struju, spredovi poravnanja i istorija ugovora.",
+        )}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshingSnapshot || q.isFetching}
         lastRefresh={q.data?.fetchedAt}
         hideRange
       />
       <div className="space-y-5 p-4 md:p-6">
-        <Panel title="EEX public snapshot">
+        <Panel title={t("EEX public snapshot", "EEX javni snimak")}>
           <div className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-start md:justify-between">
             <div className="flex gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-info" />
               <div>
-                <p className="font-medium text-foreground">Public snapshot mode</p>
+                <p className="font-medium text-foreground">{t("Public snapshot mode", "Režim javnog snimka")}</p>
                 <p className="mt-1 max-w-4xl">
-                  The dashboard uses periodic snapshots of publicly displayed EEX Market Data Hub
-                  information. This is not a licensed real-time EEX DataSource feed.
+                  {t(
+                    "The dashboard uses periodic snapshots of publicly displayed EEX Market Data Hub information. This is not a licensed real-time EEX DataSource feed.",
+                    "Kontrolna tabla koristi periodične snimke javno prikazanih podataka sa EEX Market Data Hub-a. Ovo nije licencirani feed EEX DataSource u realnom vremenu.",
+                  )}
                 </p>
                 <p className="mt-1 max-w-4xl">
-                  Source reference: EEX Market Data Hub. Data displayed as periodic analytical
-                  snapshots. For information and analytical purposes. Verify prices through an
-                  authorised market-data source before trading or commercial use.
+                  {t(
+                    "Source reference: EEX Market Data Hub. Data displayed as periodic analytical snapshots. For information and analytical purposes. Verify prices through an authorised market-data source before trading or commercial use.",
+                    "Izvor podataka: EEX Market Data Hub. Podaci se prikazuju kao periodični analitički snimci. U informativne i analitičke svrhe. Proverite cene preko ovlašćenog izvora tržišnih podataka pre trgovanja ili komercijalne upotrebe.",
+                  )}
                 </p>
               </div>
             </div>
@@ -194,20 +202,20 @@ function FuturesPage() {
             </div>
           )}
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4">
-            <Metric label="Provider" value={q.data?.provider ?? "eex-public-snapshot"} />
-            <Metric label="Latest trading date" value={q.data?.latestTradingDate ?? "N/A"} />
-            <Metric label="Latest collection" value={formatDateTime(q.data?.latestCollectionAt)} />
-            <Metric label="History since" value={q.data?.firstHistoricalDate ?? "N/A"} />
+            <Metric label={t("Provider", "Provajder")} value={q.data?.provider ?? "eex-public-snapshot"} />
+            <Metric label={t("Latest trading date", "Poslednji trgovinski datum")} value={q.data?.latestTradingDate ?? t("N/A", "N/D")} />
+            <Metric label={t("Latest collection", "Poslednje prikupljanje")} value={formatDateTime(q.data?.latestCollectionAt, t)} />
+            <Metric label={t("History since", "Istorija od")} value={q.data?.firstHistoricalDate ?? t("N/A", "N/D")} />
           </div>
         </Panel>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <FuturesKpi label="Serbia front-month base" price={frontMonth} />
-          <FuturesKpi label="Serbia front-quarter base" price={frontQuarter} />
-          <FuturesKpi label="Serbia front-year base" price={frontYear} />
+          <FuturesKpi label={t("Serbia front-month base", "Srbija bazna cena - front mesec")} price={frontMonth} />
+          <FuturesKpi label={t("Serbia front-quarter base", "Srbija bazna cena - front kvartal")} price={frontQuarter} />
+          <FuturesKpi label={t("Serbia front-year base", "Srbija bazna cena - front godina")} price={frontYear} />
           <KPI
-            label="RS front-year spreads"
-            value={rsHuSpread == null && rsDeSpread == null ? "N/A" : fmtPrice(rsHuSpread)}
+            label={t("RS front-year spreads", "RS spredovi - front godina")}
+            value={rsHuSpread == null && rsDeSpread == null ? t("N/A", "N/D") : fmtPrice(rsHuSpread)}
             sub={`vs HU ${fmtPrice(rsHuSpread)} · vs DE ${fmtPrice(rsDeSpread)}`}
             source={frontYear?.status ?? "empty"}
             accent={rsHuSpread != null || rsDeSpread != null ? "primary" : "warning"}
@@ -215,8 +223,8 @@ function FuturesPage() {
         </div>
 
         <Panel
-          title="Current forward curve"
-          actions={<span className="text-[10px] text-muted-foreground">Source: EEX</span>}
+          title={t("Current forward curve", "Trenutna forward kriva")}
+          actions={<span className="text-[10px] text-muted-foreground">{t("Source: EEX", "Izvor: EEX")}</span>}
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <select
@@ -255,7 +263,7 @@ function FuturesPage() {
                 />
                 <Line
                   dataKey="settlement"
-                  name="Settlement"
+                  name={t("Settlement", "Poravnanje")}
                   stroke="var(--color-primary)"
                   strokeWidth={2.4}
                   dot
@@ -266,12 +274,12 @@ function FuturesPage() {
             </ResponsiveContainer>
           </div>
           {!selectedRows.length && (
-            <EmptyState text="No EEX futures settlements available for this market yet." />
+            <EmptyState text={t("No EEX futures settlements available for this market yet.", "Za ovo tržište još uvek nema dostupnih EEX poravnanja fjučersa.")} />
           )}
         </Panel>
 
         <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
-          <Panel title="Regional forward-curve comparison">
+          <Panel title={t("Regional forward-curve comparison", "Regionalno poređenje forward krivih")}>
             <MarketPresetSelector selected={selectedMarkets} setSelected={setSelectedMarkets} />
             <div className="h-72">
               <ResponsiveContainer>
@@ -300,22 +308,25 @@ function FuturesPage() {
               </ResponsiveContainer>
             </div>
             {!comparisonData.length && (
-              <EmptyState text="Equivalent contract comparison will appear after public or manually imported snapshots are stored." />
+              <EmptyState text={t(
+              "Equivalent contract comparison will appear after public or manually imported snapshots are stored.",
+              "Poređenje ekvivalentnih ugovora će se prikazati nakon što se sačuvaju javni ili ručno uneti snimci.",
+            )} />
             )}
           </Panel>
 
-          <Panel title="Serbia curve analytics">
+          <Panel title={t("Serbia curve analytics", "Analitika krive za Srbiju")}>
             <div className="space-y-3 text-sm">
-              <Metric label="Curve shape" value={classifyCurveShape(rsRows)} />
-              <Metric label="Serbia vs Hungary front-year" value={fmtPrice(rsHuSpread)} />
-              <Metric label="Serbia vs Germany front-year" value={fmtPrice(rsDeSpread)} />
-              <Metric label="History source" value="Public EEX snapshots or manual imports" />
+              <Metric label={t("Curve shape", "Oblik krive")} value={classifyCurveShape(rsRows)} />
+              <Metric label={t("Serbia vs Hungary front-year", "Srbija naspram Mađarske - front godina")} value={fmtPrice(rsHuSpread)} />
+              <Metric label={t("Serbia vs Germany front-year", "Srbija naspram Nemačke - front godina")} value={fmtPrice(rsDeSpread)} />
+              <Metric label={t("History source", "Izvor istorije")} value={t("Public EEX snapshots or manual imports", "Javni EEX snimci ili ručni uvoz")} />
               <Metric
-                label="Historical records"
+                label={t("Historical records", "Istorijski podaci")}
                 value={
                   q.data?.firstHistoricalDate
-                    ? `Available since ${q.data.firstHistoricalDate}`
-                    : "No data collected yet"
+                    ? `${t("Available since", "Dostupno od")} ${q.data.firstHistoricalDate}`
+                    : t("No data collected yet", "Podaci još nisu prikupljeni")
                 }
               />
             </div>
@@ -323,7 +334,7 @@ function FuturesPage() {
         </div>
 
         <Panel
-          title="Serbia futures spreads"
+          title={t("Serbia futures spreads", "Spredovi fjučersa za Srbiju")}
           actions={
             <Button
               size="sm"
@@ -332,21 +343,21 @@ function FuturesPage() {
               onClick={() => downloadCSV("serbia-futures-spreads.csv", spreadRows as never)}
             >
               <Download className="h-3.5 w-3.5" />
-              CSV
+              {t("CSV", "CSV")}
             </Button>
           }
         >
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Contract</th>
-                <th className="text-right">Current spread</th>
-                <th className="text-right">Previous-day spread</th>
-                <th className="text-right">Daily change</th>
-                <th className="text-right">7D avg</th>
-                <th className="text-right">30D avg</th>
-                <th className="text-right">Percentile</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Contract", "Ugovor")}</th>
+                <th className="text-right">{t("Current spread", "Trenutni spred")}</th>
+                <th className="text-right">{t("Previous-day spread", "Spred prethodnog dana")}</th>
+                <th className="text-right">{t("Daily change", "Dnevna promena")}</th>
+                <th className="text-right">{t("7D avg", "7D prosek")}</th>
+                <th className="text-right">{t("30D avg", "30D prosek")}</th>
+                <th className="text-right">{t("Percentile", "Percentil")}</th>
               </tr>
             </thead>
             <tbody>
@@ -358,15 +369,18 @@ function FuturesPage() {
                     <td className="num text-right">{fmtPrice(row.currentSpread)}</td>
                     <td className="num text-right">{fmtPrice(row.previousSpread)}</td>
                     <td className="num text-right">{fmtPrice(row.dailyChange)}</td>
-                    <td className="num text-right">N/A</td>
-                    <td className="num text-right">N/A</td>
-                    <td className="num text-right">N/A</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={8} className="py-6 text-center text-xs text-muted-foreground">
-                    Serbia spreads require exact matching EEX contracts and historical snapshots.
+                    {t(
+                      "Serbia spreads require exact matching EEX contracts and historical snapshots.",
+                      "Spredovi za Srbiju zahtevaju tačno poklapanje EEX ugovora i istorijskih snimaka.",
+                    )}
                   </td>
                 </tr>
               )}
@@ -374,10 +388,9 @@ function FuturesPage() {
           </WideTable>
         </Panel>
 
-        <Panel title="Contract price history">
+        <Panel title={t("Contract price history", "Istorija cena ugovora")}>
           <p className="mb-3 text-xs text-muted-foreground">
-            Historical futures prices are based on public EEX snapshots collected by this
-            application. History available since {q.data?.firstHistoricalDate ?? "N/A"}.
+            {t("Historical futures prices are based on public EEX snapshots collected by this application. History available since", "Istorijske cene fjučersa se zasnivaju na javnim EEX snimcima koje prikuplja ova aplikacija. Istorija dostupna od")} {q.data?.firstHistoricalDate ?? t("N/A", "N/D")}.
           </p>
           <div className="h-64">
             <ResponsiveContainer>
@@ -393,7 +406,7 @@ function FuturesPage() {
                 />
                 <Line
                   dataKey="price"
-                  name="Historical price"
+                  name={t("Historical price", "Istorijska cena")}
                   stroke="var(--color-primary)"
                   strokeWidth={2}
                   dot={false}
@@ -404,11 +417,14 @@ function FuturesPage() {
             </ResponsiveContainer>
           </div>
           {!historyRows.length && (
-            <EmptyState text="No local futures history for the selected market/load yet." />
+            <EmptyState text={t(
+              "No local futures history for the selected market/load yet.",
+              "Za odabrano tržište/tip potrošnje još uvek nema lokalne istorije fjučersa.",
+            )} />
           )}
         </Panel>
 
-        <Panel title="Import futures data">
+        <Panel title={t("Import futures data", "Uvoz podataka o fjučersima")}>
           <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
             <textarea
               value={manualText}
@@ -420,21 +436,23 @@ function FuturesPage() {
             />
             <div className="space-y-3 text-xs text-muted-foreground">
               <p>
-                Paste CSV or a copied table. Values are stored as Manually imported futures
-                reference data and are not labelled as live EEX data.
+                {t(
+                  "Paste CSV or a copied table. Values are stored as Manually imported futures reference data and are not labelled as live EEX data.",
+                  "Nalepite CSV ili kopiranu tabelu. Vrednosti se čuvaju kao ručno uneti referentni podaci o fjučersima i ne označavaju se kao podaci uživo sa EEX-a.",
+                )}
               </p>
               <Button
                 className="gap-1.5"
                 disabled={!manualText.trim()}
                 onClick={async () => {
                   const result = await importFn({ data: { text: manualText } });
-                  setImportResult(`Imported ${result.imported} validated rows.`);
+                  setImportResult(`${t("Imported", "Uvezeno")} ${result.imported} ${t("validated rows.", "validiranih redova.")}`);
                   setManualText("");
                   await q.refetch();
                 }}
               >
                 <Upload className="h-3.5 w-3.5" />
-                Import futures data
+                {t("Import futures data", "Uvezi podatke o fjučersima")}
               </Button>
               {importResult && <p className="text-primary">{importResult}</p>}
             </div>
@@ -442,7 +460,7 @@ function FuturesPage() {
         </Panel>
 
         <Panel
-          title="Futures table"
+          title={t("Futures table", "Tabela fjučersa")}
           actions={
             <Button
               size="sm"
@@ -453,30 +471,30 @@ function FuturesPage() {
               }
             >
               <Download className="h-3.5 w-3.5" />
-              CSV
+              {t("CSV", "CSV")}
             </Button>
           }
         >
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Exchange</th>
-                <th className="text-left">Contract</th>
-                <th>Load</th>
-                <th>Maturity</th>
-                <th className="text-left">Delivery</th>
-                <th className="text-right">Settlement</th>
-                <th className="text-right">Previous</th>
-                <th className="text-right">Daily</th>
-                <th className="text-right">Daily %</th>
-                <th className="text-right">Bid</th>
-                <th className="text-right">Ask</th>
-                <th className="text-right">Last</th>
-                <th className="text-right">Volume</th>
-                <th className="text-right">Open interest</th>
-                <th className="text-right">Trading date</th>
-                <th>Status</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Exchange", "Berza")}</th>
+                <th className="text-left">{t("Contract", "Ugovor")}</th>
+                <th>{t("Load", "Potrošnja")}</th>
+                <th>{t("Maturity", "Dospeće")}</th>
+                <th className="text-left">{t("Delivery", "Isporuka")}</th>
+                <th className="text-right">{t("Settlement", "Poravnanje")}</th>
+                <th className="text-right">{t("Previous", "Prethodno")}</th>
+                <th className="text-right">{t("Daily", "Dnevno")}</th>
+                <th className="text-right">{t("Daily %", "Dnevno %")}</th>
+                <th className="text-right">{t("Bid", "Bid")}</th>
+                <th className="text-right">{t("Ask", "Ask")}</th>
+                <th className="text-right">{t("Last", "Poslednja")}</th>
+                <th className="text-right">{t("Volume", "Obim")}</th>
+                <th className="text-right">{t("Open interest", "Otvoren interes")}</th>
+                <th className="text-right">{t("Trading date", "Trgovinski datum")}</th>
+                <th>{t("Status", "Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -503,14 +521,17 @@ function FuturesPage() {
                     <td className="num text-right">{fmtPrice(price.lastPrice)}</td>
                     <td className="num text-right">{fmtNum(price.volume)}</td>
                     <td className="num text-right">{fmtNum(price.openInterest)}</td>
-                    <td className="num text-right">{price.tradingDate || "N/A"}</td>
-                    <td>{statusLabel(price.status)}</td>
+                    <td className="num text-right">{price.tradingDate || t("N/A", "N/D")}</td>
+                    <td>{statusLabel(price.status, t)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={17} className="py-6 text-center text-xs text-muted-foreground">
-                    No futures contracts loaded. Use Refresh or import reference data.
+                    {t(
+                      "No futures contracts loaded. Use Refresh or import reference data.",
+                      "Nema učitanih ugovora o fjučersima. Koristite osvežavanje ili uvezite referentne podatke.",
+                    )}
                   </td>
                 </tr>
               )}
@@ -518,16 +539,16 @@ function FuturesPage() {
           </WideTable>
         </Panel>
 
-        <Panel title="Market availability">
+        <Panel title={t("Market availability", "Dostupnost tržišta")}>
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Product</th>
-                <th className="text-left">Exchange</th>
-                <th>Status</th>
-                <th className="text-left">Reason</th>
-                <th className="text-right">Contracts</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Product", "Proizvod")}</th>
+                <th className="text-left">{t("Exchange", "Berza")}</th>
+                <th>{t("Status", "Status")}</th>
+                <th className="text-left">{t("Reason", "Razlog")}</th>
+                <th className="text-right">{t("Contracts", "Ugovori")}</th>
               </tr>
             </thead>
             <tbody>
@@ -538,8 +559,8 @@ function FuturesPage() {
                   </td>
                   <td>{market.eexProductName}</td>
                   <td>{market.exchange}</td>
-                  <td>{statusLabel(market.status)}</td>
-                  <td className="text-muted-foreground">{market.reason ?? "N/A"}</td>
+                  <td>{statusLabel(market.status, t)}</td>
+                  <td className="text-muted-foreground">{market.reason ?? t("N/A", "N/D")}</td>
                   <td className="num text-right">{market.contracts}</td>
                 </tr>
               ))}
@@ -547,7 +568,10 @@ function FuturesPage() {
           </WideTable>
           <p className="mt-3 text-xs text-muted-foreground">
             {q.data?.sourceNote ??
-              "Source: EEX. Live display requires licence and server-side credentials."}
+              t(
+                "Source: EEX. Live display requires licence and server-side credentials.",
+                "Izvor: EEX. Prikaz uživo zahteva licencu i akreditive na strani servera.",
+              )}
           </p>
         </Panel>
       </div>
@@ -556,6 +580,7 @@ function FuturesPage() {
 }
 
 function FuturesKpi({ label, price }: { label: string; price?: FuturesPrice }) {
+  const { t } = useLang();
   return (
     <KPI
       label={label}
@@ -563,7 +588,7 @@ function FuturesKpi({ label, price }: { label: string; price?: FuturesPrice }) {
       sub={
         price
           ? `${price.contract.contractName} · daily ${fmtPrice(dailyChange(price))}`
-          : "EEX settlement unavailable"
+          : t("EEX settlement unavailable", "EEX poravnanje nedostupno")
       }
       source={price?.status ?? "empty"}
       accent={price?.settlementPrice == null ? "warning" : "primary"}
@@ -654,12 +679,13 @@ function MarketPresetSelector({
   selected: FuturesMarketCode[];
   setSelected: (markets: FuturesMarketCode[]) => void;
 }) {
+  const { t } = useLang();
   const buttons = [
-    ["Serbia only", FUTURES_PRESETS.serbiaOnly],
-    ["Direct region", FUTURES_PRESETS.directRegion],
-    ["Southeast Europe", FUTURES_PRESETS.southeastEurope],
-    ["Benchmarks", FUTURES_PRESETS.europeanBenchmarks],
-    ["All available", FUTURES_PRESETS.allAvailable],
+    [t("Serbia only", "Samo Srbija"), FUTURES_PRESETS.serbiaOnly],
+    [t("Direct region", "Neposredni region"), FUTURES_PRESETS.directRegion],
+    [t("Southeast Europe", "Jugoistočna Evropa"), FUTURES_PRESETS.southeastEurope],
+    [t("Benchmarks", "Referentna tržišta"), FUTURES_PRESETS.europeanBenchmarks],
+    [t("All available", "Sva dostupna"), FUTURES_PRESETS.allAvailable],
   ] as const;
   return (
     <div className="mb-3 flex flex-wrap gap-1.5">
@@ -687,6 +713,15 @@ function Segmented({
   active: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useLang();
+  const labels: Record<string, string> = {
+    base: t("base", "bazna"),
+    peak: t("peak", "vršna"),
+    combined: t("combined", "kombinovano"),
+    month: t("month", "mesec"),
+    quarter: t("quarter", "kvartal"),
+    year: t("year", "godina"),
+  };
   return (
     <div className="flex rounded border border-border/60 bg-surface-2 p-0.5">
       {values.map((value) => (
@@ -698,7 +733,7 @@ function Segmented({
             active === value ? "bg-primary text-primary-foreground" : "text-muted-foreground"
           }`}
         >
-          {value}
+          {labels[value] ?? value}
         </button>
       ))}
     </div>
@@ -722,10 +757,10 @@ function StatusPill({ label }: { label: string }) {
   );
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "N/A";
+function formatDateTime(value: string | null | undefined, t: (en: string, sr: string) => string) {
+  if (!value) return t("N/A", "N/D");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
+  if (Number.isNaN(date.getTime())) return t("N/A", "N/D");
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Belgrade",
     day: "2-digit",
@@ -783,10 +818,17 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string, t: (en: string, sr: string) => string) {
+  const translations: Record<string, string> = {
+    "eex-datasource": t("eex-datasource", "eex-datasource"),
+    "eex-public-snapshot": t("eex-public-snapshot", "eex-public-snapshot"),
+    "configuration-required": t("configuration required", "potrebna konfiguracija"),
+    "unsupported-product": t("unsupported product", "nepodržan proizvod"),
+    empty: t("empty", "prazno"),
+  };
   return (
     <span className="rounded border border-border/60 bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-      {status.replaceAll("-", " ")}
+      {translations[status] ?? status.replaceAll("-", " ")}
     </span>
   );
 }
