@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDemoYear } from "@/lib/demo-data";
 import { getFuturesDashboard } from "@/lib/eex-futures.server";
-import { FUTURES_MARKET_LIST } from "@/lib/futures-markets";
 import { useLang } from "@/lib/i18n";
 import { fetchPvgis } from "@/lib/pvgis.functions";
 import { runBessEconomics } from "@/lib/project-economics/bess";
@@ -112,6 +111,22 @@ function PricePanel({
   onPriceCsv: (file: File) => void;
 }) {
   const { t } = useLang();
+  const marketOptions =
+    futuresData?.markets
+      .filter((market) => {
+        const curve = futuresData.curves.find((item) => item.market === market.code);
+        return Boolean(
+          curve?.contracts.some(
+            (price) =>
+              price.contract.loadType === assumptions.loadType && price.settlementPrice != null,
+          ),
+        );
+      })
+      .map((market) => ({
+        value: market.code,
+        label: `${market.code} - ${market.country}`,
+      })) ?? [];
+  const futuresOptionAvailable = futuresData == null || marketOptions.length > 0;
   const selectedCurve = futuresData?.curves.find((curve) => curve.market === assumptions.market);
   const stale =
     futuresData?.latestTradingDate != null &&
@@ -140,10 +155,14 @@ function PricePanel({
           label={t("Price source", "Izvor cene")}
           value={assumptions.mode}
           options={[
-            {
-              value: "futures",
-              label: t("Futures-anchored forecast", "Futures-usidreni scenario"),
-            },
+            ...(futuresOptionAvailable
+              ? [
+                  {
+                    value: "futures",
+                    label: t("Futures-anchored forecast", "Futures-usidreni scenario"),
+                  },
+                ]
+              : []),
             {
               value: "historical",
               label: t("Historical/demo hourly prices", "Istorijske/demo satne cene"),
@@ -155,10 +174,7 @@ function PricePanel({
         <SelectField
           label={t("Futures market", "Futures trziste")}
           value={assumptions.market}
-          options={FUTURES_MARKET_LIST.filter((market) => market.available).map((market) => ({
-            value: market.code,
-            label: `${market.code} - ${market.country}`,
-          }))}
+          options={marketOptions}
           onChange={(market) => onChange({ ...assumptions, market })}
         />
         <SelectField
@@ -407,6 +423,35 @@ export function ProjectEconomicsWorkspace({
       }),
     [asset, bess, effectiveSolarProfile, effectiveWindProfile, hybrid, priceCurve, solar, t, wind],
   );
+
+  useEffect(() => {
+    if (!futuresQuery.data) return;
+    const availableMarkets = futuresQuery.data.markets.filter((market) => {
+      const curve = futuresQuery.data?.curves.find((item) => item.market === market.code);
+      return Boolean(
+        curve?.contracts.some(
+          (price) =>
+            price.contract.loadType === priceAssumptions.loadType && price.settlementPrice != null,
+        ),
+      );
+    });
+
+    if (!availableMarkets.length) {
+      if (priceAssumptions.mode === "futures") {
+        setPriceAssumptions((current) => ({ ...current, mode: "historical" }));
+      }
+      return;
+    }
+
+    if (!availableMarkets.some((market) => market.code === priceAssumptions.market)) {
+      setPriceAssumptions((current) => ({ ...current, market: availableMarkets[0].code }));
+    }
+  }, [
+    futuresQuery.data,
+    priceAssumptions.loadType,
+    priceAssumptions.market,
+    priceAssumptions.mode,
+  ]);
 
   useEffect(() => {
     setCalculationTimestamp(new Date().toLocaleString("en-GB", { timeZone: "Europe/Belgrade" }));
