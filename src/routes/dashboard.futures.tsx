@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangle, Download, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, Download, Upload } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { Panel } from "@/components/panel";
 import { KPI } from "@/components/kpi";
@@ -71,6 +71,7 @@ function FuturesPage() {
   const [manualText, setManualText] = useState("");
   const [importResult, setImportResult] = useState<string | null>(null);
   const [refreshResult, setRefreshResult] = useState<string | null>(null);
+  const [isRefreshingSnapshot, setIsRefreshingSnapshot] = useState(false);
 
   const q = useQuery({
     queryKey: ["futures_dashboard"],
@@ -138,13 +139,30 @@ function FuturesPage() {
         ? "Cached public snapshot"
         : "No data collected yet";
 
+  const handleRefresh = async () => {
+    setRefreshResult(null);
+    setIsRefreshingSnapshot(true);
+    try {
+      const result = await refreshPublicFn();
+      const summary = result.reason
+        ? `${result.status}: ${result.reason}`
+        : `${result.status}: fetched ${result.rows} public EEX rows`;
+      setRefreshResult(summary);
+    } catch (error) {
+      setRefreshResult(error instanceof Error ? `error: ${error.message}` : "error: refresh failed");
+    } finally {
+      await q.refetch();
+      setIsRefreshingSnapshot(false);
+    }
+  };
+
   return (
     <>
       <TopBar
         title="Futures"
         subtitle="Regional EEX/PXE electricity forward curves, settlement spreads and contract history."
-        onRefresh={() => q.refetch()}
-        isRefreshing={q.isFetching}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshingSnapshot || q.isFetching}
         lastRefresh={q.data?.fetchedAt}
         hideRange
       />
@@ -168,24 +186,6 @@ function FuturesPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill label={latestStatus} />
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                disabled={q.isFetching}
-                onClick={async () => {
-                  setRefreshResult(null);
-                  const result = await refreshPublicFn();
-                  const summary = result.reason
-                    ? `${result.status}: ${result.reason}`
-                    : `${result.status}: fetched ${result.rows} public EEX rows`;
-                  setRefreshResult(summary);
-                  await q.refetch();
-                }}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refresh snapshot
-              </Button>
             </div>
           </div>
           {refreshResult && (
@@ -510,8 +510,7 @@ function FuturesPage() {
               ) : (
                 <tr>
                   <td colSpan={17} className="py-6 text-center text-xs text-muted-foreground">
-                    No futures contracts loaded. Use public snapshot refresh or import reference
-                    data.
+                    No futures contracts loaded. Use Refresh or import reference data.
                   </td>
                 </tr>
               )}
