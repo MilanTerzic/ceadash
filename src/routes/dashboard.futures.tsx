@@ -343,21 +343,21 @@ function FuturesPage() {
               onClick={() => downloadCSV("serbia-futures-spreads.csv", spreadRows as never)}
             >
               <Download className="h-3.5 w-3.5" />
-              CSV
+              {t("CSV", "CSV")}
             </Button>
           }
         >
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Contract</th>
-                <th className="text-right">Current spread</th>
-                <th className="text-right">Previous-day spread</th>
-                <th className="text-right">Daily change</th>
-                <th className="text-right">7D avg</th>
-                <th className="text-right">30D avg</th>
-                <th className="text-right">Percentile</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Contract", "Ugovor")}</th>
+                <th className="text-right">{t("Current spread", "Trenutni spred")}</th>
+                <th className="text-right">{t("Previous-day spread", "Spred prethodnog dana")}</th>
+                <th className="text-right">{t("Daily change", "Dnevna promena")}</th>
+                <th className="text-right">{t("7D avg", "7D prosek")}</th>
+                <th className="text-right">{t("30D avg", "30D prosek")}</th>
+                <th className="text-right">{t("Percentile", "Percentil")}</th>
               </tr>
             </thead>
             <tbody>
@@ -369,15 +369,18 @@ function FuturesPage() {
                     <td className="num text-right">{fmtPrice(row.currentSpread)}</td>
                     <td className="num text-right">{fmtPrice(row.previousSpread)}</td>
                     <td className="num text-right">{fmtPrice(row.dailyChange)}</td>
-                    <td className="num text-right">N/A</td>
-                    <td className="num text-right">N/A</td>
-                    <td className="num text-right">N/A</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
+                    <td className="num text-right">{t("N/A", "N/D")}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={8} className="py-6 text-center text-xs text-muted-foreground">
-                    Serbia spreads require exact matching EEX contracts and historical snapshots.
+                    {t(
+                      "Serbia spreads require exact matching EEX contracts and historical snapshots.",
+                      "Spredovi za Srbiju zahtevaju tačno poklapanje EEX ugovora i istorijskih snimaka.",
+                    )}
                   </td>
                 </tr>
               )}
@@ -385,10 +388,9 @@ function FuturesPage() {
           </WideTable>
         </Panel>
 
-        <Panel title="Contract price history">
+        <Panel title={t("Contract price history", "Istorija cena ugovora")}>
           <p className="mb-3 text-xs text-muted-foreground">
-            Historical futures prices are based on public EEX snapshots collected by this
-            application. History available since {q.data?.firstHistoricalDate ?? "N/A"}.
+            {t("Historical futures prices are based on public EEX snapshots collected by this application. History available since", "Istorijske cene fjučersa se zasnivaju na javnim EEX snimcima koje prikuplja ova aplikacija. Istorija dostupna od")} {q.data?.firstHistoricalDate ?? t("N/A", "N/D")}.
           </p>
           <div className="h-64">
             <ResponsiveContainer>
@@ -404,7 +406,7 @@ function FuturesPage() {
                 />
                 <Line
                   dataKey="price"
-                  name="Historical price"
+                  name={t("Historical price", "Istorijska cena")}
                   stroke="var(--color-primary)"
                   strokeWidth={2}
                   dot={false}
@@ -415,11 +417,14 @@ function FuturesPage() {
             </ResponsiveContainer>
           </div>
           {!historyRows.length && (
-            <EmptyState text="No local futures history for the selected market/load yet." />
+            <EmptyState text={t(
+              "No local futures history for the selected market/load yet.",
+              "Za odabrano tržište/tip potrošnje još uvek nema lokalne istorije fjučersa.",
+            )} />
           )}
         </Panel>
 
-        <Panel title="Import futures data">
+        <Panel title={t("Import futures data", "Uvoz podataka o fjučersima")}>
           <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
             <textarea
               value={manualText}
@@ -431,21 +436,23 @@ function FuturesPage() {
             />
             <div className="space-y-3 text-xs text-muted-foreground">
               <p>
-                Paste CSV or a copied table. Values are stored as Manually imported futures
-                reference data and are not labelled as live EEX data.
+                {t(
+                  "Paste CSV or a copied table. Values are stored as Manually imported futures reference data and are not labelled as live EEX data.",
+                  "Nalepite CSV ili kopiranu tabelu. Vrednosti se čuvaju kao ručno uneti referentni podaci o fjučersima i ne označavaju se kao podaci uživo sa EEX-a.",
+                )}
               </p>
               <Button
                 className="gap-1.5"
                 disabled={!manualText.trim()}
                 onClick={async () => {
                   const result = await importFn({ data: { text: manualText } });
-                  setImportResult(`Imported ${result.imported} validated rows.`);
+                  setImportResult(`${t("Imported", "Uvezeno")} ${result.imported} ${t("validated rows.", "validiranih redova.")}`);
                   setManualText("");
                   await q.refetch();
                 }}
               >
                 <Upload className="h-3.5 w-3.5" />
-                Import futures data
+                {t("Import futures data", "Uvezi podatke o fjučersima")}
               </Button>
               {importResult && <p className="text-primary">{importResult}</p>}
             </div>
@@ -453,7 +460,7 @@ function FuturesPage() {
         </Panel>
 
         <Panel
-          title="Futures table"
+          title={t("Futures table", "Tabela fjučersa")}
           actions={
             <Button
               size="sm"
