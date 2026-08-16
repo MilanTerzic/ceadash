@@ -130,6 +130,7 @@ function OutagesPage() {
   const balanceFn = useServerFn(getBalance);
   const { fromKey, toKey } = useRequestedRangeKeys();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [outageTableView, setOutageTableView] = useState<"end-date" | "period">("end-date");
 
   const outages = useQuery({
     queryKey: ["outages", fromKey, toKey],
@@ -149,6 +150,16 @@ function OutagesPage() {
   });
 
   const rows = outages.data?.rows ?? [];
+  const endDateStartMs = Date.parse(`${toKey}T00:00:00Z`);
+  const endDateEndMs = endDateStartMs + 86_400_000;
+  const endDateRows = rows.filter((row) => {
+    const startMs = Date.parse(row.start);
+    const endMs = Date.parse(row.end);
+    return startMs < endDateEndMs && endMs > endDateStartMs;
+  });
+  const visibleOutageRows = outageTableView === "end-date" ? endDateRows : rows;
+  const endDateLabel = new Date(endDateStartMs).toLocaleDateString("en-GB");
+
   const rowsWithUnavailable = rows.filter((row) => row.unavailable_mw != null);
   const totalMW = rowsWithUnavailable.reduce((sum, row) => sum + (row.unavailable_mw ?? 0), 0);
   const forcedRows = rowsWithUnavailable.filter((row) => row.outage_type === "forced");
@@ -640,20 +651,43 @@ function OutagesPage() {
         </div>
 
         <Panel
-          title="All outage publications"
+          title="Outage publications"
           actions={
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5"
-              onClick={() => downloadCSV("outages.csv", rows as never)}
-              disabled={!rows.length}
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={outageTableView === "end-date" ? "secondary" : "ghost"}
+                onClick={() => setOutageTableView("end-date")}
+              >
+                Active on {endDateLabel}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={outageTableView === "period" ? "secondary" : "ghost"}
+                onClick={() => setOutageTableView("period")}
+              >
+                Selected-period history
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5"
+                onClick={() => downloadCSV("outages.csv", visibleOutageRows as never)}
+                disabled={!visibleOutageRows.length}
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+            </div>
           }
         >
+          <p className="mb-3 text-xs text-muted-foreground">
+            {outageTableView === "end-date"
+              ? `Showing outages overlapping ${endDateLabel}, for direct comparison with the ENTSO-E single-date view.`
+              : `Showing all outage periods overlapping ${fromKey} to ${toKey}.`}
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-sm">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -670,7 +704,7 @@ function OutagesPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {visibleOutageRows.map((row) => (
                   <tr
                     key={`${row.document_id}-${row.unit_id}-${row.start}-${row.end}`}
                     className="border-t border-border/60"
@@ -709,7 +743,7 @@ function OutagesPage() {
                     </td>
                   </tr>
                 ))}
-                {!rows.length && (
+                {!visibleOutageRows.length && (
                   <tr>
                     <td
                       colSpan={9}
@@ -719,9 +753,11 @@ function OutagesPage() {
                     >
                       {outageLoading
                         ? "Loading outage publications..."
-                        : outages.data?.status === "empty"
-                          ? "No outages reported by ENTSO-E for the selected period."
-                          : `Outage data unavailable. ${sourceReason(outages.data?.reason) ?? ""}`}
+                        : outageTableView === "end-date"
+                          ? `No ENTSO-E outages overlap ${endDateLabel}.`
+                          : outages.data?.status === "empty"
+                            ? "No outages reported by ENTSO-E for the selected period."
+                            : `Outage data unavailable. ${sourceReason(outages.data?.reason) ?? ""}`}
                     </td>
                   </tr>
                 )}
