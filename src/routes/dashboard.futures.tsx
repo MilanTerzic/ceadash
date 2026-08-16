@@ -580,6 +580,7 @@ function FuturesPage() {
 }
 
 function FuturesKpi({ label, price }: { label: string; price?: FuturesPrice }) {
+  const { t } = useLang();
   return (
     <KPI
       label={label}
@@ -587,7 +588,7 @@ function FuturesKpi({ label, price }: { label: string; price?: FuturesPrice }) {
       sub={
         price
           ? `${price.contract.contractName} · daily ${fmtPrice(dailyChange(price))}`
-          : "EEX settlement unavailable"
+          : t("EEX settlement unavailable", "EEX poravnanje nedostupno")
       }
       source={price?.status ?? "empty"}
       accent={price?.settlementPrice == null ? "warning" : "primary"}
@@ -678,12 +679,13 @@ function MarketPresetSelector({
   selected: FuturesMarketCode[];
   setSelected: (markets: FuturesMarketCode[]) => void;
 }) {
+  const { t } = useLang();
   const buttons = [
-    ["Serbia only", FUTURES_PRESETS.serbiaOnly],
-    ["Direct region", FUTURES_PRESETS.directRegion],
-    ["Southeast Europe", FUTURES_PRESETS.southeastEurope],
-    ["Benchmarks", FUTURES_PRESETS.europeanBenchmarks],
-    ["All available", FUTURES_PRESETS.allAvailable],
+    [t("Serbia only", "Samo Srbija"), FUTURES_PRESETS.serbiaOnly],
+    [t("Direct region", "Neposredni region"), FUTURES_PRESETS.directRegion],
+    [t("Southeast Europe", "Jugoistočna Evropa"), FUTURES_PRESETS.southeastEurope],
+    [t("Benchmarks", "Referentna tržišta"), FUTURES_PRESETS.europeanBenchmarks],
+    [t("All available", "Sva dostupna"), FUTURES_PRESETS.allAvailable],
   ] as const;
   return (
     <div className="mb-3 flex flex-wrap gap-1.5">
@@ -711,6 +713,15 @@ function Segmented({
   active: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useLang();
+  const labels: Record<string, string> = {
+    base: t("base", "bazna"),
+    peak: t("peak", "vršna"),
+    combined: t("combined", "kombinovano"),
+    month: t("month", "mesec"),
+    quarter: t("quarter", "kvartal"),
+    year: t("year", "godina"),
+  };
   return (
     <div className="flex rounded border border-border/60 bg-surface-2 p-0.5">
       {values.map((value) => (
@@ -722,7 +733,7 @@ function Segmented({
             active === value ? "bg-primary text-primary-foreground" : "text-muted-foreground"
           }`}
         >
-          {value}
+          {labels[value] ?? value}
         </button>
       ))}
     </div>
