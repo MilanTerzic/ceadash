@@ -471,30 +471,30 @@ function FuturesPage() {
               }
             >
               <Download className="h-3.5 w-3.5" />
-              CSV
+              {t("CSV", "CSV")}
             </Button>
           }
         >
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Exchange</th>
-                <th className="text-left">Contract</th>
-                <th>Load</th>
-                <th>Maturity</th>
-                <th className="text-left">Delivery</th>
-                <th className="text-right">Settlement</th>
-                <th className="text-right">Previous</th>
-                <th className="text-right">Daily</th>
-                <th className="text-right">Daily %</th>
-                <th className="text-right">Bid</th>
-                <th className="text-right">Ask</th>
-                <th className="text-right">Last</th>
-                <th className="text-right">Volume</th>
-                <th className="text-right">Open interest</th>
-                <th className="text-right">Trading date</th>
-                <th>Status</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Exchange", "Berza")}</th>
+                <th className="text-left">{t("Contract", "Ugovor")}</th>
+                <th>{t("Load", "Potrošnja")}</th>
+                <th>{t("Maturity", "Dospeće")}</th>
+                <th className="text-left">{t("Delivery", "Isporuka")}</th>
+                <th className="text-right">{t("Settlement", "Poravnanje")}</th>
+                <th className="text-right">{t("Previous", "Prethodno")}</th>
+                <th className="text-right">{t("Daily", "Dnevno")}</th>
+                <th className="text-right">{t("Daily %", "Dnevno %")}</th>
+                <th className="text-right">{t("Bid", "Bid")}</th>
+                <th className="text-right">{t("Ask", "Ask")}</th>
+                <th className="text-right">{t("Last", "Poslednja")}</th>
+                <th className="text-right">{t("Volume", "Obim")}</th>
+                <th className="text-right">{t("Open interest", "Otvoren interes")}</th>
+                <th className="text-right">{t("Trading date", "Trgovinski datum")}</th>
+                <th>{t("Status", "Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -521,14 +521,17 @@ function FuturesPage() {
                     <td className="num text-right">{fmtPrice(price.lastPrice)}</td>
                     <td className="num text-right">{fmtNum(price.volume)}</td>
                     <td className="num text-right">{fmtNum(price.openInterest)}</td>
-                    <td className="num text-right">{price.tradingDate || "N/A"}</td>
-                    <td>{statusLabel(price.status)}</td>
+                    <td className="num text-right">{price.tradingDate || t("N/A", "N/D")}</td>
+                    <td>{statusLabel(price.status, t)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={17} className="py-6 text-center text-xs text-muted-foreground">
-                    No futures contracts loaded. Use Refresh or import reference data.
+                    {t(
+                      "No futures contracts loaded. Use Refresh or import reference data.",
+                      "Nema učitanih ugovora o fjučersima. Koristite osvežavanje ili uvezite referentne podatke.",
+                    )}
                   </td>
                 </tr>
               )}
@@ -536,16 +539,16 @@ function FuturesPage() {
           </WideTable>
         </Panel>
 
-        <Panel title="Market availability">
+        <Panel title={t("Market availability", "Dostupnost tržišta")}>
           <WideTable>
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="py-1.5 text-left">Market</th>
-                <th className="text-left">Product</th>
-                <th className="text-left">Exchange</th>
-                <th>Status</th>
-                <th className="text-left">Reason</th>
-                <th className="text-right">Contracts</th>
+                <th className="py-1.5 text-left">{t("Market", "Tržište")}</th>
+                <th className="text-left">{t("Product", "Proizvod")}</th>
+                <th className="text-left">{t("Exchange", "Berza")}</th>
+                <th>{t("Status", "Status")}</th>
+                <th className="text-left">{t("Reason", "Razlog")}</th>
+                <th className="text-right">{t("Contracts", "Ugovori")}</th>
               </tr>
             </thead>
             <tbody>
@@ -556,8 +559,8 @@ function FuturesPage() {
                   </td>
                   <td>{market.eexProductName}</td>
                   <td>{market.exchange}</td>
-                  <td>{statusLabel(market.status)}</td>
-                  <td className="text-muted-foreground">{market.reason ?? "N/A"}</td>
+                  <td>{statusLabel(market.status, t)}</td>
+                  <td className="text-muted-foreground">{market.reason ?? t("N/A", "N/D")}</td>
                   <td className="num text-right">{market.contracts}</td>
                 </tr>
               ))}
@@ -565,7 +568,10 @@ function FuturesPage() {
           </WideTable>
           <p className="mt-3 text-xs text-muted-foreground">
             {q.data?.sourceNote ??
-              "Source: EEX. Live display requires licence and server-side credentials."}
+              t(
+                "Source: EEX. Live display requires licence and server-side credentials.",
+                "Izvor: EEX. Prikaz uživo zahteva licencu i akreditive na strani servera.",
+              )}
           </p>
         </Panel>
       </div>
