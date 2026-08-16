@@ -185,10 +185,15 @@ export const getFuturesDashboard = createServerFn({ method: "GET" }).handler(asy
       return publicSnapshot.getCurrentForwardCurve(market.code);
     }),
   );
-  const marketsWithData = configuredMarkets.filter((market) =>
-    curves.some((curve) => curve.market === market.code && curve.contracts.length > 0),
+  const visibleMarkets = configuredMarkets.filter((market) =>
+    curves.some(
+      (curve) =>
+        curve.market === market.code &&
+        curve.contracts.some(
+          (price) => price.contract.loadType === "base" && price.settlementPrice != null,
+        ),
+    ),
   );
-  const visibleMarkets = marketsWithData.length > 0 ? marketsWithData : configuredMarkets;
   const allDates = curves.flatMap((curve) => curve.contracts.map((row) => row.tradingDate));
   const latestTradingDate = allDates.sort().at(-1) ?? null;
   const firstHistoricalDate = allDates.sort()[0] ?? null;
