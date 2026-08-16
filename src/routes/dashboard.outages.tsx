@@ -594,33 +594,40 @@ function OutagesPage() {
           </Panel>
         </div>
 
-        <Panel title="Impact by zone (MW unavailable)">
+        <Panel title={t("Impact by zone (MW unavailable)", "Uticaj po zonama (MW nedostupno)")}>
           {outageLoading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Loading outage publications...
+              {t("Loading outage publications...", "Učitavanje objava o ispadima...")}
             </p>
           ) : outages.data?.status === "empty" ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No outages reported by ENTSO-E for the selected period.
+              {t(
+                "No outages reported by ENTSO-E for the selected period.",
+                "ENTSO-E nije prijavio ispade za izabrani period.",
+              )}
             </p>
           ) : outageFailed || (!byZone.length && outages.data?.status === "partial") ? (
             <p className="py-6 text-center text-sm text-destructive">
-              Outage data unavailable. {sourceReason(outages.data?.reason)}
+              {t("Outage data unavailable.", "Podaci o ispadima nisu dostupni.")}{" "}
+              {sourceReason(outages.data?.reason, t)}
             </p>
           ) : byZone.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Outage publications were returned, but unavailable capacity cannot be calculated.
+              {t(
+                "Outage publications were returned, but unavailable capacity cannot be calculated.",
+                "Objave o ispadima su vraćene, ali nedostupni kapacitet ne može da se izračuna.",
+              )}
             </p>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-4 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-destructive" />
-                  Forced
+                  {t("Forced", "Prinudni")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-info" />
-                  Planned
+                  {t("Planned", "Planirani")}
                 </span>
               </div>
               {byZone.map((zone) => {
@@ -632,16 +639,19 @@ function OutagesPage() {
                       <div
                         className="h-full bg-destructive transition-all"
                         style={{ width: `${(zone.forced / maxZoneMW) * 100}%` }}
-                        title={`Forced: ${fmtMW(zone.forced)}`}
+                        title={t(`Forced: ${fmtMW(zone.forced)}`, `Prinudni: ${fmtMW(zone.forced)}`)}
                       />
                       <div
                         className="h-full bg-info transition-all"
                         style={{ width: `${(zone.planned / maxZoneMW) * 100}%` }}
-                        title={`Planned: ${fmtMW(zone.planned)}`}
+                        title={t(
+                          `Planned: ${fmtMW(zone.planned)}`,
+                          `Planirani: ${fmtMW(zone.planned)}`,
+                        )}
                       />
                     </div>
                     <span className="num w-16 text-right text-xs text-muted-foreground">
-                      {zone.units} records
+                      {t(`${zone.units} records`, `${zone.units} zapisa`)}
                     </span>
                     <span className="num w-24 text-right font-semibold">{fmtMW(total)}</span>
                   </div>
