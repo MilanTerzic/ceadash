@@ -323,8 +323,10 @@ function OutagesPage() {
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span>
-                Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi
-                izvori.
+                {t(
+                  "Loading data for the selected period… Please wait while all sources refresh.",
+                  "Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi izvori.",
+                )}
               </span>
             </div>
           </div>

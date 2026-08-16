@@ -757,10 +757,10 @@ function StatusPill({ label }: { label: string }) {
   );
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "N/A";
+function formatDateTime(value: string | null | undefined, t: (en: string, sr: string) => string) {
+  if (!value) return t("N/A", "N/D");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
+  if (Number.isNaN(date.getTime())) return t("N/A", "N/D");
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Belgrade",
     day: "2-digit",
@@ -818,10 +818,17 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string, t: (en: string, sr: string) => string) {
+  const translations: Record<string, string> = {
+    "eex-datasource": t("eex-datasource", "eex-datasource"),
+    "eex-public-snapshot": t("eex-public-snapshot", "eex-public-snapshot"),
+    "configuration-required": t("configuration required", "potrebna konfiguracija"),
+    "unsupported-product": t("unsupported product", "nepodržan proizvod"),
+    empty: t("empty", "prazno"),
+  };
   return (
     <span className="rounded border border-border/60 bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-      {status.replaceAll("-", " ")}
+      {translations[status] ?? status.replaceAll("-", " ")}
     </span>
   );
 }
