@@ -27,6 +27,7 @@ const DISCHARGE_TTL = 6 * 3600;
 const WEATHER_CHUNK_DAYS = 92;
 const HYDROLOGY_SOURCE = "open-meteo";
 const OPEN_METEO_MIN_REQUEST_GAP_MS = 350;
+const OPEN_METEO_HISTORICAL_FORECAST_START = "2022-01-01";
 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 let openMeteoQueue: Promise<void> = Promise.resolve();
@@ -322,7 +323,7 @@ export async function fetchWeatherRange(
       const source =
         segment.kind === "historical" ? "open-meteo-historical" : "open-meteo-forecast";
       segmentKinds.add(source);
-      const cacheKey = `weather:v2:${segment.kind}:${zone}:${chunk.from}:${chunk.to}`;
+      const cacheKey = `weather:v3:${segment.kind}:${zone}:${chunk.from}:${chunk.to}`;
       const cached = await cacheRead<{ data: WeatherPoint[]; source: string }>(cacheKey);
       if (!force && cached?.fresh) {
         segmentResults.push({
@@ -332,9 +333,14 @@ export async function fetchWeatherRange(
         continue;
       }
 
+      // For modern historical periods use Open-Meteo's archived operational
+      // forecasts. Unlike ERA5 reanalysis, this endpoint does not have the
+      // several-day publication lag that can break ranges ending near today.
       const endpoint =
         segment.kind === "historical"
-          ? "https://archive-api.open-meteo.com/v1/archive"
+          ? chunk.from >= OPEN_METEO_HISTORICAL_FORECAST_START
+            ? "https://historical-forecast-api.open-meteo.com/v1/forecast"
+            : "https://archive-api.open-meteo.com/v1/archive"
           : "https://api.open-meteo.com/v1/forecast";
       const query = new URLSearchParams({
         latitude: String(coordinates.lat),
@@ -378,7 +384,9 @@ export async function fetchWeatherRange(
         });
       } catch (primaryError) {
         let fallbackData: WeatherPoint[] = [];
-        let fallbackReason: string | undefined;
+        let fallbackReason: string | undefined = visualCrossingConfigured()
+          ? undefined
+          : "not_configured";
         if (visualCrossingConfigured()) {
           try {
             fallbackData = await fetchWeatherVisualCrossingRange(
@@ -436,7 +444,17 @@ export async function fetchWeatherRange(
   }
 
   const data = mergeWeatherPoints(segmentResults.map((result) => result.data));
-  const aggregate = aggregateDataStatus(segmentResults, [...segmentKinds].join(" + "));
+  const actualSources = [
+    ...new Set(
+      segmentResults
+        .filter((result) => result.data.length)
+        .map((result) => result.source),
+    ),
+  ];
+  const aggregate = aggregateDataStatus(
+    segmentResults,
+    actualSources.join(" + ") || [...segmentKinds].join(" + ") || "weather",
+  );
   const failedSegments = segmentResults.filter((result) => result.status === "error").length;
   return {
     data,
