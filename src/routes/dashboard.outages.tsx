@@ -18,13 +18,14 @@ import { KPI } from "@/components/kpi";
 import { Panel } from "@/components/panel";
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
-import { getBalance, getDanubeDischarge, getOutages, getWeather } from "@/lib/data.functions";
+import { getBalance, getOutages, getWeather } from "@/lib/data.functions";
 import {
   durationWeightedAverage,
   type DataSourceStatus,
   type DataStatus,
 } from "@/lib/fundamentals";
 import { downloadCSV, fmtMW, fmtNum } from "@/lib/format";
+import { getDanubeWaterLevels } from "@/lib/rhmz-hydrology.functions";
 
 export const Route = createFileRoute("/dashboard/outages")({
   head: () => ({ meta: [{ title: "System Fundamentals - CEA Power Dashboard" }] }),
@@ -55,9 +56,6 @@ function sourceReason(reason?: string): string | undefined {
       ? `Weather data is unavailable for ${match[1]} of ${match[2]} zones`
       : "Weather data is partially unavailable";
   }
-  if (reason.includes("river_discharge_unavailable_for_")) {
-    return `River-discharge data is unavailable for ${reason.split("_for_")[1]}`;
-  }
   if (reason.includes("invalid_date")) return "Request exceeded the supported date range";
   if (reason.includes("request_timeout")) return "The source request timed out";
   if (reason.includes("http_429")) return "Open-Meteo rate limit reached; retry shortly";
@@ -65,8 +63,14 @@ function sourceReason(reason?: string): string | undefined {
   if (reason.includes("weather_segments_unavailable")) {
     return "Some weather segments are temporarily unavailable";
   }
-  if (reason.includes("no_plausible_danube_grid_cell")) {
-    return "Open-Meteo does not provide a plausible Danube grid cell for this station";
+  if (reason.includes("rhmz_no_station_data")) {
+    return "RHMZ returned no Danube gauge observations";
+  }
+  if (reason.includes("rhmz_no_hourly_rows")) {
+    return "RHMZ returned no hourly rows for this station";
+  }
+  if (reason.includes("rhmz_http_")) {
+    return "RHMZ hydrology source is temporarily unavailable";
   }
   return reason.replaceAll("_", " ");
 }
@@ -123,10 +127,26 @@ function StatusRow({
   );
 }
 
+function signedCm(value: number | null) {
+  if (value == null) return "-";
+  return `${value > 0 ? "+" : ""}${fmtNum(value, 0)} cm`;
+}
+
+function formatObservation(value: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("en-GB", {
+    timeZone: "Europe/Belgrade",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function OutagesPage() {
   const outagesFn = useServerFn(getOutages);
   const weatherFn = useServerFn(getWeather);
-  const danubeFn = useServerFn(getDanubeDischarge);
+  const danubeFn = useServerFn(getDanubeWaterLevels);
   const balanceFn = useServerFn(getBalance);
   const { fromKey, toKey } = useRequestedRangeKeys();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -141,8 +161,9 @@ function OutagesPage() {
     queryFn: () => weatherFn({ data: { from: fromKey, to: toKey } }),
   });
   const danube = useQuery({
-    queryKey: ["fundamentals-danube", fromKey, toKey],
-    queryFn: () => danubeFn({ data: { from: fromKey, to: toKey } }),
+    queryKey: ["fundamentals-rhmz-danube"],
+    queryFn: () => danubeFn({ data: {} }),
+    refetchInterval: 60 * 60 * 1000,
   });
   const balance = useQuery({
     queryKey: ["fundamentals-balance", fromKey, toKey],
@@ -189,9 +210,23 @@ function OutagesPage() {
     : null;
 
   const danubeStations = danube.data?.stations ?? [];
-  const zemun = danubeStations.find((station) => station.name === "Zemun") ?? danubeStations[0];
-  const zemunSeries = zemun?.data ?? [];
-  const latestDischarge = zemunSeries.at(-1)?.discharge_m3s ?? null;
+  const smederevo =
+    danubeStations.find((station) => station.name === "Smederevo") ?? danubeStations[0];
+  const danubeStatus: DataSourceStatus | undefined = danube.data
+    ? {
+        source: "RHMZ",
+        status:
+          danube.data.source === "live"
+            ? "live"
+            : danube.data.source === "cache"
+              ? "cache"
+              : "error",
+        reason: danube.data.reason,
+        fetched_at: danube.data.fetchedAt,
+        last_success_at: danube.data.source === "empty" ? undefined : danube.data.fetchedAt,
+        stale: danube.data.reason?.startsWith("stale_cache") ?? false,
+      }
+    : undefined;
 
   const byZone = useMemo(() => {
     const map = new Map<string, { zone: string; forced: number; planned: number; units: number }>();
@@ -218,9 +253,6 @@ function OutagesPage() {
   const refreshAll = async () => {
     setIsRefreshing(true);
     try {
-      // Refetch through each query's normal server function so persisted source
-      // caches are respected. This avoids re-downloading unchanged ENTSO-E
-      // history on every click while still refreshing once its TTL expires.
       await Promise.allSettled([
         outages.refetch(),
         weather.refetch(),
@@ -241,7 +273,7 @@ function OutagesPage() {
   const latestSuccess = [
     outages.data?.last_success_at,
     weather.data?.last_success_at,
-    danube.data?.last_success_at,
+    danubeStatus?.last_success_at,
     balance.data?.last_success_at,
   ]
     .filter((value): value is string => Boolean(value))
@@ -270,10 +302,7 @@ function OutagesPage() {
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-medium text-primary shadow-sm">
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>
-                Učitavanje podataka za izabrani period… Molimo sačekajte dok se ažuriraju svi
-                izvori.
-              </span>
+              <span>Updating system fundamentals from the selected sources...</span>
             </div>
           </div>
         )}
@@ -304,8 +333,8 @@ function OutagesPage() {
             onRetry={retryWeather}
           />
           <StatusRow
-            label="Open-Meteo hydrology"
-            status={danube.data}
+            label="Danube water levels (RHMZ)"
+            status={danubeStatus}
             loading={danube.isFetching}
             onRetry={retryDanube}
           />
@@ -337,7 +366,7 @@ function OutagesPage() {
           <KPI
             label="Zones affected"
             value={
-              outageFailed || outageLoading ? "-" : String(new Set(rows.map((r) => r.zone)).size)
+              outageFailed || outageLoading ? "-" : String(new Set(rows.map((row) => row.zone)).size)
             }
             accent="primary"
           />
@@ -363,10 +392,18 @@ function OutagesPage() {
             source={rsWeather?.status}
           />
           <KPI
-            label="Danube - Zemun"
-            value={latestDischarge == null ? "-" : `${fmtNum(latestDischarge, 0)} m³/s`}
-            sub={zemun?.latest_observation ?? "Latest observation unavailable"}
-            source={zemun?.status}
+            label="Danube - Smederevo"
+            value={
+              smederevo?.latest_level_cm == null
+                ? "-"
+                : `${fmtNum(smederevo.latest_level_cm, 0)} cm`
+            }
+            sub={
+              smederevo
+                ? `${signedCm(smederevo.change_24h_cm)} / 24h · ${formatObservation(smederevo.latest_observation)}`
+                : "Latest observation unavailable"
+            }
+            source={danube.data?.source}
           />
         </div>
 
@@ -422,9 +459,7 @@ function OutagesPage() {
                           <td className="text-right">
                             <div className="flex flex-col items-end gap-0.5">
                               <DataBadge source={row.status} />
-                              <span className="text-[10px] text-muted-foreground">
-                                {row.source}
-                              </span>
+                              <span className="text-[10px] text-muted-foreground">{row.source}</span>
                             </div>
                           </td>
                         </tr>
@@ -444,77 +479,84 @@ function OutagesPage() {
           </Panel>
 
           <Panel
-            title="Hydrology - Danube stations"
-            actions={danube.data ? <DataBadge source={danube.data.status} /> : undefined}
+            title="Danube hydrology - official RHMZ water levels"
+            actions={danube.data ? <DataBadge source={danube.data.source} /> : undefined}
           >
             {danube.isPending && !danube.data ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Loading river-discharge observations...
+                Loading RHMZ water-level observations...
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-sm">
+                <table className="w-full min-w-[700px] text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="py-1.5 text-left">Station</th>
-                      <th className="text-right">Latest</th>
-                      <th className="text-right">Period avg.</th>
-                      <th className="text-right">Latest date</th>
+                      <th className="text-right">Level</th>
+                      <th className="text-right">24h change</th>
+                      <th className="text-right">7d range</th>
+                      <th className="text-right">Observation</th>
                       <th className="text-right">Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {danubeStations.map((station) => {
-                      const series = station.data ?? [];
-                      const latest = series.at(-1)?.discharge_m3s ?? null;
-                      const average = series.length
-                        ? series.reduce((sum, point) => sum + point.discharge_m3s, 0) /
-                          series.length
-                        : null;
-                      const selected = station.selected_coordinates;
-                      return (
-                        <tr key={station.name} className="border-t border-border/60">
-                          <td className="py-1.5">
-                            <div className="font-medium">{station.name}</div>
-                            {selected ? (
-                              <div className="text-[10px] text-muted-foreground">
-                                Grid {selected.lat.toFixed(3)}, {selected.lon.toFixed(3)}
-                              </div>
-                            ) : station.reason ? (
-                              <div className="text-xs text-destructive">
-                                {sourceReason(station.reason)}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="num text-right">
-                            {latest == null ? "-" : `${fmtNum(latest, 0)} m³/s`}
-                          </td>
-                          <td className="num text-right">
-                            {average == null ? "-" : `${fmtNum(average, 0)} m³/s`}
-                          </td>
-                          <td className="num text-right text-xs text-muted-foreground">
-                            {station.latest_observation ?? "-"}
-                          </td>
-                          <td className="text-right">
-                            <div className="flex flex-col items-end gap-0.5">
-                              <DataBadge source={station.status} />
-                              <span className="text-[10px] text-muted-foreground">
-                                {station.source}
-                              </span>
+                    {danubeStations.map((station) => (
+                      <tr key={station.id} className="border-t border-border/60">
+                        <td className="py-1.5">
+                          <div className="font-medium">{station.name}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            Gauge zero {fmtNum(station.gauge_zero_m, 2)} m a.s.l.
+                          </div>
+                          {station.reason ? (
+                            <div className="text-xs text-destructive">
+                              {sourceReason(station.reason)}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          ) : null}
+                        </td>
+                        <td className="num text-right font-semibold">
+                          {station.latest_level_cm == null
+                            ? "-"
+                            : `${fmtNum(station.latest_level_cm, 0)} cm`}
+                        </td>
+                        <td
+                          className={`num text-right ${
+                            (station.change_24h_cm ?? 0) > 0
+                              ? "text-info"
+                              : (station.change_24h_cm ?? 0) < 0
+                                ? "text-warning"
+                                : ""
+                          }`}
+                        >
+                          {signedCm(station.change_24h_cm)}
+                        </td>
+                        <td className="num text-right">
+                          {station.min_7d_cm == null || station.max_7d_cm == null
+                            ? "-"
+                            : `${fmtNum(station.min_7d_cm, 0)} to ${fmtNum(station.max_7d_cm, 0)} cm`}
+                        </td>
+                        <td className="num text-right text-xs text-muted-foreground">
+                          {formatObservation(station.latest_observation)}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <DataBadge source={station.status} />
+                            <span className="text-[10px] text-muted-foreground">RHMZ</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                     {!danubeStations.length && (
                       <tr>
-                        <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          River-discharge data unavailable. {sourceReason(danube.data?.reason)}
+                        <td colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                          RHMZ Danube water-level data unavailable. {sourceReason(danube.data?.reason)}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+                <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                  Absolute centimetre readings should not be compared directly between stations because each gauge has its own zero elevation. Use each station's change and seven-day range for trend comparison.
+                </p>
               </div>
             )}
           </Panel>
