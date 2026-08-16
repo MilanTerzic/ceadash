@@ -26,6 +26,7 @@ export type OutageRow = {
 };
 
 const CANCELLED_DOCUMENT_STATUSES = new Set(["A09", "A13"]);
+const DOCUMENT_STATUS_MARKER_UNIT = "__entsoe_document_status__";
 
 function stripNamespaces(xml: string): string {
   return xml.replace(/(<\/?)[\w-]+:/g, "$1");
@@ -301,6 +302,34 @@ export function parseOutageRows(
       });
     }
   }
+
+  // Cancellation/withdrawal revisions can contain no TimeSeries at all. Keep an
+  // internal marker so dedupeOutageRevisions can still suppress every older
+  // active revision of the same ENTSO-E document. The marker is always removed
+  // before rows are returned to the dashboard.
+  if (
+    !rows.length &&
+    documentId &&
+    CANCELLED_DOCUMENT_STATUSES.has(documentStatus)
+  ) {
+    rows.push({
+      zone,
+      unit: DOCUMENT_STATUS_MARKER_UNIT,
+      mw: 0,
+      type: "other",
+      outage_type: "unknown",
+      start: new Date(requestStartMs).toISOString(),
+      end: new Date(requestEndMs).toISOString(),
+      available_mw: null,
+      normal_capacity_mw: null,
+      unavailable_mw: null,
+      document_id: documentId,
+      document_status: documentStatus,
+      revision,
+      source: documentSource,
+    });
+  }
+
   return rows;
 }
 
@@ -315,23 +344,59 @@ function outageIdentity(row: OutageRow): string {
   ].join("|");
 }
 
+function outageDocumentIdentity(row: OutageRow): string | null {
+  return row.document_id ? `${row.zone}|${row.document_id}` : null;
+}
+
 export function dedupeOutageRevisions(rows: OutageRow[]): OutageRow[] {
-  const latest = new Map<string, OutageRow>();
+  const latestRevisionByDocument = new Map<string, number>();
+  const cancelledLatestDocuments = new Set<string>();
+
+  // Resolve revision at document level first. Dates and capacities can change
+  // between revisions, so start/end must not be part of revision identity.
   for (const row of rows) {
-    const key = outageIdentity(row);
-    const existing = latest.get(key);
-    const existingRevision = existing?.revision ?? 0;
-    const rowRevision = row.revision ?? 0;
-    if (!existing || rowRevision > existingRevision || rowRevision === existingRevision) {
-      latest.set(key, row);
+    const documentKey = outageDocumentIdentity(row);
+    if (!documentKey) continue;
+    const revision = row.revision ?? 0;
+    const current = latestRevisionByDocument.get(documentKey);
+    if (current == null || revision > current) {
+      latestRevisionByDocument.set(documentKey, revision);
+      if (CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? "")) {
+        cancelledLatestDocuments.add(documentKey);
+      } else {
+        cancelledLatestDocuments.delete(documentKey);
+      }
+    } else if (
+      revision === current &&
+      CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? "")
+    ) {
+      // If ENTSO-E sends conflicting rows at the same revision, cancellation
+      // wins so we never surface a publication that the source withdrew.
+      cancelledLatestDocuments.add(documentKey);
     }
   }
-  return [...latest.values()]
-    .filter((row) => !CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? ""))
-    .sort((a, b) => {
-      const unavailable = (b.unavailable_mw ?? -1) - (a.unavailable_mw ?? -1);
-      return unavailable !== 0 ? unavailable : a.start.localeCompare(b.start);
-    });
+
+  const latestRows = new Map<string, OutageRow>();
+  for (const row of rows) {
+    const documentKey = outageDocumentIdentity(row);
+    if (documentKey) {
+      const latestRevision = latestRevisionByDocument.get(documentKey) ?? 0;
+      if ((row.revision ?? 0) !== latestRevision) continue;
+      if (cancelledLatestDocuments.has(documentKey)) continue;
+    } else if (CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? "")) {
+      continue;
+    }
+    if (row.unit === DOCUMENT_STATUS_MARKER_UNIT) continue;
+
+    // Multiple ENTSO-E payloads/chunks can contain the same latest-revision
+    // period. Collapse only exact period duplicates after revision resolution.
+    latestRows.set(outageIdentity(row), row);
+  }
+
+  return [...latestRows.values()].sort((a, b) => {
+    const unavailable = (b.unavailable_mw ?? -1) - (a.unavailable_mw ?? -1);
+    return unavailable !== 0 ? unavailable : a.start.localeCompare(b.start);
+  });
 }
 
 export function chunkOutageRange(from: string, to: string): Array<{ from: string; to: string }> {
