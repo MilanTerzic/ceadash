@@ -6,6 +6,7 @@ import { ChartCard, SignalPill } from "@/components/dashboard/atoms";
 import { belgradeDayKey } from "@/lib/baseload";
 import { fetchCaptureSeries, type CapturePoint } from "@/lib/capture.functions";
 import { getEkapijaNews } from "@/lib/news.functions";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/insights")({
   head: () => ({
@@ -128,6 +129,7 @@ function pct(v: number | null) {
 }
 
 function InsightsPage() {
+  const { t } = useLang();
   const newsFn = useServerFn(getEkapijaNews);
   const newsQuery = useQuery({
     queryKey: ["signals_news_policy"],
@@ -152,45 +154,81 @@ function InsightsPage() {
 
   const indicators: { title: string; text: string; metric: string; signal: Signal }[] = [
     {
-      title: "Solar capture vs baseload",
-      text: "Shows the realised solar-profile price relative to Serbian day-ahead baseload in the rolling 30-day window.",
-      metric: `Solar ${fmt(metrics.solarCapture)} €/MWh · capture rate ${pct(metrics.solarRate)}`,
+      title: t("Solar capture vs baseload", "Capture cena solara u odnosu na baznu cenu"),
+      text: t(
+        "Shows the realised solar-profile price relative to Serbian day-ahead baseload in the rolling 30-day window.",
+        "Prikazuje ostvarenu cenu solarnog profila u odnosu na srpsku day-ahead baznu cenu u pokretnom periodu od 30 dana.",
+      ),
+      metric: t(
+        `Solar ${fmt(metrics.solarCapture)} €/MWh · capture rate ${pct(metrics.solarRate)}`,
+        `Solar ${fmt(metrics.solarCapture)} €/MWh · capture stopa ${pct(metrics.solarRate)}`,
+      ),
       signal: metrics.solarRate == null ? "Neutral" : metrics.solarRate < 0.75 ? "Critical" : metrics.solarRate < 0.9 ? "Warning" : "Neutral",
     },
     {
-      title: "Negative-price hours",
-      text: "Counts observed Serbian day-ahead hours below zero in the rolling 30-day window.",
-      metric: `${metrics.negHours} hours below 0 €/MWh`,
+      title: t("Negative-price hours", "Sati sa negativnom cenom"),
+      text: t(
+        "Counts observed Serbian day-ahead hours below zero in the rolling 30-day window.",
+        "Broji zabeležene srpske day-ahead sate ispod nule u pokretnom periodu od 30 dana.",
+      ),
+      metric: t(`${metrics.negHours} hours below 0 €/MWh`, `${metrics.negHours} sati ispod 0 €/MWh`),
       signal: metrics.negHours > 20 ? "Critical" : metrics.negHours > 5 ? "Warning" : "Neutral",
     },
     {
-      title: "Midday discount",
-      text: "Compares the 11:00–16:00 average with baseload to quantify the midday price dip.",
-      metric: `${fmt(metrics.middayAvg)} €/MWh · ${pct(metrics.middayDelta)} vs baseload`,
+      title: t("Midday discount", "Popodnevni popust"),
+      text: t(
+        "Compares the 11:00–16:00 average with baseload to quantify the midday price dip.",
+        "Upoređuje prosek od 11:00–16:00 sa baznom cenom kako bi se kvantifikovao pad cene u podne.",
+      ),
+      metric: t(
+        `${fmt(metrics.middayAvg)} €/MWh · ${pct(metrics.middayDelta)} vs baseload`,
+        `${fmt(metrics.middayAvg)} €/MWh · ${pct(metrics.middayDelta)} u odnosu na baznu cenu`,
+      ),
       signal: metrics.middayDelta == null ? "Neutral" : metrics.middayDelta < -0.3 ? "Critical" : metrics.middayDelta < -0.15 ? "Warning" : "Neutral",
     },
     {
-      title: "Evening premium",
-      text: "Compares 18:00–22:00 prices with baseload to quantify the evening premium.",
-      metric: `${fmt(metrics.eveningPremium)} €/MWh above baseload`,
+      title: t("Evening premium", "Večernja premija"),
+      text: t(
+        "Compares 18:00–22:00 prices with baseload to quantify the evening premium.",
+        "Upoređuje cene od 18:00–22:00 sa baznom cenom kako bi se kvantifikovala večernja premija.",
+      ),
+      metric: t(
+        `${fmt(metrics.eveningPremium)} €/MWh above baseload`,
+        `${fmt(metrics.eveningPremium)} €/MWh iznad bazne cene`,
+      ),
       signal: metrics.eveningPremium != null && metrics.eveningPremium > 10 ? "Positive" : "Neutral",
     },
     {
-      title: "BESS 2h net spread",
-      text: "Ex-post two-hour price spread using the two cheapest and two most expensive hours of each complete day at 85% round-trip efficiency.",
-      metric: `${fmt(metrics.bessNet2h)} €/MWh · ${metrics.completeDays} complete days`,
+      title: t("BESS 2h net spread", "BESS neto spred 2h"),
+      text: t(
+        "Ex-post two-hour price spread using the two cheapest and two most expensive hours of each complete day at 85% round-trip efficiency.",
+        "Naknadno izračunat dvočasovni spred cene korišćenjem dva najjeftinija i dva najskuplja sata svakog kompletnog dana uz 85% efikasnost punog ciklusa.",
+      ),
+      metric: t(
+        `${fmt(metrics.bessNet2h)} €/MWh · ${metrics.completeDays} complete days`,
+        `${fmt(metrics.bessNet2h)} €/MWh · ${metrics.completeDays} kompletnih dana`,
+      ),
       signal: metrics.bessNet2h != null && metrics.bessNet2h > 30 ? "Positive" : "Neutral",
     },
     {
-      title: "Wind vs solar capture",
-      text: "Compares technology-specific capture rates to show how production shape affects realised market prices.",
-      metric: `Wind ${pct(metrics.windRate)} · Solar ${pct(metrics.solarRate)}`,
+      title: t("Wind vs solar capture", "Capture cena vetra u odnosu na solar"),
+      text: t(
+        "Compares technology-specific capture rates to show how production shape affects realised market prices.",
+        "Upoređuje capture stope po tehnologiji kako bi se prikazalo kako oblik proizvodnje utiče na ostvarene tržišne cene.",
+      ),
+      metric: t(`Wind ${pct(metrics.windRate)} · Solar ${pct(metrics.solarRate)}`, `Vetar ${pct(metrics.windRate)} · Solar ${pct(metrics.solarRate)}`),
       signal: metrics.windRate != null && metrics.solarRate != null && metrics.windRate - metrics.solarRate > 0.1 ? "Positive" : "Neutral",
     },
     {
-      title: "Intraday price range",
-      text: "Average complete-day maximum minus minimum price over the rolling window.",
-      metric: `${fmt(metrics.avgRange)} €/MWh average daily range`,
+      title: t("Intraday price range", "Dnevni raspon cena"),
+      text: t(
+        "Average complete-day maximum minus minimum price over the rolling window.",
+        "Prosečna razlika maksimalne i minimalne cene kompletnog dana u pokretnom periodu.",
+      ),
+      metric: t(
+        `${fmt(metrics.avgRange)} €/MWh average daily range`,
+        `${fmt(metrics.avgRange)} €/MWh prosečan dnevni raspon`,
+      ),
       signal: metrics.avgRange != null && metrics.avgRange > 45 ? "Positive" : "Neutral",
     },
   ];
@@ -198,33 +236,43 @@ function InsightsPage() {
   return (
     <div className="space-y-6">
       <ChartCard
-        title="Live analytical indicators"
-        description="Rules-based metrics calculated from the latest rolling 30-day Serbian day-ahead and renewable capture dataset."
+        title={t("Live analytical indicators", "Analitički indikatori uživo")}
+        description={t(
+          "Rules-based metrics calculated from the latest rolling 30-day Serbian day-ahead and renewable capture dataset.",
+          "Pravilima definisane metrike izračunate iz najnovijeg pokretnog seta podataka srpske day-ahead cene i capture cene obnovljivih izvora za 30 dana.",
+        )}
         right={
           <button
             type="button"
             onClick={() => liveQuery.refetch()}
             className="min-h-9 rounded-md border border-border/70 px-3 text-xs text-foreground hover:bg-muted"
           >
-            Refresh
+            {t("Refresh", "Osveži")}
           </button>
         }
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/40 p-3 text-xs text-muted-foreground">
           <span>
-            Source: Serbian DA prices + ENTSO-E generation where available
-            {liveQuery.data?.solarSource === "modelled" ? " · solar profile modelled where B16 is unavailable" : ""}
+            {t("Source: Serbian DA prices + ENTSO-E generation where available", "Izvor: srpske DA cene + ENTSO-E proizvodnja gde je dostupno")}
+            {liveQuery.data?.solarSource === "modelled" ? t(" · solar profile modelled where B16 is unavailable", " · solarni profil modelovan gde B16 nije dostupan") : ""}
           </span>
           <span>
-            {liveQuery.isFetching ? "Refreshing…" : lastTs ? `Data through ${new Date(lastTs).toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}` : "No live timestamp"}
+            {liveQuery.isFetching
+              ? t("Refreshing…", "Osvežavanje…")
+              : lastTs
+                ? t(
+                    `Data through ${new Date(lastTs).toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}`,
+                    `Podaci do ${new Date(lastTs).toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}`,
+                  )
+                : t("No live timestamp", "Nema podataka uživo")}
           </span>
         </div>
 
         {liveQuery.isLoading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Loading live indicators...</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("Loading live indicators...", "Učitavanje indikatora uživo...")}</p>
         ) : points.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            Live market data is currently unavailable. Demo values are not substituted.
+            {t("Live market data is currently unavailable. Demo values are not substituted.", "Tržišni podaci uživo trenutno nisu dostupni. Demo vrednosti se ne koriste.")}
           </p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -243,24 +291,27 @@ function InsightsPage() {
       </ChartCard>
 
       <ChartCard
-        title="News and policy monitor"
-        description="Automatically refreshes recent Serbian energy news and policy items from the configured public source."
+        title={t("News and policy monitor", "Praćenje vesti i regulative")}
+        description={t(
+          "Automatically refreshes recent Serbian energy news and policy items from the configured public source.",
+          "Automatski osvežava nedavne srpske energetske vesti i regulatorne stavke iz podešenog javnog izvora.",
+        )}
       >
         <div className="mb-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>Refreshes every 30 minutes while this page is open.</span>
+          <span>{t("Refreshes every 30 minutes while this page is open.", "Osvežava se na svakih 30 minuta dok je ova stranica otvorena.")}</span>
           <button
             type="button"
             onClick={() => newsQuery.refetch()}
             className="min-h-9 rounded-md border border-border/70 px-3 text-foreground hover:bg-muted"
           >
-            Refresh
+            {t("Refresh", "Osveži")}
           </button>
         </div>
         {newsQuery.isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading news...</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("Loading news...", "Učitavanje vesti...")}</p>
         ) : (newsQuery.data?.items ?? []).length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            News source is currently unavailable or returned no items.
+            {t("News source is currently unavailable or returned no items.", "Izvor vesti trenutno nije dostupan ili nije vratio stavke.")}
           </p>
         ) : (
           <div className="divide-y divide-border/60">

@@ -25,6 +25,7 @@ import {
   type DataStatus,
 } from "@/lib/fundamentals";
 import { downloadCSV, fmtMW, fmtNum } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/outages")({
   head: () => ({ meta: [{ title: "System Fundamentals - CEA Power Dashboard" }] }),
@@ -33,40 +34,82 @@ export const Route = createFileRoute("/dashboard/outages")({
 
 type QueryStatus = DataSourceStatus | undefined;
 
-function sourceReason(reason?: string): string | undefined {
+function sourceReason(
+  reason: string | undefined,
+  t: (en: string, sr: string) => string,
+): string | undefined {
   if (!reason) return undefined;
   if (reason.includes("entsoe_token_missing")) {
-    return "ENTSO-E token is not configured on the server";
+    return t(
+      "ENTSO-E token is not configured on the server",
+      "ENTSO-E token nije podešen na serveru",
+    );
   }
   if (reason.includes("entsoe_unauthorized")) {
-    return "ENTSO-E rejected the configured token";
+    return t("ENTSO-E rejected the configured token", "ENTSO-E je odbio podešeni token");
   }
   if (reason.includes("entsoe_rate_limited")) {
-    return "ENTSO-E rate limit reached; retry shortly";
+    return t(
+      "ENTSO-E rate limit reached; retry shortly",
+      "Dostignut je limit ENTSO-E zahteva; pokušajte ponovo uskoro",
+    );
   }
-  if (reason.includes("entsoe_timeout")) return "ENTSO-E request timed out";
-  if (reason.includes("entsoe_invalid_request")) return "ENTSO-E rejected the request parameters";
+  if (reason.includes("entsoe_timeout"))
+    return t("ENTSO-E request timed out", "ENTSO-E zahtev je istekao");
+  if (reason.includes("entsoe_invalid_request"))
+    return t(
+      "ENTSO-E rejected the request parameters",
+      "ENTSO-E je odbio parametre zahteva",
+    );
   if (reason.includes("entsoe_no_outage_publications")) {
-    return "ENTSO-E returned no outage publications for this period";
+    return t(
+      "ENTSO-E returned no outage publications for this period",
+      "ENTSO-E nije vratio objave o ispadima za ovaj period",
+    );
   }
   if (reason.includes("weather_unavailable_for_")) {
     const match = /weather_unavailable_for_(\d+)_of_(\d+)_zones/.exec(reason);
     return match
-      ? `Weather data is unavailable for ${match[1]} of ${match[2]} zones`
-      : "Weather data is partially unavailable";
+      ? t(
+          `Weather data is unavailable for ${match[1]} of ${match[2]} zones`,
+          `Podaci o vremenu nisu dostupni za ${match[1]} od ${match[2]} zona`,
+        )
+      : t("Weather data is partially unavailable", "Podaci o vremenu su delimično nedostupni");
   }
   if (reason.includes("river_discharge_unavailable_for_")) {
-    return `River-discharge data is unavailable for ${reason.split("_for_")[1]}`;
+    return t(
+      `River-discharge data is unavailable for ${reason.split("_for_")[1]}`,
+      `Podaci o protoku reke nisu dostupni za ${reason.split("_for_")[1]}`,
+    );
   }
-  if (reason.includes("invalid_date")) return "Request exceeded the supported date range";
-  if (reason.includes("request_timeout")) return "The source request timed out";
-  if (reason.includes("http_429")) return "Open-Meteo rate limit reached; retry shortly";
-  if (reason.includes("stale_cache")) return "Live source failed; showing stale cached data";
+  if (reason.includes("invalid_date"))
+    return t(
+      "Request exceeded the supported date range",
+      "Zahtev prevazilazi podržani opseg datuma",
+    );
+  if (reason.includes("request_timeout"))
+    return t("The source request timed out", "Zahtev ka izvoru je istekao");
+  if (reason.includes("http_429"))
+    return t(
+      "Open-Meteo rate limit reached; retry shortly",
+      "Dostignut je limit Open-Meteo zahteva; pokušajte ponovo uskoro",
+    );
+  if (reason.includes("stale_cache"))
+    return t(
+      "Live source failed; showing stale cached data",
+      "Neuspešno preuzimanje uživo; prikazuju se zastareli keširani podaci",
+    );
   if (reason.includes("weather_segments_unavailable")) {
-    return "Some Open-Meteo weather segments are temporarily unavailable";
+    return t(
+      "Some Open-Meteo weather segments are temporarily unavailable",
+      "Neki Open-Meteo segmenti vremena su privremeno nedostupni",
+    );
   }
   if (reason.includes("no_plausible_danube_grid_cell")) {
-    return "Open-Meteo does not provide a plausible Danube grid cell for this station";
+    return t(
+      "Open-Meteo does not provide a plausible Danube grid cell for this station",
+      "Open-Meteo ne pruža verodostojnu mrežnu ćeliju Dunava za ovu stanicu",
+    );
   }
   return reason.replaceAll("_", " ");
 }
@@ -82,6 +125,7 @@ function StatusRow({
   loading: boolean;
   onRetry: () => void;
 }) {
+  const { t } = useLang();
   const displayStatus: DataStatus = loading ? "partial" : (status?.status ?? "error");
   const Icon = displayStatus === "live" || displayStatus === "cache" ? CheckCircle2 : AlertCircle;
   const fetchedAt = status?.last_success_at ?? status?.fetched_at;
@@ -102,11 +146,14 @@ function StatusRow({
       <span>{loading ? <DataBadge source="partial" /> : <DataBadge source={displayStatus} />}</span>
       <span className="text-xs text-muted-foreground">
         {loading
-          ? "Loading selected period..."
-          : (sourceReason(status?.reason) ??
+          ? t("Loading selected period...", "Učitavanje izabranog perioda...")
+          : (sourceReason(status?.reason, t) ??
             (fetchedAt
-              ? `Last successful fetch ${new Date(fetchedAt).toLocaleString("en-GB")}`
-              : "No successful fetch recorded"))}
+              ? t(
+                  `Last successful fetch ${new Date(fetchedAt).toLocaleString("en-GB")}`,
+                  `Poslednje uspešno preuzimanje ${new Date(fetchedAt).toLocaleString("sr-RS")}`,
+                )
+              : t("No successful fetch recorded", "Nema zabeleženog uspešnog preuzimanja")))}
       </span>
       <Button
         type="button"
@@ -117,13 +164,14 @@ function StatusRow({
         disabled={loading}
       >
         <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-        Retry
+        {t("Retry", "Pokušaj ponovo")}
       </Button>
     </div>
   );
 }
 
 function OutagesPage() {
+  const { t } = useLang();
   const outagesFn = useServerFn(getOutages);
   const weatherFn = useServerFn(getWeather);
   const danubeFn = useServerFn(getDanubeDischarge);
@@ -244,17 +292,23 @@ function OutagesPage() {
     .sort()
     .at(-1);
   const outageSubtitle = outageLoading
-    ? "Loading ENTSO-E outage publications"
+    ? t("Loading ENTSO-E outage publications", "Učitavanje ENTSO-E objava o ispadima")
     : outageFailed
-      ? "Outage data unavailable"
+      ? t("Outage data unavailable", "Podaci o ispadima nisu dostupni")
       : outages.data?.status === "empty"
-        ? "No outage publications for the selected period"
-        : `${rows.length} outage records - ${fmtMW(totalMW)} calculable impact`;
+        ? t(
+            "No outage publications for the selected period",
+            "Nema objava o ispadima za izabrani period",
+          )
+        : t(
+            `${rows.length} outage records - ${fmtMW(totalMW)} calculable impact`,
+            `${rows.length} zapisa o ispadima - ${fmtMW(totalMW)} merljivog uticaja`,
+          );
 
   return (
     <>
       <TopBar
-        title="System Fundamentals"
+        title={t("System Fundamentals", "Osnove sistema")}
         subtitle={outageSubtitle}
         onRefresh={refreshAll}
         isRefreshing={isFetchingAll}
@@ -276,33 +330,33 @@ function OutagesPage() {
           </div>
         )}
 
-        <Panel title="Data source status">
+        <Panel title={t("Data source status", "Status izvora podataka")}>
           <StatusRow
-            label="ENTSO-E outages"
+            label={t("ENTSO-E outages", "ENTSO-E ispadi")}
             status={outages.data}
             loading={outages.isFetching}
             onRetry={retryOutages}
           />
           <StatusRow
-            label="ENTSO-E load"
+            label={t("ENTSO-E load", "ENTSO-E potrošnja")}
             status={balance.data?.load}
             loading={balance.isFetching}
             onRetry={retryBalance}
           />
           <StatusRow
-            label="ENTSO-E generation"
+            label={t("ENTSO-E generation", "ENTSO-E proizvodnja")}
             status={balance.data?.generation}
             loading={balance.isFetching}
             onRetry={retryBalance}
           />
           <StatusRow
-            label="Open-Meteo weather"
+            label={t("Open-Meteo weather", "Open-Meteo vreme")}
             status={weather.data}
             loading={weather.isFetching}
             onRetry={retryWeather}
           />
           <StatusRow
-            label="Open-Meteo hydrology"
+            label={t("Open-Meteo hydrology", "Open-Meteo hidrologija")}
             status={danube.data}
             loading={danube.isFetching}
             onRetry={retryDanube}
@@ -311,29 +365,35 @@ function OutagesPage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <KPI
-            label="Total impacted"
+            label={t("Total impacted", "Ukupno pogođeno")}
             value={outageFailed || outageLoading ? "-" : fmtMW(totalMW)}
             accent="warning"
             sub={
               availableOnlyCount
-                ? `${rowsWithUnavailable.length} calculable, ${availableOnlyCount} available-only`
-                : `${rowsWithUnavailable.length} calculable records`
+                ? t(
+                    `${rowsWithUnavailable.length} calculable, ${availableOnlyCount} available-only`,
+                    `${rowsWithUnavailable.length} merljivo, ${availableOnlyCount} samo dostupno`,
+                  )
+                : t(
+                    `${rowsWithUnavailable.length} calculable records`,
+                    `${rowsWithUnavailable.length} merljivih zapisa`,
+                  )
             }
           />
           <KPI
-            label="Forced"
+            label={t("Forced", "Prinudni")}
             value={outageFailed || outageLoading ? "-" : fmtMW(forcedMW)}
             accent="destructive"
-            sub={`${forcedRows.length} records`}
+            sub={t(`${forcedRows.length} records`, `${forcedRows.length} zapisa`)}
           />
           <KPI
-            label="Planned"
+            label={t("Planned", "Planirani")}
             value={outageFailed || outageLoading ? "-" : fmtMW(plannedMW)}
             accent="info"
-            sub={`${plannedRows.length} records`}
+            sub={t(`${plannedRows.length} records`, `${plannedRows.length} zapisa`)}
           />
           <KPI
-            label="Zones affected"
+            label={t("Zones affected", "Pogođene zone")}
             value={
               outageFailed || outageLoading ? "-" : String(new Set(rows.map((r) => r.zone)).size)
             }
@@ -343,27 +403,34 @@ function OutagesPage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <KPI
-            label="Serbia avg. load"
+            label={t("Serbia avg. load", "Prosečna potrošnja - Srbija")}
             value={fmtMW(avgLoad)}
-            sub={`${loadPointCount} intervals`}
+            sub={t(`${loadPointCount} intervals`, `${loadPointCount} intervala`)}
             source={balance.data?.load.status}
           />
           <KPI
-            label="Serbia avg. generation"
+            label={t("Serbia avg. generation", "Prosečna proizvodnja - Srbija")}
             value={fmtMW(avgGen)}
-            sub={`${generationPointCount} intervals`}
+            sub={t(`${generationPointCount} intervals`, `${generationPointCount} intervala`)}
             source={balance.data?.generation.status}
           />
           <KPI
-            label="Serbia weather"
+            label={t("Serbia weather", "Vreme - Srbija")}
             value={avgTemp == null ? "-" : `${fmtNum(avgTemp)} °C`}
-            sub={avgWind == null ? "Wind unavailable" : `Wind ${fmtNum(avgWind)} m/s`}
+            sub={
+              avgWind == null
+                ? t("Wind unavailable", "Vetar nije dostupan")
+                : t(`Wind ${fmtNum(avgWind)} m/s`, `Vetar ${fmtNum(avgWind)} m/s`)
+            }
             source={rsWeather?.status}
           />
           <KPI
-            label="Danube - Zemun"
+            label={t("Danube - Zemun", "Dunav - Zemun")}
             value={latestDischarge == null ? "-" : `${fmtNum(latestDischarge, 0)} m³/s`}
-            sub={zemun?.latest_observation ?? "Latest observation unavailable"}
+            sub={
+              zemun?.latest_observation ??
+              t("Latest observation unavailable", "Poslednje osmatranje nije dostupno")
+            }
             source={zemun?.status}
           />
         </div>

@@ -36,6 +36,7 @@ import {
 import { fmtMW, fmtPct, fmtNum, downloadCSV } from "@/lib/format";
 import { useDateRange } from "@/lib/date-range";
 import { ZONES, type ZoneCode } from "@/lib/markets";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/dashboard/flows")({
   head: () => ({ meta: [{ title: "Flows — CEA Power Dashboard" }] }),
@@ -56,16 +57,16 @@ type BorderRow = {
 
 const COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#f87171", "#22d3ee"];
 
-function statusFor(util: number | null, dataMissing: boolean) {
+function statusFor(util: number | null, dataMissing: boolean, t: (en: string, sr: string) => string) {
   if (dataMissing)
-    return { label: "No data", cls: "bg-muted/30 text-muted-foreground border-border" };
+    return { label: t("No data", "Nema podataka"), cls: "bg-muted/30 text-muted-foreground border-border" };
   if (util == null)
-    return { label: "No capacity", cls: "bg-warning/15 text-warning border-warning/30" };
+    return { label: t("No capacity", "Nema kapaciteta"), cls: "bg-warning/15 text-warning border-warning/30" };
   if (util >= 90)
-    return { label: "Congested", cls: "bg-destructive/20 text-destructive border-destructive/40" };
+    return { label: t("Congested", "Zagušeno"), cls: "bg-destructive/20 text-destructive border-destructive/40" };
   if (util >= 80)
-    return { label: "High util", cls: "bg-warning/15 text-warning border-warning/30" };
-  return { label: "Normal", cls: "bg-success/15 text-success border-success/30" };
+    return { label: t("High util", "Visoka iskorišćenost"), cls: "bg-warning/15 text-warning border-warning/30" };
+  return { label: t("Normal", "Normalno"), cls: "bg-success/15 text-success border-success/30" };
 }
 
 function utilColor(util: number | null) {
@@ -77,6 +78,7 @@ function utilColor(util: number | null) {
 }
 
 function FlowsPage() {
+  const { t } = useLang();
   const fn = useServerFn(getFlowAnalytics);
   const { range } = useDateRange();
   const q = useQuery({
@@ -241,8 +243,8 @@ function FlowsPage() {
   return (
     <>
       <TopBar
-        title="Physical Flows (A11)"
-        subtitle="Cross-border flow analytics, capacity utilization & congestion"
+        title={t("Physical Flows (A11)", "Fizički tokovi (A11)")}
+        subtitle={t("Cross-border flow analytics, capacity utilization & congestion", "Analitika prekograničnih tokova, iskorišćenost kapaciteta i zagušenja")}
         onRefresh={() => q.refetch()}
         isRefreshing={q.isFetching}
         lastRefresh={q.data?.fetched_at}
@@ -253,42 +255,42 @@ function FlowsPage() {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
           <KPI
-            label="Net position"
+            label={t("Net position", "Neto pozicija")}
             value={`${totalNet >= 0 ? "+" : ""}${fmtNum(totalNet, 0)} MWh`}
-            sub={totalNet >= 0 ? "Net import" : "Net export"}
+            sub={totalNet >= 0 ? t("Net import", "Neto uvoz") : t("Net export", "Neto izvoz")}
             accent={totalNet >= 0 ? "info" : "success"}
           />
-          <KPI label="Peak import" value={fmtMW(peakImport)} accent="info" />
-          <KPI label="Peak export" value={fmtMW(peakExport)} accent="success" />
+          <KPI label={t("Peak import", "Vršni uvoz")} value={fmtMW(peakImport)} accent="info" />
+          <KPI label={t("Peak export", "Vršni izvoz")} value={fmtMW(peakExport)} accent="success" />
           <KPI
-            label="Avg utilization"
+            label={t("Avg utilization", "Prosečna iskorišćenost")}
             value={fmtPct(avgUtilAll)}
-            sub={avgUtilAll == null ? "no capacity data" : undefined}
+            sub={avgUtilAll == null ? t("no capacity data", "nema podataka o kapacitetu") : undefined}
             accent={avgUtilAll && avgUtilAll >= 80 ? "destructive" : "primary"}
           />
           <KPI
-            label="Highest util border"
+            label={t("Highest util border", "Najveća iskorišćenost")}
             value={highestUtil ? highestUtil.label : "—"}
-            sub={highestUtil ? fmtPct(highestUtil.avgUtil) : "no capacity data"}
+            sub={highestUtil ? fmtPct(highestUtil.avgUtil) : t("no capacity data", "nema podataka o kapacitetu")}
             accent="warning"
           />
           <KPI
-            label="Most volatile"
+            label={t("Most volatile", "Najvolatilnije")}
             value={mostVolatile?.label ?? "—"}
             sub={mostVolatile ? `σ ${fmtNum(mostVolatile.stdev, 0)} MW` : undefined}
             accent="primary"
           />
           <KPI
-            label="Stress hours"
+            label={t("Stress hours", "Sati stresa")}
             value={`${hoursAbove80All}`}
-            sub={`>80% util · ${reversalsAll} reversals`}
+            sub={`>80% ${t("util", "iskor.")} · ${reversalsAll} ${t("reversals", "promena smera")}`}
             accent={hoursAbove80All > 0 ? "warning" : "muted"}
           />
         </div>
 
         {/* Network diagram + Net position */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          <Panel title="Serbia cross-border network">
+          <Panel title={t("Serbia cross-border network", "Prekogranična mreža Srbije")}>
             <NetworkDiagram
               summary={summary}
               onSelect={(n) => setSelectedBorder(n)}
@@ -298,8 +300,8 @@ function FlowsPage() {
           </Panel>
 
           <Panel
-            title="Net Serbia position (hourly)"
-            actions={<span className="text-[11px] text-muted-foreground">+ import · − export</span>}
+            title={t("Net Serbia position (hourly)", "Neto pozicija Srbije (po satu)")}
+            actions={<span className="text-[11px] text-muted-foreground">{t("+ import · − export", "+ uvoz · − izvoz")}</span>}
           >
             {netByHour.length === 0 ? (
               <EmptyState />
@@ -331,7 +333,7 @@ function FlowsPage() {
                     dataKey="net"
                     stroke="oklch(0.72 0.13 200)"
                     fill="url(#netPos)"
-                    name="Net (MW)"
+                    name={t("Net (MW)", "Neto (MW)")}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -342,7 +344,7 @@ function FlowsPage() {
         {/* Per-route flow chart + duration curve */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
           <Panel
-            title={`Hourly flow — ${selBorder?.label ?? "—"}`}
+            title={`${t("Hourly flow", "Tok po satu")} — ${selBorder?.label ?? "—"}`}
             actions={
               <div className="flex gap-2">
                 <Select
@@ -365,8 +367,8 @@ function FlowsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="net">Net flow</SelectItem>
-                    <SelectItem value="split">Import / Export</SelectItem>
+                    <SelectItem value="net">{t("Net flow", "Neto tok")}</SelectItem>
+                    <SelectItem value="split">{t("Import / Export", "Uvoz / Izvoz")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -445,8 +447,8 @@ function FlowsPage() {
           </Panel>
 
           <Panel
-            title="Flow duration curve"
-            actions={<span className="text-[11px] text-muted-foreground">|MW| sorted</span>}
+            title={t("Flow duration curve", "Kriva trajanja toka")}
+            actions={<span className="text-[11px] text-muted-foreground">{t("|MW| sorted", "|MW| sortirano")}</span>}
           >
             {selDuration.length === 0 ? (
               <EmptyState />
@@ -480,10 +482,13 @@ function FlowsPage() {
 
         {/* Utilization bar + heatmap */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          <Panel title="Avg utilization by border">
+          <Panel title={t("Avg utilization by border", "Prosečna iskorišćenost po granici")}>
             {utilValid.length === 0 ? (
               <div className="text-xs text-muted-foreground p-6 text-center">
-                No capacity data available for the selected period. Utilization cannot be computed.
+                {t(
+                  "No capacity data available for the selected period. Utilization cannot be computed.",
+                  "Nema podataka o kapacitetu za izabrani period. Iskorišćenost se ne može izračunati.",
+                )}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
@@ -511,13 +516,13 @@ function FlowsPage() {
                   />
                   <Bar
                     dataKey="util"
-                    name="Avg %"
+                    name={t("Avg %", "Prosek %")}
                     fill="oklch(0.72 0.13 200)"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
                     dataKey="max"
-                    name="Max %"
+                    name={t("Max %", "Maks %")}
                     fill="oklch(0.65 0.18 290)"
                     radius={[4, 4, 0, 0]}
                   />
@@ -526,14 +531,14 @@ function FlowsPage() {
             )}
           </Panel>
 
-          <Panel title="Hourly utilization heatmap">
+          <Panel title={t("Hourly utilization heatmap", "Toplotna mapa iskorišćenosti po satu")}>
             <Heatmap summary={summary} />
           </Panel>
         </div>
 
         {/* Route ranking table */}
         <Panel
-          title="Route ranking & capacity comparison"
+          title={t("Route ranking & capacity comparison", "Rangiranje ruta i poređenje kapaciteta")}
           actions={
             <Button
               size="sm"
@@ -542,7 +547,7 @@ function FlowsPage() {
               onClick={() => downloadCSV("flows-summary.csv", csvRows)}
             >
               <Download className="w-3.5 h-3.5" />
-              CSV
+              {t("CSV", "CSV")}
             </Button>
           }
         >
@@ -553,26 +558,26 @@ function FlowsPage() {
               <table className="w-full text-xs">
                 <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr className="border-b border-border/60">
-                    <th className="text-left py-2 px-2">Border</th>
-                    <th className="text-right">Avg Imp</th>
-                    <th className="text-right">Avg Exp</th>
-                    <th className="text-right">Net</th>
-                    <th className="text-right">Max</th>
-                    <th className="text-right">Min</th>
-                    <th className="text-right">NTC imp</th>
-                    <th className="text-right">NTC exp</th>
-                    <th className="text-right">Avg %</th>
-                    <th className="text-right">Max %</th>
-                    <th className="text-right">h&gt;80%</th>
-                    <th className="text-right">h&gt;90%</th>
-                    <th className="text-right">Rev.</th>
-                    <th className="text-center">Source</th>
-                    <th className="text-center">Status</th>
+                    <th className="text-left py-2 px-2">{t("Border", "Granica")}</th>
+                    <th className="text-right">{t("Avg Imp", "Pros. uvoz")}</th>
+                    <th className="text-right">{t("Avg Exp", "Pros. izvoz")}</th>
+                    <th className="text-right">{t("Net", "Neto")}</th>
+                    <th className="text-right">{t("Max", "Maks")}</th>
+                    <th className="text-right">{t("Min", "Min")}</th>
+                    <th className="text-right">{t("NTC imp", "NTC uvoz")}</th>
+                    <th className="text-right">{t("NTC exp", "NTC izvoz")}</th>
+                    <th className="text-right">{t("Avg %", "Pros. %")}</th>
+                    <th className="text-right">{t("Max %", "Maks %")}</th>
+                    <th className="text-right">{t("h>80%", "č>80%")}</th>
+                    <th className="text-right">{t("h>90%", "č>90%")}</th>
+                    <th className="text-right">{t("Rev.", "Prom.")}</th>
+                    <th className="text-center">{t("Source", "Izvor")}</th>
+                    <th className="text-center">{t("Status", "Status")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.map((s) => {
-                    const status = statusFor(s.avgUtil, s.dataMissing);
+                    const status = statusFor(s.avgUtil, s.dataMissing, t);
                     return (
                       <tr
                         key={s.neighbour}
@@ -637,10 +642,14 @@ function FlowsPage() {
         </Panel>
 
         {q.isLoading && (
-          <div className="text-center text-xs text-muted-foreground py-6">Loading flow data…</div>
+          <div className="text-center text-xs text-muted-foreground py-6">
+            {t("Loading flow data…", "Učitavanje podataka o tokovima…")}
+          </div>
         )}
         {q.isError && (
-          <div className="text-center text-xs text-destructive py-6">Failed to load flow data.</div>
+          <div className="text-center text-xs text-destructive py-6">
+            {t("Failed to load flow data.", "Greška pri učitavanju podataka o tokovima.")}
+          </div>
         )}
       </div>
     </>
@@ -648,20 +657,22 @@ function FlowsPage() {
 }
 
 function EmptyState() {
+  const { t } = useLang();
   return (
     <div className="flex flex-col items-center justify-center py-10 text-xs text-muted-foreground gap-2">
       <AlertTriangle className="w-5 h-5 opacity-50" />
-      No flow data available for the selected period.
+      {t("No flow data available for the selected period.", "Nema podataka o tokovima za izabrani period.")}
     </div>
   );
 }
 
 function Legend2() {
+  const { t } = useLang();
   const items = [
     { c: "oklch(0.65 0.14 145)", l: "<50%" },
     { c: "oklch(0.72 0.13 200)", l: "50–80%" },
     { c: "oklch(0.75 0.16 70)", l: "80–90%" },
-    { c: "oklch(0.62 0.22 25)", l: ">90% zagušeno" },
+    { c: "oklch(0.62 0.22 25)", l: t(">90% congested", ">90% zagušeno") },
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-[11px] text-muted-foreground">
@@ -675,12 +686,12 @@ function Legend2() {
         </span>
       ))}
       <span className="inline-flex items-center gap-1.5 pl-2 border-l border-border/60">
-        <ArrowLeftRight className="w-3 h-3" /> strelica = prosečan smer toka
+        <ArrowLeftRight className="w-3 h-3" /> {t("arrow = average flow direction", "strelica = prosečan smer toka")}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="w-4 h-[2px] bg-muted-foreground/60" />
         <span className="w-4 h-[6px] bg-muted-foreground/60" />
-        debljina = |neto MW|
+        {t("thickness = |net MW|", "debljina = |neto MW|")}
       </span>
     </div>
   );
@@ -705,6 +716,7 @@ function NetworkDiagram({
   onSelect: (n: ZoneCode) => void;
   selected: ZoneCode;
 }) {
+  const { t } = useLang();
   const w = 620;
   const h = 360;
   const cx = w / 2;
@@ -769,7 +781,7 @@ function NetworkDiagram({
           const isSelected = selected === it.neighbour;
           return (
             <g key={it.neighbour} className="cursor-pointer" onClick={() => onSelect(it.neighbour)}>
-              <title>{`${it.label} · net ${net >= 0 ? "+" : ""}${Math.round(net)} MW · imp ${Math.round(it.avgImp)} · exp ${Math.round(it.avgExp)}${it.avgUtil != null ? ` · util ${Math.round(it.avgUtil)}%` : ""}`}</title>
+              <title>{`${it.label} · ${t("net", "neto")} ${net >= 0 ? "+" : ""}${Math.round(net)} MW · ${t("imp", "uvoz")} ${Math.round(it.avgImp)} · ${t("exp", "izvoz")} ${Math.round(it.avgExp)}${it.avgUtil != null ? ` · ${t("util", "iskor.")} ${Math.round(it.avgUtil)}%` : ""}`}</title>
               <line
                 x1={x1}
                 y1={y1}
@@ -814,7 +826,7 @@ function NetworkDiagram({
           const ly = it.y + Math.sin(it.angle) * (nodeR + 16) + 3;
           return (
             <g key={it.neighbour} className="cursor-pointer" onClick={() => onSelect(it.neighbour)}>
-              <title>{`${it.label} · net ${net == null ? "—" : `${net >= 0 ? "+" : ""}${Math.round(net)} MW`}`}</title>
+              <title>{`${it.label} · ${t("net", "neto")} ${net == null ? "—" : `${net >= 0 ? "+" : ""}${Math.round(net)} MW`}`}</title>
               <circle
                 cx={it.x}
                 cy={it.y}
@@ -880,6 +892,7 @@ function Heatmap({
 }: {
   summary: Array<{ neighbour: ZoneCode; utilHourly: Array<number | null>; hourly: Hourly[] }>;
 }) {
+  const { t } = useLang();
   const cols = Math.max(...summary.map((s) => s.utilHourly.length), 0);
   if (cols === 0) return <EmptyState />;
   return (
@@ -903,7 +916,7 @@ function Heatmap({
                   className="w-[14px] h-[14px] rounded-[2px]"
                   title={
                     u == null
-                      ? `${s.neighbour} h${i}: no capacity`
+                      ? `${s.neighbour} h${i}: ${t("no capacity", "nema kapaciteta")}`
                       : `${s.neighbour} h${i}: ${u.toFixed(0)}%`
                   }
                   style={{
@@ -918,7 +931,7 @@ function Heatmap({
           ))}
         </div>
         <div className="mt-2 text-[10px] text-muted-foreground">
-          Hours across selected range · color = utilization
+          {t("Hours across selected range · color = utilization", "Sati u izabranom periodu · boja = iskorišćenost")}
         </div>
       </div>
     </div>
