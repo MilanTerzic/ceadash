@@ -21,6 +21,48 @@ function monthStart(month: string) {
   return `${month}-01`;
 }
 
+function yearFromDate(value?: string | null) {
+  if (!value) return null;
+  const year = Number(value.slice(0, 4));
+  return Number.isFinite(year) ? year : null;
+}
+
+function futuresScenarioYear(contracts: FuturesCurveContract[], historicalYear: number) {
+  const priced = contracts.filter(
+    (contract) => contract.settlementPrice != null && Number.isFinite(contract.settlementPrice),
+  );
+  const tradingYears = priced
+    .map((contract) => yearFromDate(contract.tradingDate))
+    .filter((year): year is number => year != null);
+  if (!tradingYears.length) return historicalYear;
+
+  const latestTradingYear = Math.max(...tradingYears);
+  const forwardDeliveryYears = priced
+    .flatMap((contract) => [
+      yearFromDate(contract.deliveryStart),
+      yearFromDate(contract.deliveryEnd),
+    ])
+    .filter((year): year is number => year != null && year > latestTradingYear);
+
+  return forwardDeliveryYears.length
+    ? Math.min(...forwardDeliveryYears)
+    : Math.max(historicalYear, latestTradingYear + 1);
+}
+
+function rebaseTimestampYear(timestamp: string, targetYear: number, sourceBaseYear: number) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  const sourceYear = date.getUTCFullYear();
+  const target = targetYear + (sourceYear - sourceBaseYear);
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  date.setUTCFullYear(target, month, day);
+  if (date.getUTCMonth() !== month) {
+    date.setUTCDate(0);
+  }
+  return date.toISOString();
+}
+
 export function selectContractForMonth(
   contracts: FuturesCurveContract[],
   month: string,
@@ -105,8 +147,21 @@ export function buildExpectedPriceCurve(input: {
     };
   }
 
+  const sourceBaseYear = new Date(validHistorical[0].ts).getUTCFullYear();
+  const scenarioYear =
+    input.mode === "futures"
+      ? futuresScenarioYear(input.contracts, sourceBaseYear)
+      : sourceBaseYear;
+  const scenarioShape =
+    input.mode === "futures" && scenarioYear !== sourceBaseYear
+      ? validHistorical.map((point) => ({
+          ...point,
+          ts: rebaseTimestampYear(point.ts, scenarioYear, sourceBaseYear),
+        }))
+      : validHistorical;
+
   const byMonth = new Map<string, HourlyPricePoint[]>();
-  for (const point of validHistorical) {
+  for (const point of scenarioShape) {
     const month = monthKey(point.ts);
     byMonth.set(month, [...(byMonth.get(month) ?? []), point]);
   }
@@ -152,7 +207,7 @@ export function buildExpectedPriceCurve(input: {
     });
   }
 
-  const hourly = validHistorical.map((point) => ({
+  const hourly = scenarioShape.map((point) => ({
     ts: point.ts,
     priceEurPerMWh: adjustedByTimestamp.get(point.ts) ?? point.priceEurPerMWh,
   }));
@@ -160,7 +215,7 @@ export function buildExpectedPriceCurve(input: {
   const projectYears = Math.max(1, Math.round(input.lifetimeYears));
   const contractYears = availableContractYears(input.contracts);
   const lastCoveredYear = contractYears.length ? Math.max(...contractYears) : null;
-  const historicalAverage = average(validHistorical.map((point) => point.priceEurPerMWh));
+  const historicalAverage = average(scenarioShape.map((point) => point.priceEurPerMWh));
   const firstScenarioAverage = average(hourly.map((point) => point.priceEurPerMWh));
   const escalation = Math.max(-0.99, input.terminalEscalationPct / 100);
   const yearly: PriceYearAssumption[] = [];
