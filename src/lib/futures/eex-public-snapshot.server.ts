@@ -23,17 +23,17 @@ const PUBLIC_MARKETS: FuturesMarketCode[] = [
   "AT",
   "DE_LU",
 ];
-const EEX_AREA_BY_MARKET: Partial<Record<FuturesMarketCode, string>> = {
-  RS: "RS",
-  HU: "HU",
-  RO: "RO",
-  BG: "BG",
-  HR: "HR",
-  SI: "SI",
-  GR: "GR",
-  IT: "IT",
-  AT: "AT",
-  DE_LU: "DE",
+const EEX_AREA_ALIASES_BY_MARKET: Partial<Record<FuturesMarketCode, readonly string[]>> = {
+  RS: ["RS", "Serbia", "Serbian"],
+  HU: ["HU", "Hungary", "Hungarian"],
+  RO: ["RO", "Romania", "Romanian"],
+  BG: ["BG", "Bulgaria", "Bulgarian"],
+  HR: ["HR", "Croatia", "Croatian"],
+  SI: ["SI", "Slovenia", "Slovenian"],
+  GR: ["GR", "Greece", "Greek"],
+  IT: ["IT", "Italy", "Italian"],
+  AT: ["AT", "Austria", "Austrian"],
+  DE_LU: ["DE", "DE_LU", "DE-LU", "Germany", "German", "Germany/Luxembourg", "Phelix"],
 };
 const MAX_MONTHS_PER_LOAD = 3;
 const MAX_QUARTERS_PER_LOAD = 2;
@@ -405,9 +405,9 @@ async function fetchFilterRows(): Promise<FilterRow[]> {
     .map((row) => ({
       shortCode: String(row[index.shortCode] ?? ""),
       maturity: String(row[index.maturity] ?? ""),
-      maturityType: String(row[index.maturityType] ?? ""),
-      area: String(row[index.area] ?? ""),
-      product: String(row[index.product] ?? ""),
+      maturityType: normalizeMaturityType(row[index.maturityType]),
+      area: String(row[index.area] ?? "").trim(),
+      product: normalizeProduct(row[index.product]),
       displayYear: numberOrNull(row[index.displayYear]),
       displayMonth: numberOrNull(row[index.displayMonth]),
       displayQuarter: numberOrNull(row[index.displayQuarter]),
@@ -424,13 +424,14 @@ function selectCurveRows(rows: FilterRow[]) {
   const selected: FilterRow[] = [];
   const today = new Date().toISOString().slice(0, 10);
   for (const market of PUBLIC_MARKETS) {
-    const area = EEX_AREA_BY_MARKET[market];
-    if (!area) continue;
-    for (const product of ["Base", "Peak"] as const) {
+    const supportedProducts = FUTURES_MARKETS[market].supportedLoadTypes.map((loadType) =>
+      loadType === "peak" ? "Peak" : "Base",
+    );
+    for (const product of supportedProducts) {
       const scoped = rows
         .filter(
           (row) =>
-            row.area === area &&
+            areaMatchesMarket(row.area, market) &&
             row.product === product &&
             ["Month", "Quarter", "Year"].includes(row.maturityType) &&
             !deliveryExpired(row, today),
@@ -690,9 +691,41 @@ function stringOrNull(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function normalizeArea(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function areaMatchesMarket(area: string, market: FuturesMarketCode) {
+  const normalizedArea = normalizeArea(area);
+  const aliases = EEX_AREA_ALIASES_BY_MARKET[market] ?? [];
+  return aliases.some((alias) => {
+    const normalizedAlias = normalizeArea(alias);
+    if (!normalizedAlias) return false;
+    if (normalizedAlias.length <= 3) return normalizedArea === normalizedAlias;
+    return normalizedArea === normalizedAlias || normalizedArea.includes(normalizedAlias);
+  });
+}
+
 function marketFromArea(area: string): FuturesMarketCode | null {
-  const found = Object.entries(EEX_AREA_BY_MARKET).find(([, eexArea]) => eexArea === area);
-  return found?.[0] as FuturesMarketCode | null;
+  return PUBLIC_MARKETS.find((market) => areaMatchesMarket(area, market)) ?? null;
+}
+
+function normalizeProduct(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const normalized = raw.toLowerCase();
+  if (normalized.startsWith("base")) return "Base";
+  if (normalized.startsWith("peak")) return "Peak";
+  return raw;
+}
+
+function normalizeMaturityType(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const normalized = raw.toLowerCase();
+  if (normalized.startsWith("month")) return "Month";
+  if (normalized.startsWith("quarter")) return "Quarter";
+  if (normalized.startsWith("year") || normalized.startsWith("annual")) return "Year";
+  if (normalized.startsWith("week")) return "Week";
+  return raw;
 }
 
 function maturityType(value: string): FuturesSnapshot["maturityType"] {
