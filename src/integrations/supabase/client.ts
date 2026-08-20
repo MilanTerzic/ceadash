@@ -12,12 +12,13 @@ const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
 
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement),
-  // then process.env for SSR, then the public production defaults.
+  // then process.env for SSR when it exists, then public production defaults.
+  const serverEnv = typeof process !== "undefined" ? process.env : undefined;
   const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || PUBLIC_SUPABASE_URL;
+    import.meta.env.VITE_SUPABASE_URL || serverEnv?.SUPABASE_URL || PUBLIC_SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    serverEnv?.SUPABASE_PUBLISHABLE_KEY ||
     PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
