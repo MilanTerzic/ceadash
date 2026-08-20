@@ -71,6 +71,8 @@ export type DayBucket = {
   expectedHours: number;
   baseload: number;
   peakload: number | null;
+  minHour: number;
+  maxHour: number;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -131,7 +133,8 @@ export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, hrs]) => {
       const peak = hrs.filter((p) => isBelgradePeakHour(p.ts));
-      const baseload = hrs.reduce((a, b) => a + b.price, 0) / hrs.length;
+      const prices = hrs.map((p) => p.price);
+      const baseload = prices.reduce((a, b) => a + b, 0) / prices.length;
       const peakload = peak.length ? peak.reduce((a, b) => a + b.price, 0) / peak.length : null;
       return {
         key,
@@ -141,6 +144,8 @@ export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
         expectedHours: expectedBelgradeDeliveryHours(key),
         baseload,
         peakload,
+        minHour: prices.length ? Math.min(...prices) : NaN,
+        maxHour: prices.length ? Math.max(...prices) : NaN,
       };
     });
 }
