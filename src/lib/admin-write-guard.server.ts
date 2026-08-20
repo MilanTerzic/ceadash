@@ -1,12 +1,9 @@
-import { timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isValidAdminWriteToken } from "./admin-write-guard";
 
 export function requireAdminWriteToken(candidate?: string): void {
-  const expected = process.env.CEA_ADMIN_WRITE_TOKEN ?? "";
-  if (!expected || !candidate) throw new Error("unauthorized_admin_write");
-  const a = Buffer.from(candidate);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) throw new Error("unauthorized_admin_write");
+  const expected = process.env.CEA_ADMIN_WRITE_TOKEN;
+  if (!isValidAdminWriteToken(candidate, expected)) throw new Error("unauthorized_admin_write");
 }
 
 export async function enforceAdminRateLimit(key: string, minimumSeconds: number): Promise<void> {
