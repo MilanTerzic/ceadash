@@ -30,6 +30,8 @@ type RenewableModelInput = {
 const average = (values: number[]) =>
   values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 
+type HourlySettlement = { merchantRevenueEur: number; ppaRevenueEur: number };
+
 function settleRevenue(
   hourlyGenerationMWh: number[],
   hourlyPrices: number[],
@@ -39,32 +41,57 @@ function settleRevenue(
 ) {
   const generationMWh = hourlyGenerationMWh.reduce((sum, value) => sum + value, 0);
   const merchantShare = clamp(merchantSharePct, 0, 100) / 100;
-  let merchantRevenueEur = 0;
-  let ppaRevenueEur = 0;
+  const hourly: HourlySettlement[] = hourlyGenerationMWh.map(() => ({
+    merchantRevenueEur: 0,
+    ppaRevenueEur: 0,
+  }));
 
   if (structure === "merchant") {
-    merchantRevenueEur = hourlyGenerationMWh.reduce(
-      (sum, generation, index) => sum + generation * (hourlyPrices[index] ?? 0),
-      0,
-    );
+    for (let index = 0; index < hourlyGenerationMWh.length; index++) {
+      hourly[index].merchantRevenueEur =
+        hourlyGenerationMWh[index] * (hourlyPrices[index] ?? 0);
+    }
   } else if (structure === "fixed" || structure === "pay_as_produced") {
-    ppaRevenueEur = generationMWh * ppaPriceEurPerMWh;
+    for (let index = 0; index < hourlyGenerationMWh.length; index++) {
+      hourly[index].ppaRevenueEur = hourlyGenerationMWh[index] * ppaPriceEurPerMWh;
+    }
   } else if (structure === "hybrid") {
     for (let index = 0; index < hourlyGenerationMWh.length; index++) {
       const generation = hourlyGenerationMWh[index];
-      ppaRevenueEur += generation * (1 - merchantShare) * ppaPriceEurPerMWh;
-      merchantRevenueEur += generation * merchantShare * (hourlyPrices[index] ?? 0);
+      hourly[index].ppaRevenueEur = generation * (1 - merchantShare) * ppaPriceEurPerMWh;
+      hourly[index].merchantRevenueEur = generation * merchantShare * (hourlyPrices[index] ?? 0);
     }
   } else {
+    // Baseload PPA is settled against one constant contracted MWh/h block for
+    // the whole first-year sample. Keeping this at hourly level lets monthly
+    // reporting aggregate the exact same settlement used by the annual KPI.
     const contractedShare = 1 - merchantShare;
-    const baseloadMWh = (generationMWh * contractedShare) / hourlyGenerationMWh.length;
+    const baseloadMWh = hourlyGenerationMWh.length
+      ? (generationMWh * contractedShare) / hourlyGenerationMWh.length
+      : 0;
     for (let index = 0; index < hourlyGenerationMWh.length; index++) {
-      ppaRevenueEur += baseloadMWh * ppaPriceEurPerMWh;
-      merchantRevenueEur += (hourlyGenerationMWh[index] - baseloadMWh) * (hourlyPrices[index] ?? 0);
+      hourly[index].ppaRevenueEur = baseloadMWh * ppaPriceEurPerMWh;
+      hourly[index].merchantRevenueEur =
+        (hourlyGenerationMWh[index] - baseloadMWh) * (hourlyPrices[index] ?? 0);
     }
   }
 
-  return { merchantRevenueEur, ppaRevenueEur };
+  const merchantRevenueEur = hourly.reduce((sum, row) => sum + row.merchantRevenueEur, 0);
+  const ppaRevenueEur = hourly.reduce((sum, row) => sum + row.ppaRevenueEur, 0);
+  return { merchantRevenueEur, ppaRevenueEur, hourly };
+}
+
+const BELGRADE_MONTH = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Belgrade",
+  month: "2-digit",
+});
+
+function belgradeMonthIndex(ts: string | undefined): number {
+  if (!ts) return 0;
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return 0;
+  const month = Number(BELGRADE_MONTH.format(date));
+  return Number.isFinite(month) && month >= 1 && month <= 12 ? month - 1 : 0;
 }
 
 export function runRenewableModel(input: RenewableModelInput): RenewableResults {
@@ -160,21 +187,12 @@ export function runRenewableModel(input: RenewableModelInput): RenewableResults 
     month: index + 1,
     value: 0,
   }));
-  const year = Number(input.priceCurve.hourly[0]?.ts.slice(0, 4)) || 2026;
   for (let index = 0; index < hourlyGenerationMWh.length; index++) {
-    const month =
-      new Date(input.priceCurve.hourly[index]?.ts ?? Date.UTC(year, 0, 1)).getUTCMonth() || 0;
-    const generation = hourlyGenerationMWh[index];
-    monthlyGenerationMWh[month].value += generation;
-    const merchantShare =
-      input.revenueStructure === "merchant"
-        ? 1
-        : input.revenueStructure === "hybrid"
-          ? clamp(input.merchantSharePct, 0, 100) / 100
-          : 0;
+    const month = belgradeMonthIndex(input.priceCurve.hourly[index]?.ts);
+    monthlyGenerationMWh[month].value += hourlyGenerationMWh[index];
+    const settled = yearOneSettlement.hourly[index];
     monthlyRevenueEur[month].value +=
-      generation *
-      (merchantShare * firstYearPrices[index] + (1 - merchantShare) * input.ppaPriceEurPerMWh);
+      (settled?.merchantRevenueEur ?? 0) + (settled?.ppaRevenueEur ?? 0);
   }
 
   let low = 0;
