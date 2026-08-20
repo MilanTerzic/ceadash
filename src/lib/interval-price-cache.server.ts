@@ -14,6 +14,28 @@ export type LegacyHourlyPriceRow = {
   price_eur_mwh: number | string | null;
 };
 
+const SDAC_15_MIN_CUTOVER_ISO = "2025-10-01T00:00:00.000Z";
+const KNOWN_HOURLY_MARKETS_AFTER_CUTOVER = new Set(["DA_RS"]);
+
+/**
+ * Legacy rows have no duration metadata. After the SDAC 15-minute cutover we
+ * only trust that table for markets explicitly known to remain hourly. Other
+ * markets must be re-fetched and written to market_price_intervals so old rows
+ * created by destructive hourly rounding can never become authoritative again.
+ */
+export function canUseLegacyHourlyFallback(
+  market: string,
+  fromIso: string,
+  toIso: string,
+): boolean {
+  if (KNOWN_HOURLY_MARKETS_AFTER_CUTOVER.has(market)) return true;
+  const from = Date.parse(fromIso);
+  const to = Date.parse(toIso);
+  const cutover = Date.parse(SDAC_15_MIN_CUTOVER_ISO);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
+  return to <= cutover;
+}
+
 export function dedupeIntervalPoints(points: PricePoint[]): PricePoint[] {
   const byTimestamp = new Map<string, PricePoint>();
   for (const point of points) {
@@ -128,9 +150,9 @@ async function readLegacyHourlyPriceCache(
  * Canonical read path for mixed-resolution DA prices.
  *
  * New interval rows are authoritative. The old hourly table is consulted only
- * when the interval table has no rows for the requested window, which keeps
- * historic SEEPEX data usable while preventing 15-minute rows from being
- * silently reinterpreted as 60-minute observations.
+ * when it is safe to do so. For non-Serbian markets after the SDAC 15-minute
+ * cutover, an empty interval cache intentionally returns empty so the caller
+ * re-fetches the source and lazily rebuilds canonical interval rows.
  */
 export async function readCanonicalPriceCache(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -141,6 +163,9 @@ export async function readCanonicalPriceCache(
 ): Promise<{ points: PricePoint[]; source: "interval" | "legacy-hourly" | "empty" }> {
   const interval = await readIntervalPriceCache(supabaseAdmin, market, fromIso, toIso);
   if (interval.length) return { points: interval, source: "interval" };
+  if (!canUseLegacyHourlyFallback(market, fromIso, toIso)) {
+    return { points: [], source: "empty" };
+  }
   const legacy = await readLegacyHourlyPriceCache(supabaseAdmin, market, fromIso, toIso);
   if (legacy.length) return { points: legacy, source: "legacy-hourly" };
   return { points: [], source: "empty" };
