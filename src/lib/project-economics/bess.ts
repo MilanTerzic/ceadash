@@ -11,30 +11,71 @@ function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
-export function dailySignalSets(prices: number[], durationHours: number, cyclesPerDay: number) {
+const BELGRADE_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Belgrade",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function belgradeDayKey(ts: string): string {
+  return BELGRADE_DAY.format(new Date(ts));
+}
+
+export function dailySignalSets(
+  prices: number[],
+  durationHours: number,
+  cyclesPerDay: number,
+  economics?: { roundTripEfficiencyPct?: number; variableThroughputEurPerMWh?: number },
+) {
   const count = Math.max(
     0,
     Math.min(Math.floor(prices.length / 2), Math.ceil(durationHours * cyclesPerDay)),
   );
   if (!count) return { charge: new Set<number>(), discharge: new Set<number>() };
+
   const sorted = prices
     .map((price, index) => ({ price, index }))
+    .filter((point) => Number.isFinite(point.price))
     .sort((a, b) => a.price - b.price || a.index - b.index);
-  const low = sorted.slice(0, count);
-  const lowIndices = new Set(low.map((point) => point.index));
-  const high = [...sorted]
-    .reverse()
-    .filter((point) => !lowIndices.has(point.index))
-    .slice(0, count);
-  const minimumHigh = Math.min(...high.map((point) => point.price));
-  const maximumLow = Math.max(...low.map((point) => point.price));
-  if (!high.length || minimumHigh <= maximumLow) {
-    return { charge: new Set<number>(), discharge: new Set<number>() };
+  if (sorted.length < 2) return { charge: new Set<number>(), discharge: new Set<number>() };
+
+  const rte = clamp(economics?.roundTripEfficiencyPct ?? 100, 0.01, 100) / 100;
+  const variableCost = Math.max(0, economics?.variableThroughputEurPerMWh ?? 0);
+  const charge = new Set<number>();
+  const discharge = new Set<number>();
+
+  const lows = sorted.slice(0, count);
+  const highs = [...sorted].reverse().slice(0, count);
+  const used = new Set<number>();
+  for (let i = 0; i < Math.min(lows.length, highs.length); i++) {
+    const low = lows[i];
+    const high = highs[i];
+    if (low.index === high.index || used.has(low.index) || used.has(high.index)) continue;
+    // For 1 MWh delivered, approximately 1/RTE MWh must be bought. Dispatch
+    // only when the output price covers charging energy plus variable cost.
+    const netMarginPerMWhOut = high.price - low.price / rte - variableCost;
+    if (netMarginPerMWhOut <= 0) continue;
+    charge.add(low.index);
+    discharge.add(high.index);
+    used.add(low.index);
+    used.add(high.index);
   }
-  return {
-    charge: lowIndices,
-    discharge: new Set(high.map((point) => point.index)),
-  };
+
+  return { charge, discharge };
+}
+
+function groupByBelgradeDay(prices: HourlyPricePoint[]): HourlyPricePoint[][] {
+  const groups = new Map<string, HourlyPricePoint[]>();
+  for (const point of prices) {
+    const key = belgradeDayKey(point.ts);
+    const group = groups.get(key) ?? [];
+    group.push(point);
+    groups.set(key, group);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, points]) => points.sort((a, b) => a.ts.localeCompare(b.ts)));
 }
 
 export function dispatchBess(input: {
@@ -58,12 +99,15 @@ export function dispatchBess(input: {
   let socMWh = minSocMWh;
   const dispatch: BessDispatchPoint[] = [];
 
-  for (let dayStart = 0; dayStart < input.prices.length; dayStart += 24) {
-    const day = input.prices.slice(dayStart, dayStart + 24);
+  for (const day of groupByBelgradeDay(input.prices)) {
     const signals = dailySignalSets(
       day.map((point) => point.priceEurPerMWh),
       durationHours,
       maxCyclesPerDay,
+      {
+        roundTripEfficiencyPct: assumptions.roundTripEfficiencyPct,
+        variableThroughputEurPerMWh: assumptions.variableThroughputEurPerMWh,
+      },
     );
     let chargedInputMWh = 0;
     let dischargedOutputMWh = 0;
@@ -108,7 +152,7 @@ export function dispatchBess(input: {
     }
   }
 
-  return dispatch;
+  return dispatch.sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 function dispatchSummary(dispatch: BessDispatchPoint[], assumptions: BessAssumptions) {
@@ -141,6 +185,7 @@ export function runBessEconomics(input: {
   const annualRevenueEur: number[] = [];
   const annualOpexEur: number[] = [];
   const annualDischargedMWh: number[] = [];
+  const annualChargingCostEur: number[] = [];
   const annualUsableCapacityMWh: number[] = [];
   let firstDispatch: BessDispatchPoint[] = [];
   let firstSummary: ReturnType<typeof dispatchSummary> | null = null;
@@ -188,6 +233,7 @@ export function runBessEconomics(input: {
         summary.variableCostsEur +
         augmentation,
     );
+    annualChargingCostEur.push(summary.chargingCostEur);
     annualDischargedMWh.push(summary.annualDischargedMWh);
   }
 
@@ -222,6 +268,17 @@ export function runBessEconomics(input: {
     summary.annualDischargedMWh > 0
       ? summary.dischargeRevenueEur / summary.annualDischargedMWh
       : null;
+
+  const discountRate = clamp(assumptions.discountRatePct, 0, 100) / 100;
+  let discountedLifetimeCosts = totalCapexEur;
+  let discountedLifetimeDischarge = 0;
+  for (let yearIndex = 0; yearIndex < lifetimeYears; yearIndex++) {
+    const discountFactor = Math.pow(1 + discountRate, yearIndex + 1);
+    discountedLifetimeCosts +=
+      (annualOpexEur[yearIndex] + annualChargingCostEur[yearIndex]) / discountFactor;
+    discountedLifetimeDischarge += annualDischargedMWh[yearIndex] / discountFactor;
+  }
+
   return {
     ...financial,
     durationHours:
@@ -246,15 +303,7 @@ export function runBessEconomics(input: {
       ancillaryRevenueEur -
       summary.variableCostsEur,
     lcosEurPerMWh:
-      summary.annualDischargedMWh > 0
-        ? (totalCapexEur / lifetimeYears +
-            Math.max(0, assumptions.fixedOpexEurPerKWYear) *
-              Math.max(0, assumptions.powerMW) *
-              1_000 +
-            summary.variableCostsEur +
-            summary.chargingCostEur) /
-          summary.annualDischargedMWh
-        : null,
+      discountedLifetimeDischarge > 0 ? discountedLifetimeCosts / discountedLifetimeDischarge : null,
     annualUsableCapacityMWh,
     dispatch: firstDispatch,
   };

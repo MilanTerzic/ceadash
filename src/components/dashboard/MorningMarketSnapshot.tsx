@@ -21,41 +21,37 @@ function mean(values: number[]) {
 }
 
 function captureRate(points: CapturePoint[]) {
-  let value = 0;
+  let captureValue = 0;
   let generation = 0;
-  let priceSum = 0;
-  let priceHours = 0;
+  let matchedPriceSum = 0;
+  let matchedHours = 0;
+
   for (const p of points) {
-    if (!Number.isFinite(p.price)) continue;
-    priceSum += p.price;
-    priceHours += 1;
-    const solar = Number.isFinite(p.solar) && p.solar > 0 ? p.solar : 0;
-    value += p.price * solar;
+    if (!Number.isFinite(p.price) || !Number.isFinite(p.solar)) continue;
+    const solar = Math.max(0, p.solar);
+    matchedPriceSum += p.price;
+    matchedHours += 1;
+    captureValue += p.price * solar;
     generation += solar;
   }
-  const baseload = priceHours ? priceSum / priceHours : null;
-  const capture = generation > 0 ? value / generation : null;
-  return baseload != null && baseload !== 0 && capture != null ? capture / baseload : null;
+
+  const matchedBaseload = matchedHours ? matchedPriceSum / matchedHours : null;
+  const capture = generation > 0 ? captureValue / generation : null;
+  return matchedBaseload != null && matchedBaseload !== 0 && capture != null
+    ? capture / matchedBaseload
+    : null;
 }
 
 function bessSpread(points: CapturePoint[]) {
-  const byDay = new Map<string, number[]>();
-  for (const p of points) {
-    if (!Number.isFinite(p.price)) continue;
-    const key = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Belgrade",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(p.ts));
-    const arr = byDay.get(key) ?? [];
-    arr.push(p.price);
-    byDay.set(key, arr);
-  }
+  const priceSeries: HourlyPrice[] = points
+    .filter((p) => Number.isFinite(p.price) && !Number.isNaN(Date.parse(p.ts)))
+    .map((p) => ({ ts: new Date(p.ts), price: p.price }));
+  const completeDays = bucketByBelgradeDay(priceSeries).filter((day) => day.complete);
   const values: number[] = [];
-  for (const prices of byDay.values()) {
-    if (prices.length < 20) continue;
-    const sorted = [...prices].sort((a, b) => a - b);
+
+  for (const day of completeDays) {
+    if (day.hours.length < 2) continue;
+    const sorted = day.hours.map((point) => point.price).sort((a, b) => a - b);
     const charge = (sorted[0] + sorted[1]) / 2;
     const discharge = (sorted.at(-1)! + sorted.at(-2)!) / 2;
     values.push(discharge * 0.85 - charge);
@@ -121,8 +117,8 @@ export function MorningMarketSnapshot() {
     [t("Day-on-day", "Dan na dan"), dayDelta == null ? "—" : `${dayDelta >= 0 ? "+" : ""}${dayDelta.toFixed(1)} €/MWh`, t("Latest complete day", "Poslednji potpuni dan"), TrendingUp],
     [t("Negative hours", "Negativni sati"), String(negHours), t("Last 7 complete days", "Poslednjih 7 potpunih dana"), Zap],
     [t("Daily price range", "Dnevni raspon cena"), `${fmt(avgRange)} €/MWh`, t("Average max minus min", "Prosečan maksimum minus minimum"), Activity],
-    [t("Solar capture rate", "Solarni capture rate"), solarRate == null ? "—" : `${(solarRate * 100).toFixed(0)}%`, query.data?.solarSource === "modelled" ? t("Modelled solar profile", "Modelovani solarni profil") : t("Generation weighted", "Ponderisano proizvodnjom"), CloudSun],
-    [t("BESS 2h net spread", "BESS 2h neto raspon"), `${fmt(bess)} €/MWh`, t("85% round-trip efficiency", "85% round-trip efikasnost"), BatteryCharging],
+    [t("Solar capture rate", "Solarni capture rate"), solarRate == null ? "—" : `${(solarRate * 100).toFixed(0)}%`, query.data?.solarSource === "modelled" ? t("Modelled solar profile", "Modelovani solarni profil") : t("Generation weighted on matched hours", "Ponderisano proizvodnjom na uparenim satima"), CloudSun],
+    [t("BESS 2h net spread", "BESS 2h neto raspon"), `${fmt(bess)} €/MWh`, t("Complete delivery days, 85% efficiency", "Potpuni isporučni dani, 85% efikasnost"), BatteryCharging],
   ] as const;
 
   return (

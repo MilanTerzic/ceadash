@@ -35,8 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getAverageDAProfile } from "@/lib/da-profile.functions";
 import { useDateRange } from "@/lib/date-range";
-import { getAverageDAProfile } from "@/lib/data.functions";
 import { downloadCSV, fmtNum, fmtPrice } from "@/lib/format";
 import { useLang } from "@/lib/i18n";
 import {

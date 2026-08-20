@@ -47,20 +47,29 @@ export interface PricePeriodStats {
 }
 
 export function normalizeToHourlyPrices(points: PricePoint[]): PricePoint[] {
-  const acc = new Map<string, { sum: number; count: number }>();
+  const acc = new Map<string, { weightedSum: number; durationMinutes: number }>();
   for (const point of points) {
     if (!Number.isFinite(point.price)) continue;
     const hour = new Date(point.ts);
     if (Number.isNaN(hour.getTime())) continue;
     hour.setUTCMinutes(0, 0, 0);
     const key = hour.toISOString();
-    const next = acc.get(key) ?? { sum: 0, count: 0 };
-    next.sum += point.price;
-    next.count += 1;
+    const duration =
+      Number.isFinite(point.durationMinutes) && (point.durationMinutes ?? 0) > 0
+        ? point.durationMinutes!
+        : 60;
+    const next = acc.get(key) ?? { weightedSum: 0, durationMinutes: 0 };
+    next.weightedSum += point.price * duration;
+    next.durationMinutes += duration;
     acc.set(key, next);
   }
   return [...acc.entries()]
-    .map(([ts, value]) => ({ ts, price: value.sum / value.count, durationMinutes: 60 }))
+    .filter(([, value]) => value.durationMinutes > 0)
+    .map(([ts, value]) => ({
+      ts,
+      price: value.weightedSum / value.durationMinutes,
+      durationMinutes: 60,
+    }))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
@@ -143,8 +152,10 @@ export function matchedSpreadPoints(
   marketPoints: PricePoint[],
   serbiaPoints: PricePoint[],
 ): Array<{ ts: string; spread: number; marketPrice: number; serbiaPrice: number }> {
-  const serbiaByTs = new Map(serbiaPoints.map((point) => [point.ts, point.price]));
-  return marketPoints.flatMap((point) => {
+  const marketHourly = normalizeToHourlyPrices(marketPoints);
+  const serbiaHourly = normalizeToHourlyPrices(serbiaPoints);
+  const serbiaByTs = new Map(serbiaHourly.map((point) => [point.ts, point.price]));
+  return marketHourly.flatMap((point) => {
     const serbiaPrice = serbiaByTs.get(point.ts);
     if (serbiaPrice == null || !Number.isFinite(serbiaPrice) || !Number.isFinite(point.price)) {
       return [];

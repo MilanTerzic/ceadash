@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertCircle, CheckCircle2, Clock, Copy, ChevronDown, ChevronRight } from "lucide-react";
+import { classifyCoverage, isCoveragePartial } from "@/lib/data-coverage";
 import { useLang } from "@/lib/i18n";
 
 function formatHourStamp(d: Date) {
@@ -71,16 +72,21 @@ export function DataStatusBanner({
   const [diagOpen, setDiagOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Detect partial coverage: selected range extends past what we actually loaded.
-  const partial =
-    !!selectedFrom &&
-    !!selectedTo &&
-    (!availableFrom || !availableTo || availableFrom > selectedFrom || availableTo < selectedTo);
-
-  const isLive = source === "entsoe" && !partial;
-  const isCache = source === "cache" && !partial;
-  const isPartial = partial && source !== "none";
-  const isNone = source === "none";
+  const coverageState = classifyCoverage({
+    source,
+    selectedFrom,
+    selectedTo,
+    availableFrom,
+    availableTo,
+    missingDays,
+    incompleteDays,
+    failedFetches: failedFetches?.length ?? 0,
+    capReached,
+  });
+  const isLive = coverageState === "complete";
+  const isCache = coverageState === "cached-complete";
+  const isPartial = isCoveragePartial(coverageState);
+  const isNone = coverageState === "unavailable";
 
   const Icon = isNone ? AlertCircle : isLive ? CheckCircle2 : Clock;
   const tone = isNone
@@ -93,11 +99,15 @@ export function DataStatusBanner({
 
   const statusLabel = isNone
     ? t("Data unavailable", "Podaci nedostupni")
-    : isPartial
+    : coverageState === "partial"
       ? t("Partial ENTSO-E coverage", "Delimična pokrivenost ENTSO-E podacima")
-      : isLive
-        ? t("Complete ENTSO-E coverage", "Potpuna pokrivenost ENTSO-E podacima")
-        : t("Cached only", "Samo iz keša");
+      : coverageState === "cached-partial"
+        ? t("Partial cached coverage", "Delimična pokrivenost iz keša")
+        : isLive
+          ? t("Complete ENTSO-E coverage", "Potpuna pokrivenost ENTSO-E podacima")
+          : isCache
+            ? t("Complete cached coverage", "Potpuna pokrivenost iz keša")
+            : t("Cached only", "Samo iz keša");
 
   const hasDiagnostics =
     (failedFetches && failedFetches.length > 0) ||
@@ -108,7 +118,9 @@ export function DataStatusBanner({
   const computedDebug =
     debugSummary ??
     `ENTSO-E debug: selected ${selectedFrom ?? "?"} → ${selectedTo ?? "?"}; ` +
-      `missing ${missingDays ?? 0} d; failed ${failedFetches?.length ?? 0} d` +
+      `missing ${missingDays ?? 0} d; incomplete ${incompleteDays} d; failed ${failedFetches?.length ?? 0} d; ` +
+      `coverage ${coverageState}` +
+      (capReached ? "; cap reached" : "") +
       (failedFetches && failedFetches.length
         ? `; first failed: ${failedFetches[0].day}${failedFetches[0].status ? ` http_${failedFetches[0].status}` : ""}${failedFetches[0].message ? ` — ${failedFetches[0].message}` : ""}`
         : "");

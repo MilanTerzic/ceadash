@@ -1,0 +1,65 @@
+name: Quality checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/cea-bun-cache
+      TMPDIR: ${{ runner.temp }}/cea-tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare writable install directories
+        run: mkdir -p "$BUN_INSTALL_CACHE_DIR" "$TMPDIR"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.20
+          no-cache: true
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: bun run typecheck
+
+      - name: Lint
+        id: lint
+        if: always()
+        continue-on-error: true
+        run: bun run lint
+
+      - name: Tests
+        id: tests
+        if: always()
+        continue-on-error: true
+        run: bun run test
+
+      - name: Build
+        id: build
+        if: always()
+        continue-on-error: true
+        run: bun run build
+
+      - name: Enforce quality gate
+        if: always()
+        run: |
+          test "${{ steps.typecheck.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
+          test "${{ steps.tests.outcome }}" = "success"
+          test "${{ steps.build.outcome }}" = "success"

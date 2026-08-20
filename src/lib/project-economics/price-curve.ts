@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 const maturityRank: Record<string, number> = { month: 3, quarter: 2, year: 1 };
+const HOUR_MS = 60 * 60 * 1000;
 
 function monthKey(timestamp: string) {
   return timestamp.slice(0, 7);
@@ -99,6 +100,47 @@ function availableContractYears(contracts: FuturesCurveContract[]) {
 
 function yearMonths(year: number) {
   return Array.from({ length: 12 }, (_, month) => `${year}-${String(month + 1).padStart(2, "0")}`);
+}
+
+const BELGRADE_BOUNDARY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Belgrade",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  hour12: false,
+});
+
+function localBoundaryMatches(timestampMs: number, year: number, month: number, day: number) {
+  const parts = BELGRADE_BOUNDARY.formatToParts(new Date(timestampMs));
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return (
+    value("year") === year &&
+    value("month") === month &&
+    value("day") === day &&
+    value("hour") === 0
+  );
+}
+
+function belgradeLocalMidnightUtc(year: number, month: number, day = 1): number {
+  const nominal = Date.UTC(year, month - 1, day);
+  for (const offsetHours of [1, 2]) {
+    const candidate = nominal - offsetHours * HOUR_MS;
+    if (localBoundaryMatches(candidate, year, month, day)) return candidate;
+  }
+  throw new Error(`Unable to resolve Europe/Belgrade boundary for ${year}-${month}-${day}`);
+}
+
+export function belgradeMonthDeliveryHours(month: string): number {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+    return 0;
+  }
+  const nextYear = monthNumber === 12 ? year + 1 : year;
+  const nextMonth = monthNumber === 12 ? 1 : monthNumber + 1;
+  const start = belgradeLocalMidnightUtc(year, monthNumber, 1);
+  const end = belgradeLocalMidnightUtc(nextYear, nextMonth, 1);
+  return Math.round((end - start) / HOUR_MS);
 }
 
 function targetForMonth(input: {
@@ -240,16 +282,32 @@ export function buildExpectedPriceCurve(input: {
       continue;
     }
 
-    const selected = yearMonths(year)
-      .map((month) => selectContractForMonth(input.contracts, month, input.loadType))
-      .filter((contract): contract is FuturesCurveContract => contract != null);
-    if (selected.length > 0) {
-      selected.forEach((contract) => contractsUsed.add(contract.contractName));
+    const selectedByMonth = yearMonths(year)
+      .map((month) => ({
+        month,
+        contract: selectContractForMonth(input.contracts, month, input.loadType),
+      }))
+      .filter(
+        (row): row is { month: string; contract: FuturesCurveContract } => row.contract != null,
+      );
+    if (selectedByMonth.length > 0) {
+      selectedByMonth.forEach(({ contract }) => contractsUsed.add(contract.contractName));
+      const totalHours = selectedByMonth.reduce(
+        (sum, { month }) => sum + belgradeMonthDeliveryHours(month),
+        0,
+      );
+      const weightedPrice = totalHours
+        ? selectedByMonth.reduce(
+            (sum, { month, contract }) =>
+              sum + contract.settlementPrice! * belgradeMonthDeliveryHours(month),
+            0,
+          ) / totalHours
+        : average(selectedByMonth.map(({ contract }) => contract.settlementPrice!));
       yearly.push({
         year,
-        averageEurPerMWh: average(selected.map((contract) => contract.settlementPrice!)),
-        source: selected.length === 12 ? "futures" : "partial-futures",
-        contracts: [...new Set(selected.map((contract) => contract.contractName))],
+        averageEurPerMWh: weightedPrice,
+        source: selectedByMonth.length === 12 ? "futures" : "partial-futures",
+        contracts: [...new Set(selectedByMonth.map(({ contract }) => contract.contractName))],
       });
       continue;
     }

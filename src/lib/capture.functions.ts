@@ -8,7 +8,9 @@ const SERBIA_ZONE = "10YCS-SERBIATSOV";
 export type CapturePoint = {
   ts: string;
   price: number;
+  /** NaN means generation was not observed for this timestamp. */
   solar: number;
+  /** NaN means generation was not observed for this timestamp. */
   wind: number;
 };
 
@@ -121,54 +123,50 @@ function tagOne(xml: string, tag: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/**
+ * Parse only observations that ENTSO-E actually returned. Missing Point
+ * positions stay missing rather than being forward-filled. Distinct
+ * TimeSeries are summed explicitly by timestamp; repeated revisions with the
+ * same mRID replace the previous value for that series before aggregation.
+ */
 function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }> {
   const clean = stripNs(xml);
-  const out: Array<{ ts: string; value: number }> = [];
-  for (const ts of tagAll(clean, "TimeSeries")) {
-    for (const period of tagAll(ts, "Period")) {
+  const bySeriesTimestamp = new Map<string, { ts: string; value: number }>();
+  const timeSeries = tagAll(clean, "TimeSeries");
+
+  timeSeries.forEach((series, seriesIndex) => {
+    const seriesId = tagOne(series, "mRID") ?? `series-${seriesIndex}`;
+    for (const period of tagAll(series, "Period")) {
       const start = tagOne(period, "start");
       if (!start) continue;
       const startMs = Date.parse(start);
-      const endStr = tagOne(period, "end");
+      if (!Number.isFinite(startMs)) continue;
       const resolution = tagOne(period, "resolution") ?? "PT60M";
-      const stepMin = /PT(\d+)M/.exec(resolution)
-        ? parseInt(/PT(\d+)M/.exec(resolution)![1], 10)
-        : 60;
+      const stepMinMatch = /PT(\d+)M/.exec(resolution);
+      const stepHourMatch = /PT(\d+)H/.exec(resolution);
+      const stepMin = stepMinMatch
+        ? parseInt(stepMinMatch[1], 10)
+        : stepHourMatch
+          ? parseInt(stepHourMatch[1], 10) * 60
+          : 60;
       const stepMs = stepMin * 60_000;
 
-      const raw: { position: number; value: number }[] = [];
       for (const pt of tagAll(period, "Point")) {
-        const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
-        const valS = tagOne(pt, "price.amount") ?? tagOne(pt, "quantity") ?? tagOne(pt, "value");
-        if (valS == null) continue;
-        const value = parseFloat(valS);
-        if (!Number.isFinite(value)) continue;
-        raw.push({ position: pos, value });
-      }
-      if (!raw.length) continue;
-      raw.sort((a, b) => a.position - b.position);
-
-      const expected = endStr
-        ? Math.max(0, Math.round((Date.parse(endStr) - startMs) / stepMs))
-        : raw[raw.length - 1].position;
-      let cursor = 0;
-      let lastValue = raw[0].value;
-      for (let k = 1; k <= expected; k++) {
-        while (cursor < raw.length && raw[cursor].position < k) cursor++;
-        if (cursor < raw.length && raw[cursor].position === k) {
-          lastValue = raw[cursor].value;
-        }
-        out.push({
-          ts: new Date(startMs + (k - 1) * stepMs).toISOString(),
-          value: lastValue,
-        });
+        const pos = parseInt(tagOne(pt, "position") ?? "", 10);
+        const valS = tagOne(pt, "quantity") ?? tagOne(pt, "value") ?? tagOne(pt, "price.amount");
+        const value = valS == null ? NaN : parseFloat(valS);
+        if (!Number.isFinite(pos) || pos < 1 || !Number.isFinite(value)) continue;
+        const timestamp = new Date(startMs + (pos - 1) * stepMs).toISOString();
+        bySeriesTimestamp.set(`${seriesId}|${timestamp}`, { ts: timestamp, value });
       }
     }
-  }
+  });
 
-  const byTs = new Map<string, number>();
-  for (const r of out) byTs.set(r.ts, r.value);
-  return [...byTs.entries()]
+  const byTimestamp = new Map<string, number>();
+  for (const point of bySeriesTimestamp.values()) {
+    byTimestamp.set(point.ts, (byTimestamp.get(point.ts) ?? 0) + point.value);
+  }
+  return [...byTimestamp.entries()]
     .map(([ts, value]) => ({ ts, value }))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
@@ -389,7 +387,18 @@ function toHourly(points: Array<{ ts: string; value: number }>): Map<string, num
   return out;
 }
 
-export const fetchCaptureSeries = createServerFn({ method: "POST" })
+function sumHourlyMaps(...maps: Map<string, number>[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const map of maps) {
+    for (const [timestamp, value] of map) {
+      if (!Number.isFinite(value)) continue;
+      out.set(timestamp, (out.get(timestamp) ?? 0) + value);
+    }
+  }
+  return out;
+}
+
+export const fetchCaptureSeries = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z
       .object({
@@ -429,7 +438,7 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     const solarH = toHourly(solarR.points);
     const windOnH = toHourly(windOnR.points);
     const windOffH = toHourly(windOffR.points);
-    const windH = toHourly([...windOnR.points, ...windOffR.points]);
+    const windH = sumHourlyMaps(windOnH, windOffH);
 
     // If ENTSO-E does not publish Serbia B16 solar, fall back to a modelled
     // clear-sky PV shape so capture-price weighting is possible. This is
@@ -439,8 +448,9 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     const points: CapturePoint[] = marketPoints.map((p) => ({
       ts: p.ts,
       price: p.price,
-      solar: solarSource === "entsoe" ? (solarH.get(p.ts) ?? 0) : modelledSolarWeight(p.ts),
-      wind: windH.get(p.ts) ?? 0,
+      solar:
+        solarSource === "entsoe" ? (solarH.get(p.ts) ?? Number.NaN) : modelledSolarWeight(p.ts),
+      wind: windH.get(p.ts) ?? Number.NaN,
     }));
 
     const priceTsSet = new Set(marketPoints.map((p) => p.ts));
@@ -448,9 +458,16 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
     const matchedWindOnHours = [...windOnH.keys()].filter((k) => priceTsSet.has(k)).length;
     const matchedWindOffHours = [...windOffH.keys()].filter((k) => priceTsSet.has(k)).length;
 
-    const solarHours = points.filter((p) => p.solar > 0).length;
-    const windHours = points.filter((p) => p.wind > 0).length;
-    const matchedHours = points.filter((p) => p.solar > 0 || p.wind > 0).length;
+    const solarObservedHours =
+      solarSource === "entsoe" ? points.filter((p) => Number.isFinite(p.solar)).length : 0;
+    const windObservedHours = points.filter((p) => Number.isFinite(p.wind)).length;
+    const solarHours = points.filter((p) => Number.isFinite(p.solar) && p.solar > 0).length;
+    const windHours = points.filter((p) => Number.isFinite(p.wind) && p.wind > 0).length;
+    const matchedHours = points.filter(
+      (p) =>
+        (Number.isFinite(p.solar) && p.solar > 0) ||
+        (Number.isFinite(p.wind) && p.wind > 0),
+    ).length;
 
     const firstPriceTs = marketPoints[0]?.ts ?? null;
     const lastPriceTs = marketPoints[marketPoints.length - 1]?.ts ?? null;
@@ -467,6 +484,8 @@ export const fetchCaptureSeries = createServerFn({ method: "POST" })
       points,
       solarHours,
       windHours,
+      solarObservedHours,
+      windObservedHours,
       matchedHours,
       totalHours: points.length,
       generationSource: "ENTSO-E A75" as const,
@@ -491,4 +510,7 @@ export const __captureInternals = {
   belgradeWindowStart,
   belgradeWindowEnd,
   ymdh,
+  parseTimeSeriesHourly,
+  toHourly,
+  sumHourlyMaps,
 };

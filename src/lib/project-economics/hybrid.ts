@@ -1,5 +1,9 @@
 import { dailySignalSets } from "./bess";
 import { calculateFinancialResults, clamp } from "./finance";
+import {
+  buildHybridLifetimeRevenue,
+  weightedRenewableDegradationFactor,
+} from "./hybrid-lifetime";
 import { scaleWindProfileToCapacityFactor } from "./wind";
 import type { ExpectedPriceCurve, HybridAssumptions, HybridResults } from "./types";
 
@@ -215,13 +219,14 @@ export function runHybridEconomics(input: {
     }
   }
 
-  if (assumptions.revenueStructure === "battery_tolling") {
-    batteryRevenueEur = Math.max(0, bess.tollingEurPerMWYear) * Math.max(0, bess.powerMW);
-    afterStorageRevenue += batteryRevenueEur;
-  }
+  const batteryMerchantRevenueEur = batteryRevenueEur;
+  const tollingRevenueEur =
+    assumptions.revenueStructure === "battery_tolling"
+      ? Math.max(0, bess.tollingEurPerMWYear) * Math.max(0, bess.powerMW)
+      : 0;
   const ancillaryRevenueEur = Math.max(0, bess.ancillaryEurPerMWYear) * Math.max(0, bess.powerMW);
-  batteryRevenueEur += ancillaryRevenueEur;
-  afterStorageRevenue += ancillaryRevenueEur;
+  batteryRevenueEur = batteryMerchantRevenueEur + tollingRevenueEur + ancillaryRevenueEur;
+  afterStorageRevenue += tollingRevenueEur + ancillaryRevenueEur;
 
   const solarGenerationMWh = sum(renewableMWh.map((point) => point.solar));
   const windGenerationMWh = sum(renewableMWh.map((point) => point.wind));
@@ -242,23 +247,41 @@ export function runHybridEconomics(input: {
   const basePrice =
     sum(input.priceCurve.hourly.slice(0, n).map((point) => point.priceEurPerMWh)) /
       Math.max(1, n) || 1;
-  const annualRevenueEur = Array.from({ length: lifetimeYears }, (_, yearIndex) => {
-    const renewableDegradation = Math.pow(
-      1 -
-        Math.max(
-          hasSolar ? clamp(assumptions.solar.degradationPct, 0, 100) : 0,
-          hasWind ? clamp(assumptions.wind.degradationPct, 0, 100) : 0,
-        ) /
-          100,
+  const solarShare =
+    totalRenewableGenerationMWh > 0 ? solarGenerationMWh / totalRenewableGenerationMWh : 0;
+  const annualRevenueEur = buildHybridLifetimeRevenue(
+    {
+      renewableMerchantEur: merchantRevenueEur,
+      renewablePpaEur: ppaRevenueEur,
+      batteryMerchantEur: batteryMerchantRevenueEur,
+      tollingEur: tollingRevenueEur,
+      ancillaryEur: ancillaryRevenueEur,
+    },
+    {
+      lifetimeYears,
+      basePriceEurPerMWh: basePrice,
+      yearlyPricesEurPerMWh: Array.from({ length: lifetimeYears }, (_, yearIndex) =>
+        input.priceCurve.yearly[yearIndex]?.averageEurPerMWh ?? basePrice,
+      ),
+      solarShareOfRenewableRevenue: solarShare,
+      solarDegradationPct: hasSolar ? assumptions.solar.degradationPct : 0,
+      windDegradationPct: hasWind ? assumptions.wind.degradationPct : 0,
+      bessAnnualCapacityDegradationPct: bess.annualCapacityDegradationPct,
+    },
+  );
+  const annualGeneration = Array.from({ length: lifetimeYears }, (_, yearIndex) => {
+    const renewableFactor = weightedRenewableDegradationFactor({
+      yearIndex,
+      solarGenerationMWh,
+      windGenerationMWh,
+      solarDegradationPct: hasSolar ? assumptions.solar.degradationPct : 0,
+      windDegradationPct: hasWind ? assumptions.wind.degradationPct : 0,
+    });
+    const bessFactor = Math.pow(
+      1 - clamp(bess.annualCapacityDegradationPct, 0, 100) / 100,
       yearIndex,
     );
-    const price = input.priceCurve.yearly[yearIndex]?.averageEurPerMWh ?? basePrice;
-    const merchantAndBattery = (merchantRevenueEur + batteryRevenueEur) * (price / basePrice);
-    return ppaRevenueEur * renewableDegradation + merchantAndBattery * renewableDegradation;
-  });
-  const annualGeneration = Array.from({ length: lifetimeYears }, (_, yearIndex) => {
-    const degradation = Math.pow(0.995, yearIndex);
-    return totalRenewableGenerationMWh * degradation + bessDischargeMWh;
+    return totalRenewableGenerationMWh * renewableFactor + bessDischargeMWh * bessFactor;
   });
   const annualOpexEur = Array.from({ length: lifetimeYears }, (_, yearIndex) => {
     const fixedSolar = hasSolar
@@ -272,10 +295,23 @@ export function runHybridEconomics(input: {
         1_000
       : 0;
     const fixedBess = Math.max(0, bess.fixedOpexEurPerKWYear) * Math.max(0, bess.powerMW) * 1_000;
+    const renewableFactor = weightedRenewableDegradationFactor({
+      yearIndex,
+      solarGenerationMWh,
+      windGenerationMWh,
+      solarDegradationPct: hasSolar ? assumptions.solar.degradationPct : 0,
+      windDegradationPct: hasWind ? assumptions.wind.degradationPct : 0,
+    });
+    const bessFactor = Math.pow(
+      1 - clamp(bess.annualCapacityDegradationPct, 0, 100) / 100,
+      yearIndex,
+    );
     const variable =
-      solarGenerationMWh * (hasSolar ? Math.max(0, assumptions.solar.variableOpexEurPerMWh) : 0) +
-      windGenerationMWh * (hasWind ? Math.max(0, assumptions.wind.variableOpexEurPerMWh) : 0) +
-      bessDischargeMWh * Math.max(0, bess.variableThroughputEurPerMWh);
+      solarGenerationMWh * renewableFactor *
+        (hasSolar ? Math.max(0, assumptions.solar.variableOpexEurPerMWh) : 0) +
+      windGenerationMWh * renewableFactor *
+        (hasWind ? Math.max(0, assumptions.wind.variableOpexEurPerMWh) : 0) +
+      bessDischargeMWh * bessFactor * Math.max(0, bess.variableThroughputEurPerMWh);
     const augmentation =
       bess.augmentationYear > 0 && yearIndex + 1 === Math.round(bess.augmentationYear)
         ? bessCapex * (clamp(bess.augmentationCostPct, 0, 100) / 100)

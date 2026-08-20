@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { enforceAdminRateLimit, requireAdminWriteToken } from "./admin-write-guard.server";
 import { FUTURES_MARKETS, type FuturesMarketCode } from "./futures-markets";
 import {
   type ForwardCurve,
@@ -16,6 +17,8 @@ import {
 } from "./futures/eex-public-snapshot.server";
 
 const CACHE_TTL_SECONDS = 6 * 3600;
+const MAX_MANUAL_IMPORT_CHARS = 250_000;
+const MAX_MANUAL_IMPORT_ROWS = 1_000;
 
 type StoredFuturesSnapshotRow = {
   provider: string;
@@ -245,40 +248,52 @@ async function getStoredFuturesHistory() {
   }));
 }
 
-export const collectFuturesSnapshots = createServerFn({ method: "POST" }).handler(async () => {
-  const provider = new EexDataSourceProvider();
-  const rows = [];
-  for (const market of Object.values(FUTURES_MARKETS).filter((m) => m.available)) {
-    try {
-      const curve = await provider.getForwardCurve(market.code);
-      if (curve.status === "live" || curve.status === "current-eod")
-        await upsertFuturesSnapshot(curve);
-      rows.push({
-        market: market.code,
-        status: curve.status,
-        contracts: curve.contracts.length,
-        reason: curve.reason,
-      });
-    } catch (error) {
-      rows.push({
-        market: market.code,
-        status: "unavailable",
-        contracts: 0,
-        reason: error instanceof Error ? error.message : "collection error",
-      });
+export const collectFuturesSnapshots = createServerFn({ method: "POST" })
+  .inputValidator((data: { adminToken?: string }) => data ?? {})
+  .handler(async ({ data }) => {
+    requireAdminWriteToken(data.adminToken);
+    await enforceAdminRateLimit("collect-futures", 60);
+    const provider = new EexDataSourceProvider();
+    const rows = [];
+    for (const market of Object.values(FUTURES_MARKETS).filter((m) => m.available)) {
+      try {
+        const curve = await provider.getForwardCurve(market.code);
+        if (curve.status === "live" || curve.status === "current-eod")
+          await upsertFuturesSnapshot(curve);
+        rows.push({
+          market: market.code,
+          status: curve.status,
+          contracts: curve.contracts.length,
+          reason: curve.reason,
+        });
+      } catch (error) {
+        rows.push({
+          market: market.code,
+          status: "unavailable",
+          contracts: 0,
+          reason: error instanceof Error ? error.message : "collection error",
+        });
+      }
     }
-  }
-  return { fetchedAt: nowISO(), rows };
-});
+    return { fetchedAt: nowISO(), rows };
+  });
 
-export const refreshPublicFuturesSnapshots = createServerFn({ method: "POST" }).handler(async () =>
-  collectPublicEexSnapshots(true),
-);
+export const refreshPublicFuturesSnapshots = createServerFn({ method: "POST" })
+  .inputValidator((data: { adminToken?: string }) => data ?? {})
+  .handler(async ({ data }) => {
+    requireAdminWriteToken(data.adminToken);
+    await enforceAdminRateLimit("refresh-public-futures", 300);
+    return collectPublicEexSnapshots(true);
+  });
 
 export const importManualFuturesData = createServerFn({ method: "POST" })
-  .inputValidator((data: { text?: string }) => data ?? {})
+  .inputValidator((data: { text?: string; adminToken?: string }) => data ?? {})
   .handler(async ({ data }) => {
-    const preview = parseManualFuturesCsv(data?.text ?? "");
+    requireAdminWriteToken(data.adminToken);
+    const text = data?.text ?? "";
+    if (text.length > MAX_MANUAL_IMPORT_CHARS) throw new Error("manual_futures_import_too_large");
+    const preview = parseManualFuturesCsv(text);
+    if (preview.length > MAX_MANUAL_IMPORT_ROWS) throw new Error("manual_futures_import_too_many_rows");
     const snapshots = confirmedSnapshots(preview);
     if (snapshots.length) await upsertFuturesSnapshots(snapshots);
     return {

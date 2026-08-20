@@ -4,9 +4,9 @@
  * Methodology — aligned with SEEPEX day-ahead convention:
  *  - Hourly DA prices are grouped by Europe/Belgrade calendar day (CET/CEST),
  *    NOT UTC, so DST shifts don't split days incorrectly.
- *  - A day is complete when at least 20 of its 24 local Belgrade hour buckets
- *    are observed. Incomplete days (DST-related gaps, missing hours,
- *    today-so-far) are excluded from baseload, peakload and volatility.
+ *  - A day is complete only when every expected hourly delivery interval is
+ *    present. Europe/Belgrade delivery days contain 23, 24 or 25 hourly
+ *    intervals depending on DST.
  *  - Period baseload = arithmetic mean of hourly prices on complete days only.
  *  - Volatility (σ) uses the same complete-day hourly sample as baseload.
  *  - Negative-hour counts and min/max include all observed hours in the range.
@@ -15,6 +15,13 @@
  */
 
 export type HourlyPrice = { ts: Date; price: number };
+
+/**
+ * Legacy compatibility only. Do not use this value for analytics completeness:
+ * Europe/Belgrade delivery days can contain 23, 24 or 25 intervals. New code
+ * must use expectedBelgradeDeliveryHours(dayKey) instead.
+ */
+export const DEFAULT_MIN_COMPLETE_HOURS = 24;
 
 const BELGRADE_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Belgrade",
@@ -60,22 +67,58 @@ export type DayBucket = {
   key: string;
   date: Date;
   hours: HourlyPrice[];
-  complete: boolean; // >= MIN_COMPLETE_HOURS distinct local hour buckets
+  complete: boolean;
+  expectedHours: number;
   baseload: number;
   peakload: number | null;
+  minHour: number;
+  maxHour: number;
 };
 
-/** Minimum distinct local hours in a Belgrade day to treat it as complete for
- *  KPI/baseload aggregation. Days with fewer than 20 of 24 local hours are
- *  excluded from baseload, peakload and volatility. Range is clamped to
- *  [1, 24]. */
-export const DEFAULT_MIN_COMPLETE_HOURS = 20;
+const HOUR_MS = 60 * 60 * 1000;
 
-export function bucketByBelgradeDay(
-  points: HourlyPrice[],
-  minCompleteHours: number = DEFAULT_MIN_COMPLETE_HOURS,
-): DayBucket[] {
-  const threshold = Math.max(1, Math.min(24, Math.floor(minCompleteHours)));
+/**
+ * Return the UTC instant corresponding to local midnight in Europe/Belgrade.
+ * Serbia currently uses UTC+1 in winter and UTC+2 in summer. Trying these
+ * offsets keeps this helper dependency-free while still deriving the boundary
+ * from Intl rather than assuming which offset applies on a given date.
+ */
+function belgradeMidnightUtc(key: string): number {
+  const [year, month, day] = key.split("-").map(Number);
+  const nominalUtc = Date.UTC(year, month - 1, day);
+  for (const offsetHours of [1, 2]) {
+    const candidate = nominalUtc - offsetHours * HOUR_MS;
+    if (belgradeDayKey(new Date(candidate)) === key && belgradeHour(new Date(candidate)) === 0) {
+      return candidate;
+    }
+  }
+  throw new Error(`Unable to resolve Europe/Belgrade midnight for ${key}`);
+}
+
+function nextDayKey(key: string): string {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+}
+
+export function expectedBelgradeDeliveryHours(key: string): number {
+  const start = belgradeMidnightUtc(key);
+  const end = belgradeMidnightUtc(nextDayKey(key));
+  return Math.round((end - start) / HOUR_MS);
+}
+
+function isCompleteDeliveryDay(key: string, hours: HourlyPrice[]): boolean {
+  const start = belgradeMidnightUtc(key);
+  const expectedHours = expectedBelgradeDeliveryHours(key);
+  const expected = new Set(
+    Array.from({ length: expectedHours }, (_, index) =>
+      new Date(start + index * HOUR_MS).toISOString(),
+    ),
+  );
+  const observed = new Set(hours.map((point) => point.ts.toISOString()));
+  return observed.size === expected.size && Array.from(expected).every((stamp) => observed.has(stamp));
+}
+
+export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {
   const dedup = new Map<string, HourlyPrice>();
   for (const p of points) dedup.set(p.ts.toISOString(), p);
   const cleaned = Array.from(dedup.values()).sort((a, b) => +a.ts - +b.ts);
@@ -89,23 +132,26 @@ export function bucketByBelgradeDay(
   return Array.from(m.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, hrs]) => {
-      const localHours = new Set(hrs.map((p) => belgradeHour(p.ts)));
       const peak = hrs.filter((p) => isBelgradePeakHour(p.ts));
-      const baseload = hrs.reduce((a, b) => a + b.price, 0) / hrs.length;
+      const prices = hrs.map((p) => p.price);
+      const baseload = prices.reduce((a, b) => a + b, 0) / prices.length;
       const peakload = peak.length ? peak.reduce((a, b) => a + b.price, 0) / peak.length : null;
       return {
         key,
         date: dateFromBelgradeKey(key),
         hours: hrs,
-        complete: localHours.size >= threshold,
+        complete: isCompleteDeliveryDay(key, hrs),
+        expectedHours: expectedBelgradeDeliveryHours(key),
         baseload,
         peakload,
+        minHour: prices.length ? Math.min(...prices) : NaN,
+        maxHour: prices.length ? Math.max(...prices) : NaN,
       };
     });
 }
 
 export type PeriodAggregate = {
-  baseload: number; // mean of hourly prices over complete days in range
+  baseload: number;
   peakload: number | null;
   hoursCount: number;
   daysCount: number;
@@ -113,11 +159,11 @@ export type PeriodAggregate = {
   firstDay?: string;
   lastDay?: string;
   negHours: number;
-  lowHours: number; // < 10 EUR/MWh
-  highHours: number; // > 150 EUR/MWh
+  lowHours: number;
+  highHours: number;
   minHour: number;
   maxHour: number;
-  sd: number; // population standard deviation over the complete-day hourly sample
+  sd: number;
 };
 
 export function aggregatePeriod(

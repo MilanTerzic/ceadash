@@ -13,6 +13,12 @@ export interface CapacityInput {
     price_eur_mwh: number | null;
     offered_mw: number | null;
     allocated_mw: number | null;
+    /**
+     * Executable capacity must come from a verified remaining-capacity source
+     * or a user-owned position. Public auction allocation is not executable
+     * capacity and must never populate this field implicitly.
+     */
+    executable_capacity_mw?: number | null;
   };
   source?: string;
   fetched_at?: string;
@@ -27,6 +33,8 @@ export interface RouteOpportunity {
   capacityCost: number | null;
   netSpread: number | null;
   availableCapacityMw: number | null;
+  auctionAllocatedMw: number | null;
+  auctionOfferedMw: number | null;
   profitableIntervals: number | null;
   totalIntervals: number | null;
   profitablePct: number | null;
@@ -61,8 +69,39 @@ export function isNumber(value: unknown): value is number {
 }
 
 export function averagePrice(points: PricePoint[] | undefined): number | null {
-  const values = (points ?? []).map((point) => point.price).filter(isNumber);
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  let weightedSum = 0;
+  let totalMinutes = 0;
+  for (const point of points ?? []) {
+    if (!isNumber(point.price)) continue;
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    weightedSum += point.price * duration;
+    totalMinutes += duration;
+  }
+  return totalMinutes > 0 ? weightedSum / totalMinutes : null;
+}
+
+export function aggregatePricePointsToHourly(points: PricePoint[] | undefined): PricePoint[] {
+  const acc = new Map<string, { weightedSum: number; durationMinutes: number }>();
+  for (const point of points ?? []) {
+    if (!isNumber(point.price)) continue;
+    const timestamp = new Date(point.ts);
+    if (Number.isNaN(timestamp.getTime())) continue;
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    timestamp.setUTCMinutes(0, 0, 0);
+    const key = timestamp.toISOString();
+    const bucket = acc.get(key) ?? { weightedSum: 0, durationMinutes: 0 };
+    bucket.weightedSum += point.price * duration;
+    bucket.durationMinutes += duration;
+    acc.set(key, bucket);
+  }
+  return [...acc.entries()]
+    .filter(([, bucket]) => bucket.durationMinutes > 0)
+    .map(([ts, bucket]) => ({
+      ts,
+      price: bucket.weightedSum / bucket.durationMinutes,
+      durationMinutes: 60,
+    }))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 export function calculateGrossSpread(
@@ -79,12 +118,14 @@ export function validCapacityCost(capacity: CapacityInput | undefined): number |
   return isNumber(price) ? price : null;
 }
 
+/**
+ * Only return capacity that is explicitly marked executable. Public auction
+ * offered/allocated quantities are informational auction-result fields and do
+ * not represent capacity available to the current user.
+ */
 export function availableCapacity(capacity: CapacityInput | undefined): number | null {
-  const allocated = capacity?.data?.allocated_mw;
-  const offered = capacity?.data?.offered_mw;
-  if (isNumber(allocated)) return allocated;
-  if (isNumber(offered)) return offered;
-  return null;
+  const executable = capacity?.data?.executable_capacity_mw;
+  return isNumber(executable) && executable >= 0 ? executable : null;
 }
 
 export function calculateNetSpread(
@@ -95,8 +136,10 @@ export function calculateNetSpread(
 }
 
 function matchedSpreads(source: PricePoint[] | undefined, destination: PricePoint[] | undefined) {
-  const byDestination = new Map((destination ?? []).map((point) => [point.ts, point]));
-  return (source ?? [])
+  const sourceHourly = aggregatePricePointsToHourly(source);
+  const destinationHourly = aggregatePricePointsToHourly(destination);
+  const byDestination = new Map(destinationHourly.map((point) => [point.ts, point]));
+  return sourceHourly
     .map((sourcePoint) => {
       const destinationPoint = byDestination.get(sourcePoint.ts);
       if (!destinationPoint) return null;
@@ -106,9 +149,7 @@ function matchedSpreads(source: PricePoint[] | undefined, destination: PricePoin
         : {
             ts: sourcePoint.ts,
             gross,
-            durationHours:
-              Math.min(sourcePoint.durationMinutes ?? 60, destinationPoint.durationMinutes ?? 60) /
-              60,
+            durationHours: 1,
           };
     })
     .filter((point): point is { ts: string; gross: number; durationHours: number } => !!point);
@@ -146,10 +187,14 @@ export function completenessForSeries(
   points: PricePoint[] | undefined,
   days: string[],
 ): DataCompleteness {
-  const receivedIntervals = points?.length ?? 0;
-  const stepMinutes =
-    points?.find((point) => isNumber(point.durationMinutes) && point.durationMinutes > 0)
-      ?.durationMinutes ?? 60;
+  const validDurations = (points ?? [])
+    .map((point) => point.durationMinutes)
+    .filter((duration): duration is number => isNumber(duration) && duration > 0);
+  const stepMinutes = validDurations.length ? Math.min(...validDurations) : 60;
+  const receivedIntervals = (points ?? []).reduce((sum, point) => {
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    return sum + duration / stepMinutes;
+  }, 0);
   const expectedIntervals = days.reduce(
     (sum, day) => sum + expectedIntervalsForBelgradeDay(day, stepMinutes),
     0,
@@ -194,9 +239,11 @@ export function buildRouteOpportunity({
   const source = capacity?.source;
   const capCost = multiDay ? null : validCapacityCost(capacity);
   const capacityMw = multiDay ? null : availableCapacity(capacity);
-  const hasValidCapacity = capCost != null && capacityMw != null;
-  const netSpread = hasValidCapacity ? calculateNetSpread(grossSpread, capCost) : null;
-  const nets = hasValidCapacity
+  const auctionAllocatedMw = isNumber(capacity?.data?.allocated_mw) ? capacity!.data!.allocated_mw : null;
+  const auctionOfferedMw = isNumber(capacity?.data?.offered_mw) ? capacity!.data!.offered_mw : null;
+  const hasValidatedCost = capCost != null;
+  const netSpread = hasValidatedCost ? calculateNetSpread(grossSpread, capCost) : null;
+  const nets = hasValidatedCost
     ? spreads.map((spread) => ({ ...spread, net: spread.gross - capCost }))
     : [];
   const profitable = nets.filter((spread) => spread.net > 0);
@@ -220,13 +267,14 @@ export function buildRouteOpportunity({
   } else if (multiDay) {
     status = "indicative";
     reason =
-      "Multi-day view shows gross spread only; CBC-adjusted net requires matched daily capacity.";
+      "Multi-day view shows gross spread only; CBC-adjusted net requires matched daily capacity cost.";
   } else if (!source || source === "empty" || capCost == null) {
     status = "indicative";
-    reason = "CBC unavailable.";
+    reason = "CBC price unavailable.";
   } else if (capacityMw == null) {
-    status = "indicative";
-    reason = "Capacity volume unavailable.";
+    // The per-MW economics are still valid when the auction price is known.
+    // Do not imply an executable volume from public auction allocation totals.
+    reason = "Executable capacity volume unavailable; economics shown per MW only.";
   }
 
   return {
@@ -237,10 +285,12 @@ export function buildRouteOpportunity({
     capacityCost: capCost,
     netSpread,
     availableCapacityMw: capacityMw,
-    profitableIntervals: hasValidCapacity ? profitable.length : null,
+    auctionAllocatedMw,
+    auctionOfferedMw,
+    profitableIntervals: hasValidatedCost ? profitable.length : null,
     totalIntervals,
     profitablePct:
-      hasValidCapacity && totalIntervals ? (profitable.length / totalIntervals) * 100 : null,
+      hasValidatedCost && totalIntervals ? (profitable.length / totalIntervals) * 100 : null,
     maxHourlyGross,
     maxHourlyNet,
     avgPositiveHourlyNet,
@@ -277,10 +327,10 @@ export function buildMarketSignalSummary({
   const bestImport = rankOpportunities(importRoutes)[0];
   const bestExport = rankOpportunities(exportRoutes)[0];
   if (bestImport) {
-    return `${ZONES.RS.name} trades above ${ZONES[bestImport.from].name} on a baseload basis. After validated CBC cost of ${bestImport.capacityCost?.toFixed(2)} EUR/MWh, ${bestImport.label} shows ${bestImport.netSpread?.toFixed(2)} EUR/MWh net spread.`;
+    return `${ZONES.RS.name} trades above ${ZONES[bestImport.from].name} on a baseload basis. After validated CBC cost of ${bestImport.capacityCost?.toFixed(2)} EUR/MWh, ${bestImport.label} shows ${bestImport.netSpread?.toFixed(2)} EUR/MWh net spread per MW. Executable volume is not inferred from public auction allocation.`;
   }
   if (bestExport) {
-    return `${ZONES.RS.name} trades below ${ZONES[bestExport.to].name} on a baseload basis. After validated CBC cost of ${bestExport.capacityCost?.toFixed(2)} EUR/MWh, ${bestExport.label} shows ${bestExport.netSpread?.toFixed(2)} EUR/MWh net spread.`;
+    return `${ZONES.RS.name} trades below ${ZONES[bestExport.to].name} on a baseload basis. After validated CBC cost of ${bestExport.capacityCost?.toFixed(2)} EUR/MWh, ${bestExport.label} shows ${bestExport.netSpread?.toFixed(2)} EUR/MWh net spread per MW. Executable volume is not inferred from public auction allocation.`;
   }
   const indicative = [...importRoutes, ...exportRoutes].find(
     (route) => route.status === "indicative" && (route.grossSpread ?? 0) > 0,
