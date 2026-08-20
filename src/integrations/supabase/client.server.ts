@@ -3,6 +3,10 @@
 // Use this for trusted server functions and server routes only.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+// The project URL is public configuration. The service-role key remains
+// environment-only and is never embedded in source.
+const PUBLIC_SUPABASE_URL = "https://ialzzzzyqsnylbkeufsu.supabase.co";
+
 // Server admin queries touch migration-backed tables that can be ahead of generated client types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdminClient = SupabaseClient<any>;
@@ -49,16 +53,12 @@ function createNoopSupabaseAdminClient(): SupabaseAdminClient {
 }
 
 function createSupabaseAdminClient(): SupabaseAdminClient {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_URL = process.env.SUPABASE_URL || PUBLIC_SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
-    ];
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
     console.warn(
-      `[Supabase] Missing ${missing.join(", ")}. Server-side cache/database features are disabled; pages will show unavailable states.`,
+      "[Supabase] Missing SUPABASE_SERVICE_ROLE_KEY. Server-side cache/database features are disabled; live upstream reads can still operate.",
     );
     return createNoopSupabaseAdminClient();
   }
