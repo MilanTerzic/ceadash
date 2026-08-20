@@ -16,6 +16,13 @@
 
 export type HourlyPrice = { ts: Date; price: number };
 
+/**
+ * Legacy compatibility only. Do not use this value for analytics completeness:
+ * Europe/Belgrade delivery days can contain 23, 24 or 25 intervals. New code
+ * must use expectedBelgradeDeliveryHours(dayKey) instead.
+ */
+export const DEFAULT_MIN_COMPLETE_HOURS = 24;
+
 const BELGRADE_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Belgrade",
   year: "numeric",
