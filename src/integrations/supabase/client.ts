@@ -2,22 +2,23 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+// Supabase project URL and publishable key are public client configuration,
+// not secrets. Keep environment variables as the preferred deployment path,
+// but retain these production defaults so a missing host env cannot take the
+// public dashboard offline.
+const PUBLIC_SUPABASE_URL = "https://ialzzzzyqsnylbkeufsu.supabase.co";
+const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_89zRjG2oGrhXmU8oHPyc6w_0GWOfrvY";
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Configure Supabase environment variables before deployment.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+function createSupabaseClient() {
+  // Use import.meta.env for client-side (Vite build-time replacement),
+  // then process.env for SSR, then the public production defaults.
+  const SUPABASE_URL =
+    import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || PUBLIC_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
