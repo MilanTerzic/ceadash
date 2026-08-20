@@ -57,3 +57,33 @@ test("exact timestamp duplicates use the latest observation", () => {
   assert.equal(points.length, 1);
   assert.equal(points[0].price, 82);
 });
+
+test("post-cutover coupled markets never trust duration-less legacy hourly rows", () => {
+  assert.equal(
+    mod.canUseLegacyHourlyFallback(
+      "DA_HU",
+      "2026-08-20T00:00:00.000Z",
+      "2026-08-21T00:00:00.000Z",
+    ),
+    false,
+  );
+  assert.equal(
+    mod.canUseLegacyHourlyFallback(
+      "DA_RO",
+      "2025-09-01T00:00:00.000Z",
+      "2025-09-02T00:00:00.000Z",
+    ),
+    true,
+  );
+});
+
+test("Serbia can keep using known-hourly legacy cache after the SDAC cutover", () => {
+  assert.equal(
+    mod.canUseLegacyHourlyFallback(
+      "DA_RS",
+      "2026-08-20T00:00:00.000Z",
+      "2026-08-21T00:00:00.000Z",
+    ),
+    true,
+  );
+});
