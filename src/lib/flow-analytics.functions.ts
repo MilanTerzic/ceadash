@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { fetchExplicitAllocation, fetchPhysicalFlows } from "./entsoe.server";
+import { mergeDirectionalFlowPoints } from "./flow-calculations";
 import { type ZoneCode } from "./markets";
 
 const RS_BORDERS: ZoneCode[] = ["HU", "RO", "BG", "HR", "ME", "MK"];
@@ -39,41 +40,6 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayBelgradeISO()];
 }
 
-function mergeDirectionalPoints(
-  importPoints: Array<{ ts: string; mw: number }>,
-  exportPoints: Array<{ ts: string; mw: number }>,
-) {
-  const impByTs = new Map<string, number>();
-  const expByTs = new Map<string, number>();
-
-  for (const point of importPoints) {
-    if (!Number.isFinite(point.mw)) continue;
-    impByTs.set(point.ts, (impByTs.get(point.ts) ?? 0) + point.mw);
-  }
-  for (const point of exportPoints) {
-    if (!Number.isFinite(point.mw)) continue;
-    expByTs.set(point.ts, (expByTs.get(point.ts) ?? 0) + point.mw);
-  }
-
-  const allTimestamps = Array.from(new Set([...impByTs.keys(), ...expByTs.keys()])).sort();
-  const matched = allTimestamps.flatMap((ts) => {
-    const imp = impByTs.get(ts);
-    const exp = expByTs.get(ts);
-    // Critical invariant: a missing direction is unknown, not 0 MW.
-    // Only compute net flow when both directional observations exist.
-    if (imp == null || exp == null) return [];
-    return [{ ts, imp_mw: imp, exp_mw: exp, net_mw: imp - exp }];
-  });
-
-  return {
-    hourly: matched,
-    observedImportIntervals: impByTs.size,
-    observedExportIntervals: expByTs.size,
-    matchedIntervals: matched.length,
-    unmatchedIntervals: allTimestamps.length - matched.length,
-  };
-}
-
 export const getFlowAnalytics = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
@@ -89,7 +55,7 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
 
         const imported = impParts.flatMap((result) => result.data.points);
         const exported = expParts.flatMap((result) => result.data.points);
-        const merged = mergeDirectionalPoints(imported, exported);
+        const merged = mergeDirectionalFlowPoints(imported, exported);
         const sourceImp = impParts[0]?.source ?? "empty";
         const sourceExp = expParts[0]?.source ?? "empty";
 
@@ -125,5 +91,3 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
       fetched_at: new Date().toISOString(),
     };
   });
-
-export { mergeDirectionalPoints };
