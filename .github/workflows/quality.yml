@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
-      TMPDIR: ${{ github.workspace }}/.tmp
+      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/cea-bun-cache
+      TMPDIR: ${{ runner.temp }}/cea-tmp
 
     steps:
       - name: Checkout
