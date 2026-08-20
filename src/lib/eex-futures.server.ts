@@ -19,6 +19,9 @@ import {
 const CACHE_TTL_SECONDS = 6 * 3600;
 const MAX_MANUAL_IMPORT_CHARS = 250_000;
 const MAX_MANUAL_IMPORT_ROWS = 1_000;
+const READ_ONLY_PUBLIC_REFRESH_MS = 15 * 60 * 1000;
+
+let lastReadOnlyPublicRefreshAt = 0;
 
 type StoredFuturesSnapshotRow = {
   provider: string;
@@ -60,6 +63,10 @@ function dataSourceConfig() {
     apiUrl: process.env.EEX_DATASOURCE_API_URL ?? "",
     token: process.env.EEX_DATASOURCE_ACCESS_TOKEN ?? "",
   };
+}
+
+function hasPrivilegedSupabaseStorage() {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 function configRequiredCurve(
@@ -177,9 +184,10 @@ async function upsertFuturesSnapshot(curve: ForwardCurve) {
   }
 }
 
-export const getFuturesDashboard = createServerFn({ method: "GET" }).handler(async () => {
-  const dataSource = new EexDataSourceProvider();
-  const publicSnapshot = new EexPublicSnapshotProvider();
+async function loadDashboardCurves(
+  dataSource: EexDataSourceProvider,
+  publicSnapshot: EexPublicSnapshotProvider,
+) {
   const configuredMarkets = Object.values(FUTURES_MARKETS).filter((market) => market.available);
   const curves = await Promise.all(
     configuredMarkets.map(async (market) => {
@@ -188,6 +196,31 @@ export const getFuturesDashboard = createServerFn({ method: "GET" }).handler(asy
       return publicSnapshot.getCurrentForwardCurve(market.code);
     }),
   );
+  return { configuredMarkets, curves };
+}
+
+export const getFuturesDashboard = createServerFn({ method: "GET" }).handler(async () => {
+  const dataSource = new EexDataSourceProvider();
+  const publicSnapshot = new EexPublicSnapshotProvider();
+  let { configuredMarkets, curves } = await loadDashboardCurves(dataSource, publicSnapshot);
+
+  // When privileged Supabase storage is not configured, the public dashboard
+  // must still be able to display a current EEX Market Data Hub snapshot.
+  // collectPublicEexSnapshots() writes through supabaseAdmin, which is a no-op
+  // client in this mode, while also keeping the fetched rows in the provider's
+  // in-memory collection for the current server process. No privileged DB write
+  // is possible without SUPABASE_SERVICE_ROLE_KEY.
+  const hasAnyPublicRows = curves.some((curve) => curve.contracts.length > 0);
+  if (
+    !hasAnyPublicRows &&
+    !hasPrivilegedSupabaseStorage() &&
+    Date.now() - lastReadOnlyPublicRefreshAt >= READ_ONLY_PUBLIC_REFRESH_MS
+  ) {
+    lastReadOnlyPublicRefreshAt = Date.now();
+    await collectPublicEexSnapshots(true);
+    ({ configuredMarkets, curves } = await loadDashboardCurves(dataSource, publicSnapshot));
+  }
+
   const visibleMarkets = configuredMarkets.filter((market) =>
     curves.some(
       (curve) =>
@@ -281,8 +314,15 @@ export const collectFuturesSnapshots = createServerFn({ method: "POST" })
 export const refreshPublicFuturesSnapshots = createServerFn({ method: "POST" })
   .inputValidator((data: { adminToken?: string }) => data ?? {})
   .handler(async ({ data }) => {
-    requireAdminWriteToken(data.adminToken);
-    await enforceAdminRateLimit("refresh-public-futures", 300);
+    // Without a service-role key this action cannot perform a privileged DB
+    // write because supabaseAdmin is a no-op client. Allow it to behave as a
+    // read-only public snapshot refresh. If privileged storage is configured,
+    // the existing admin authorization remains mandatory.
+    if (hasPrivilegedSupabaseStorage()) {
+      requireAdminWriteToken(data.adminToken);
+      await enforceAdminRateLimit("refresh-public-futures", 300);
+    }
+    lastReadOnlyPublicRefreshAt = Date.now();
     return collectPublicEexSnapshots(true);
   });
 
