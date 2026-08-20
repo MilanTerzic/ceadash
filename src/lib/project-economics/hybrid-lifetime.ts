@@ -17,14 +17,14 @@ export type HybridLifetimeAssumptions = {
 };
 
 /**
- * Build lifetime hybrid revenues without incorrectly linking fixed BESS revenue
- * to wholesale power prices or renewable degradation.
+ * Build lifetime hybrid revenues without linking fixed BESS capacity revenues
+ * to wholesale prices or renewable degradation.
  *
  * Merchant streams scale with the wholesale-price scenario. Renewable revenue
  * additionally scales with the weighted renewable degradation factor. Battery
  * merchant revenue scales with usable battery capacity. Tolling and ancillary
- * capacity revenue stay nominally fixed unless an explicit escalation input is
- * added in the future.
+ * revenues remain nominally fixed because the current assumptions model has no
+ * escalation/indexation input for those contracted capacity revenues.
  */
 export function buildHybridLifetimeRevenue(
   streams: HybridYearOneRevenueStreams,
