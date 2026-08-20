@@ -45,9 +45,11 @@ await transpile("bess", [
   ['from "./finance"', 'from "./finance.mjs"'],
   ['from "./types"', 'from "./types.mjs"'],
 ]);
+await transpile("hybrid-lifetime");
 await transpile("hybrid", [
   ['from "./bess"', 'from "./bess.mjs"'],
   ['from "./finance"', 'from "./finance.mjs"'],
+  ['from "./hybrid-lifetime"', 'from "./hybrid-lifetime.mjs"'],
   ['from "./wind"', 'from "./wind.mjs"'],
   ['from "./types"', 'from "./types.mjs"'],
 ]);
