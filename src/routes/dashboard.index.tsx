@@ -29,6 +29,7 @@ import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
 import { bucketByBelgradeDay, aggregatePeriod, type HourlyPrice } from "@/lib/baseload";
+import { classifyCoverage } from "@/lib/data-coverage";
 import {
   comparisonRangeKeys,
   monthKeysBetween,
@@ -66,6 +67,7 @@ function methodology(opts: {
   hours: number;
   days: number;
   formula: string;
+  coverage?: string;
   lastUpdate?: Date;
 }) {
   return (
@@ -81,6 +83,11 @@ function methodology(opts: {
       {opts.comparison && (
         <div>
           <span className="text-muted-foreground">Comparison:</span> {opts.comparison}
+        </div>
+      )}
+      {opts.coverage && (
+        <div>
+          <span className="text-muted-foreground">Coverage:</span> {opts.coverage}
         </div>
       )}
       <div>
@@ -196,7 +203,6 @@ function OverviewPage() {
     [comparisonBuckets, comparisonRange],
   );
 
-  // Rolling references (independent of selected range)
   const last7 = useMemo(() => completeDays.slice(-7), [completeDays]);
   const last30 = useMemo(() => completeDays.slice(-30), [completeDays]);
   const baseload7 = last7.length ? last7.reduce((a, b) => a + b.baseload, 0) / last7.length : NaN;
@@ -204,7 +210,6 @@ function OverviewPage() {
     ? last30.reduce((a, b) => a + b.baseload, 0) / last30.length
     : NaN;
 
-  // Monthly series — every month spanned by the selected analysis range.
   const monthly = useMemo(() => {
     if (completeDays.length === 0 || !fromKey || !toKey) return [];
     const currentAgg = new Map<string, { sum: number; n: number; neg: number }>();
@@ -247,7 +252,6 @@ function OverviewPage() {
     });
   }, [completeDays, comparisonCompleteDays, comparisonRange, fromKey, toKey]);
 
-  // Daily chart (in-range), with the comparison period aligned by day index.
   const inRangeDaily = useMemo(() => {
     const current = buckets.filter(
       (b) => (!fromKey || b.key >= fromKey) && (!toKey || b.key <= toKey),
@@ -277,9 +281,7 @@ function OverviewPage() {
 
   const refreshing = live.isFetching || comparisonQuery.isFetching;
 
-  if (live.isLoading) {
-    return <PageLoadingSkeleton />;
-  }
+  if (live.isLoading) return <PageLoadingSkeleton />;
   if (!hasReal) {
     return (
       <DataUnavailableState
@@ -304,6 +306,25 @@ function OverviewPage() {
   const comparisonLabel = comparisonRange
     ? `${comparisonRange.from} → ${comparisonRange.to}`
     : undefined;
+  const coverageState = classifyCoverage({
+    source: (live.data?.source as "entsoe" | "cache" | "none") ?? "none",
+    selectedFrom: fromKey,
+    selectedTo: toKey,
+    availableFrom: live.data?.loadedFrom ?? completeDays[0]?.key,
+    availableTo: live.data?.loadedTo ?? completeDays[completeDays.length - 1]?.key,
+    missingDays: live.data?.missingDays?.length ?? 0,
+    incompleteDays: incompleteCount,
+    failedFetches: live.data?.failedFetches?.length ?? 0,
+    capReached: live.data?.capReached,
+  });
+
+  const commonMethodology = {
+    range: rangeLabel,
+    comparison: comparisonLabel,
+    hours: period.hoursCount,
+    days: period.completeDaysCount,
+    coverage: coverageState,
+  };
 
   return (
     <div className="space-y-4">
@@ -338,13 +359,10 @@ function OverviewPage() {
           unit="EUR/MWh"
           trend={percentTrend(period.baseload, comparisonPeriod?.baseload)}
           hint={methodology({
+            ...commonMethodology,
             metric: "Period baseload",
-            range: rangeLabel,
-            comparison: comparisonLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
             formula:
-              "Mean of hourly prices on complete days (≥20 of 24 local Belgrade hours); incomplete days are excluded.",
+              "Duration-weighted mean of prices on complete Europe/Belgrade delivery days; a complete hourly day contains all expected 23, 24 or 25 intervals.",
             lastUpdate: lastTs,
           })}
         />
@@ -355,13 +373,10 @@ function OverviewPage() {
           unit="EUR/MWh"
           trend={percentTrend(period.peakload, comparisonPeriod?.peakload)}
           hint={methodology({
+            ...commonMethodology,
             metric: "Period peakload",
-            range: rangeLabel,
-            comparison: comparisonLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
             formula:
-              "Mean of Mon–Fri 08:00–20:00 Europe/Belgrade prices on complete days (≥20 of 24 local hours).",
+              "Mean of Mon–Fri 08:00–20:00 Europe/Belgrade prices on the same complete 23/24/25-hour delivery-day sample.",
             lastUpdate: lastTs,
           })}
         />
@@ -372,13 +387,10 @@ function OverviewPage() {
           unit={t("hours", "sati")}
           trend={hoursTrend(period.negHours, comparisonPeriod?.negHours)}
           hint={methodology({
+            ...commonMethodology,
             metric: "Negative price hours",
-            range: rangeLabel,
-            comparison: comparisonLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
             formula:
-              "Count of all observed hourly DA prices < 0 EUR/MWh in the selected range, including incomplete days.",
+              "Count of all observed hourly DA prices < 0 EUR/MWh in the selected range. Missing observations are not converted to zero.",
           })}
         />
         <KpiCard
@@ -388,27 +400,14 @@ function OverviewPage() {
           unit="EUR/MWh"
           trend={percentTrend(period.sd, comparisonPeriod?.sd)}
           hint={methodology({
+            ...commonMethodology,
             metric: "Volatility",
-            range: rangeLabel,
-            comparison: comparisonLabel,
-            hours: period.hoursCount,
-            days: period.completeDaysCount,
             formula:
               "Population standard deviation of hourly DA prices on the same complete-day sample as baseload.",
           })}
         />
-        <KpiCard
-          loading={refreshing}
-          label={t("Min hour", "Najniži sat")}
-          value={fmt(period.minHour, 0)}
-          unit="EUR/MWh"
-        />
-        <KpiCard
-          loading={refreshing}
-          label={t("Max hour", "Najviši sat")}
-          value={fmt(period.maxHour, 0)}
-          unit="EUR/MWh"
-        />
+        <KpiCard loading={refreshing} label={t("Min hour", "Najniži sat")} value={fmt(period.minHour, 0)} unit="EUR/MWh" />
+        <KpiCard loading={refreshing} label={t("Max hour", "Najviši sat")} value={fmt(period.maxHour, 0)} unit="EUR/MWh" />
         <KpiCard
           loading={refreshing}
           label={t("7-day baseload", "Bazna cena 7 dana")}
@@ -438,14 +437,7 @@ function OverviewPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          loading={refreshing}
-          title={t("Hourly day-ahead price", "Satna day-ahead cena")}
-          description={t(
-            "Last 48 hours of SEEPEX-style hourly prices.",
-            "Poslednjih 48 sati satnih cena u SEEPEX formatu.",
-          )}
-        >
+        <ChartCard loading={refreshing} title={t("Hourly day-ahead price", "Satna day-ahead cena")} description={t("Last 48 hours of SEEPEX-style hourly prices.", "Poslednjih 48 sati satnih cena u SEEPEX formatu.")}>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
@@ -454,35 +446,13 @@ function OverviewPage() {
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Legend />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
-              <Line
-                type="monotone"
-                dataKey="price"
-                stroke="var(--color-chart-1)"
-                strokeWidth={2}
-                dot={false}
-                name={t("Current period", "Tekući period")}
-              />
-              <Line
-                type="monotone"
-                dataKey="prevPrice"
-                stroke="var(--color-chart-3)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={false}
-                name={t("Prev. period", "Prethodni period")}
-              />
+              <Line type="monotone" dataKey="price" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} name={t("Current period", "Tekući period")} />
+              <Line type="monotone" dataKey="prevPrice" stroke="var(--color-chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard
-          loading={refreshing}
-          title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")}
-          description={t(
-            "In selected range. Peakload = Mon–Fri 08:00–20:00.",
-            "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.",
-          )}
-        >
+        <ChartCard loading={refreshing} title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")} description={t("In selected range. Peakload = Mon–Fri 08:00–20:00.", "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.")}>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={inRangeDaily}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
@@ -490,25 +460,9 @@ function OverviewPage() {
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Legend />
-              <Bar
-                dataKey="baseload"
-                fill="var(--color-chart-1)"
-                name={t("Baseload", "Bazna cena")}
-              />
-              <Bar
-                dataKey="peakload"
-                fill="var(--color-chart-3)"
-                name={t("Peakload", "Vršno opterećenje")}
-              />
-              <Line
-                type="monotone"
-                dataKey="prevBaseload"
-                stroke="var(--color-chart-2)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={false}
-                name={t("Prev. period", "Prethodni period")}
-              />
+              <Bar dataKey="baseload" fill="var(--color-chart-1)" name={t("Baseload", "Bazna cena")} />
+              <Bar dataKey="peakload" fill="var(--color-chart-3)" name={t("Peakload", "Vršno opterećenje")} />
+              <Line type="monotone" dataKey="prevBaseload" stroke="var(--color-chart-2)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -517,44 +471,21 @@ function OverviewPage() {
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="baseload"
-                stroke="var(--color-chart-2)"
-                strokeWidth={2}
-                name={t("Baseload", "Bazna cena")}
-              />
-              <Line
-                type="monotone"
-                dataKey="prevBaseload"
-                stroke="var(--color-chart-3)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={false}
-                name={t("Prev. period", "Prethodni period")}
-              />
+              <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-2)" strokeWidth={2} name={t("Baseload", "Bazna cena")} />
+              <Line type="monotone" dataKey="prevBaseload" stroke="var(--color-chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard
-          loading={refreshing}
-          title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}
-        >
+        <ChartCard loading={refreshing} title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
               <Bar dataKey="negHours" fill="var(--color-critical)" />
@@ -564,19 +495,17 @@ function OverviewPage() {
       </div>
 
       <div className="space-y-2 rounded-[10px] border border-border/70 bg-card p-4 text-sm">
-        <h3 className="font-display text-base font-semibold">
-          {t("Data check & methodology", "Provera podataka i metodologija")}
-        </h3>
+        <h3 className="font-display text-base font-semibold">{t("Data check & methodology", "Provera podataka i metodologija")}</h3>
         <p className="text-muted-foreground">
           {t(
-            "Period baseload is the mean of hourly SEEPEX DA prices on complete days, where a complete day has at least 20 of its 24 local Europe/Belgrade hours. Incomplete days caused by DST-related gaps, missing data or today-so-far are excluded; volatility uses the same complete-day sample. When a comparison period is selected, KPI deltas are shown against that period.",
-            "Bazna cena za period je prosek satnih SEEPEX DA cena tokom potpunih dana, pri čemu potpuni dan ima najmanje 20 od 24 lokalna sata u vremenskoj zoni Europe/Belgrade. Nepotpuni dani usled DST odstupanja, nedostajućih podataka ili tekućeg dana izuzimaju se, a volatilnost koristi isti uzorak potpunih dana. Kada je izabran period za poređenje, KPI kartice prikazuju promene u odnosu na taj period.",
+            "Period baseload is calculated only from complete Europe/Belgrade delivery days. A complete hourly day contains every expected delivery interval: 23 hours on the spring DST transition, 24 on a normal day and 25 on the autumn transition. Incomplete days are excluded from baseload, peakload and volatility. Coverage status also becomes partial when internal days are missing, source fetches fail or the fetch cap is reached.",
+            "Bazna cena za period računa se samo iz potpunih Europe/Belgrade dana isporuke. Potpun satni dan sadrži svaki očekivani interval: 23 sata pri prolećnom prelasku na DST, 24 sata normalnog dana i 25 sati pri jesenjem prelasku. Nepotpuni dani se izuzimaju iz baseload, peakload i volatility kalkulacija. Status pokrivenosti postaje delimičan i kada nedostaju unutrašnji dani perioda, izvor ne uspe ili se dostigne limit preuzimanja.",
           )}
         </p>
         <p className="text-muted-foreground">
           {t(
-            "Negative-hour counts and min/max use all observed hours, including incomplete days. If you see a small gap vs SEEPEX WB, note that SEEPEX WB is a regional Western Balkans reference; this dashboard uses the Serbia bidding zone (EIC 10YCS-SERBIATSOV) directly from ENTSO-E. Hover the info icons on the four comparison KPIs to see the selected and comparison ranges; deltas appear only when a comparison period is selected.",
-            "Broj sati sa negativnom cenom i minimalna/maksimalna cena koriste sve zabeležene sate, uključujući nepotpune dane. Ako vidite manje odstupanje u odnosu na SEEPEX WB, imajte u vidu da je SEEPEX WB regionalna referenca za Zapadni Balkan; ova platforma koristi srpsku bidding zonu (EIC 10YCS-SERBIATSOV) direktno sa ENTSO-E. Pređite mišem preko info ikonica na četiri KPI kartice za poređenje da vidite izabrani i uporedni period; promene se prikazuju samo kada je period za poređenje izabran.",
+            "Negative-hour counts and min/max use all observed hours and never manufacture missing values as zero. The KPI info tooltips show the same coverage classification as the status banner for the selected period. If a comparison period is selected, deltas are calculated only when both values are finite.",
+            "Broj sati sa negativnom cenom i minimalna/maksimalna cena koriste sve stvarno zabeležene sate i ne pretvaraju nedostajuće vrednosti u nulu. Info tooltipovi KPI kartica prikazuju istu klasifikaciju pokrivenosti kao statusni banner za izabrani period. Kada je izabran period za poređenje, promene se računaju samo ako su obe vrednosti konačne.",
           )}
         </p>
       </div>
