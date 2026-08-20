@@ -104,7 +104,14 @@ export function MorningMarketSnapshot() {
 
   const dayDelta = latest && previous ? latest.baseload - previous.baseload : null;
   const negHours = recentPoints.filter((p) => p.price < 0).length;
-  const avgRange = mean(completeDays.map((d) => d.maxHour - d.minHour));
+  const avgRange = mean(
+    completeDays
+      .map((d) => {
+        const prices = d.hours.map((h) => h.price).filter((p) => Number.isFinite(p));
+        return prices.length ? Math.max(...prices) - Math.min(...prices) : null;
+      })
+      .filter((v): v is number => v != null),
+  );
   const solarRate = captureRate(recentPoints);
   const bess = bessSpread(recentPoints);
   const lastTs = points.at(-1)?.ts;
