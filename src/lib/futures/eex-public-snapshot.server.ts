@@ -294,6 +294,52 @@ export async function collectPublicEexSnapshots(force = false): Promise<PublicCo
   return run;
 }
 
+export async function refreshPublicEexSnapshotsReadOnly(): Promise<PublicCollectionResult> {
+  const now = new Date().toISOString();
+  if (!publicSnapshotModeEnabled()) {
+    return {
+      status: "public-extraction-unavailable",
+      collectedAt: now,
+      rows: 0,
+      persistedRows: 0,
+      failedRows: 0,
+      reason: "Public snapshot mode disabled.",
+    };
+  }
+  try {
+    const snapshots = await fetchPublicEexSnapshots(now);
+    const status = snapshots.length ? "current-eod" : "public-extraction-unavailable";
+    const reason = snapshots.length
+      ? null
+      : "No usable futures rows returned by the public EEX widget endpoints.";
+    latestPublicCollection = { collectedAt: now, snapshots, status, reason };
+    return {
+      status,
+      collectedAt: now,
+      rows: snapshots.length,
+      persistedRows: 0,
+      failedRows: 0,
+      reason,
+    };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Public EEX refresh failed.";
+    latestPublicCollection = {
+      collectedAt: now,
+      snapshots: [],
+      status: "public-extraction-unavailable",
+      reason,
+    };
+    return {
+      status: "public-extraction-unavailable",
+      collectedAt: now,
+      rows: 0,
+      persistedRows: 0,
+      failedRows: 0,
+      reason,
+    };
+  }
+}
+
 async function collectPublicEexSnapshotsInner(force = false): Promise<PublicCollectionResult> {
   const now = new Date().toISOString();
   if (!publicSnapshotModeEnabled()) {
