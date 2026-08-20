@@ -10,8 +10,11 @@
     "preview": "vite preview",
     "test": "node --test tests/trading-calculations.test.mjs tests/futures.test.mjs tests/project-economics.test.mjs tests/fundamentals.test.mjs tests/outage-revisions.test.mjs",
     "test:calculations": "node --test tests/trading-calculations.test.mjs tests/futures.test.mjs tests/project-economics.test.mjs tests/fundamentals.test.mjs tests/outage-revisions.test.mjs",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "bun run typecheck && bun run lint && bun run test && bun run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
