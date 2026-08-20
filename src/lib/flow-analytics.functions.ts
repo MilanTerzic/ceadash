@@ -7,6 +7,7 @@ const RS_BORDERS: ZoneCode[] = ["HU", "RO", "BG", "HR", "ME", "MK"];
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 type RangeInput = { day?: string; from?: string; to?: string };
+type FlowSource = "live" | "cache" | "demo" | "empty";
 
 function todayBelgradeISO(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -40,6 +41,13 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayBelgradeISO()];
 }
 
+function aggregateSource(parts: Array<{ source: FlowSource }>): FlowSource {
+  if (!parts.length || parts.every((part) => part.source === "empty")) return "empty";
+  if (parts.some((part) => part.source === "live")) return "live";
+  if (parts.some((part) => part.source === "cache")) return "cache";
+  return parts.some((part) => part.source === "demo") ? "demo" : "empty";
+}
+
 export const getFlowAnalytics = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
@@ -56,8 +64,10 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
         const imported = impParts.flatMap((result) => result.data.points);
         const exported = expParts.flatMap((result) => result.data.points);
         const merged = mergeDirectionalFlowPoints(imported, exported);
-        const sourceImp = impParts[0]?.source ?? "empty";
-        const sourceExp = expParts[0]?.source ?? "empty";
+        const sourceImp = aggregateSource(impParts);
+        const sourceExp = aggregateSource(expParts);
+        const partialDirection =
+          impParts.some((part) => part.source === "empty") || expParts.some((part) => part.source === "empty");
 
         return {
           neighbour,
@@ -67,7 +77,12 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
           source_imp: sourceImp,
           source_exp: sourceExp,
           cap_source: capImp.source,
-          fetched_at: impParts[0]?.fetched_at ?? expParts[0]?.fetched_at ?? new Date().toISOString(),
+          fetched_at:
+            [...impParts, ...expParts]
+              .map((part) => part.fetched_at)
+              .filter(Boolean)
+              .sort()
+              .at(-1) ?? new Date().toISOString(),
           coverage: {
             importIntervals: merged.observedImportIntervals,
             exportIntervals: merged.observedExportIntervals,
@@ -76,7 +91,7 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
             status:
               merged.matchedIntervals === 0
                 ? ("unavailable" as const)
-                : merged.unmatchedIntervals > 0 || sourceImp === "empty" || sourceExp === "empty"
+                : merged.unmatchedIntervals > 0 || partialDirection
                   ? ("partial" as const)
                   : ("complete" as const),
           },
