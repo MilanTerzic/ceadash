@@ -9,6 +9,11 @@ export type IntervalPriceRow = {
   fetched_at?: string | null;
 };
 
+export type LegacyHourlyPriceRow = {
+  datetime: string;
+  price_eur_mwh: number | string | null;
+};
+
 export function dedupeIntervalPoints(points: PricePoint[]): PricePoint[] {
   const byTimestamp = new Map<string, PricePoint>();
   for (const point of points) {
@@ -56,6 +61,17 @@ export function fromIntervalRows(rows: IntervalPriceRow[]): PricePoint[] {
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
+export function fromLegacyHourlyRows(rows: LegacyHourlyPriceRow[]): PricePoint[] {
+  return rows
+    .map((row) => ({
+      ts: new Date(row.datetime).toISOString(),
+      price: Number(row.price_eur_mwh),
+      durationMinutes: 60,
+    }))
+    .filter((point) => Number.isFinite(point.price) && !Number.isNaN(Date.parse(point.ts)))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
 export async function readIntervalPriceCache(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseAdmin: any,
@@ -82,6 +98,54 @@ export async function readIntervalPriceCache(
   return fromIntervalRows(rows);
 }
 
+async function readLegacyHourlyPriceCache(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  market: string,
+  fromIso: string,
+  toIso: string,
+): Promise<PricePoint[]> {
+  const pageSize = 1000;
+  const rows: LegacyHourlyPriceRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await supabaseAdmin
+      .from("market_prices_hourly")
+      .select("datetime, price_eur_mwh")
+      .eq("market", market)
+      .gte("datetime", fromIso)
+      .lt("datetime", toIso)
+      .order("datetime", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (response.error) return [];
+    const chunk = (response.data ?? []) as LegacyHourlyPriceRow[];
+    rows.push(...chunk);
+    if (chunk.length < pageSize) break;
+  }
+  return fromLegacyHourlyRows(rows);
+}
+
+/**
+ * Canonical read path for mixed-resolution DA prices.
+ *
+ * New interval rows are authoritative. The old hourly table is consulted only
+ * when the interval table has no rows for the requested window, which keeps
+ * historic SEEPEX data usable while preventing 15-minute rows from being
+ * silently reinterpreted as 60-minute observations.
+ */
+export async function readCanonicalPriceCache(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  market: string,
+  fromIso: string,
+  toIso: string,
+): Promise<{ points: PricePoint[]; source: "interval" | "legacy-hourly" | "empty" }> {
+  const interval = await readIntervalPriceCache(supabaseAdmin, market, fromIso, toIso);
+  if (interval.length) return { points: interval, source: "interval" };
+  const legacy = await readLegacyHourlyPriceCache(supabaseAdmin, market, fromIso, toIso);
+  if (legacy.length) return { points: legacy, source: "legacy-hourly" };
+  return { points: [], source: "empty" };
+}
+
 export async function writeIntervalPriceCache(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseAdmin: any,
@@ -97,4 +161,39 @@ export async function writeIntervalPriceCache(
       .upsert(rows.slice(index, index + chunkSize), { onConflict: "market,datetime" });
     if (response.error) throw response.error;
   }
+}
+
+/**
+ * Preserve the old hourly cache only for genuinely hourly series. Mixed or
+ * quarter-hour series are written exclusively to the canonical interval table.
+ */
+export async function writeCanonicalPriceCache(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  market: string,
+  points: PricePoint[],
+  source = "ENTSO-E",
+): Promise<{ wroteIntervalRows: number; wroteLegacyHourlyRows: number }> {
+  const clean = dedupeIntervalPoints(points);
+  await writeIntervalPriceCache(supabaseAdmin, market, clean, source);
+
+  const allHourly = clean.length > 0 && clean.every((point) => (point.durationMinutes ?? 60) === 60);
+  if (!allHourly) {
+    return { wroteIntervalRows: clean.length, wroteLegacyHourlyRows: 0 };
+  }
+
+  const rows = clean.map((point) => ({
+    market,
+    datetime: point.ts,
+    price_eur_mwh: point.price,
+    source,
+  }));
+  const chunkSize = 500;
+  for (let index = 0; index < rows.length; index += chunkSize) {
+    const response = await supabaseAdmin
+      .from("market_prices_hourly")
+      .upsert(rows.slice(index, index + chunkSize), { onConflict: "market,datetime" });
+    if (response.error) throw response.error;
+  }
+  return { wroteIntervalRows: clean.length, wroteLegacyHourlyRows: rows.length };
 }
