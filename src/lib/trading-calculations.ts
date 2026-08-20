@@ -13,6 +13,12 @@ export interface CapacityInput {
     price_eur_mwh: number | null;
     offered_mw: number | null;
     allocated_mw: number | null;
+    /**
+     * Executable capacity must come from a verified remaining-capacity source
+     * or a user-owned position. Public auction allocation is not executable
+     * capacity and must never populate this field implicitly.
+     */
+    executable_capacity_mw?: number | null;
   };
   source?: string;
   fetched_at?: string;
@@ -27,6 +33,8 @@ export interface RouteOpportunity {
   capacityCost: number | null;
   netSpread: number | null;
   availableCapacityMw: number | null;
+  auctionAllocatedMw: number | null;
+  auctionOfferedMw: number | null;
   profitableIntervals: number | null;
   totalIntervals: number | null;
   profitablePct: number | null;
@@ -110,12 +118,14 @@ export function validCapacityCost(capacity: CapacityInput | undefined): number |
   return isNumber(price) ? price : null;
 }
 
+/**
+ * Only return capacity that is explicitly marked executable. Public auction
+ * offered/allocated quantities are informational auction-result fields and do
+ * not represent capacity available to the current user.
+ */
 export function availableCapacity(capacity: CapacityInput | undefined): number | null {
-  const allocated = capacity?.data?.allocated_mw;
-  const offered = capacity?.data?.offered_mw;
-  if (isNumber(allocated)) return allocated;
-  if (isNumber(offered)) return offered;
-  return null;
+  const executable = capacity?.data?.executable_capacity_mw;
+  return isNumber(executable) && executable >= 0 ? executable : null;
 }
 
 export function calculateNetSpread(
@@ -229,9 +239,11 @@ export function buildRouteOpportunity({
   const source = capacity?.source;
   const capCost = multiDay ? null : validCapacityCost(capacity);
   const capacityMw = multiDay ? null : availableCapacity(capacity);
-  const hasValidCapacity = capCost != null && capacityMw != null;
-  const netSpread = hasValidCapacity ? calculateNetSpread(grossSpread, capCost) : null;
-  const nets = hasValidCapacity
+  const auctionAllocatedMw = isNumber(capacity?.data?.allocated_mw) ? capacity!.data!.allocated_mw : null;
+  const auctionOfferedMw = isNumber(capacity?.data?.offered_mw) ? capacity!.data!.offered_mw : null;
+  const hasValidatedCost = capCost != null;
+  const netSpread = hasValidatedCost ? calculateNetSpread(grossSpread, capCost) : null;
+  const nets = hasValidatedCost
     ? spreads.map((spread) => ({ ...spread, net: spread.gross - capCost }))
     : [];
   const profitable = nets.filter((spread) => spread.net > 0);
@@ -255,13 +267,14 @@ export function buildRouteOpportunity({
   } else if (multiDay) {
     status = "indicative";
     reason =
-      "Multi-day view shows gross spread only; CBC-adjusted net requires matched daily capacity.";
+      "Multi-day view shows gross spread only; CBC-adjusted net requires matched daily capacity cost.";
   } else if (!source || source === "empty" || capCost == null) {
     status = "indicative";
-    reason = "CBC unavailable.";
+    reason = "CBC price unavailable.";
   } else if (capacityMw == null) {
-    status = "indicative";
-    reason = "Capacity volume unavailable.";
+    // The per-MW economics are still valid when the auction price is known.
+    // Do not imply an executable volume from public auction allocation totals.
+    reason = "Executable capacity volume unavailable; economics shown per MW only.";
   }
 
   return {
@@ -272,10 +285,12 @@ export function buildRouteOpportunity({
     capacityCost: capCost,
     netSpread,
     availableCapacityMw: capacityMw,
-    profitableIntervals: hasValidCapacity ? profitable.length : null,
+    auctionAllocatedMw,
+    auctionOfferedMw,
+    profitableIntervals: hasValidatedCost ? profitable.length : null,
     totalIntervals,
     profitablePct:
-      hasValidCapacity && totalIntervals ? (profitable.length / totalIntervals) * 100 : null,
+      hasValidatedCost && totalIntervals ? (profitable.length / totalIntervals) * 100 : null,
     maxHourlyGross,
     maxHourlyNet,
     avgPositiveHourlyNet,
@@ -312,10 +327,10 @@ export function buildMarketSignalSummary({
   const bestImport = rankOpportunities(importRoutes)[0];
   const bestExport = rankOpportunities(exportRoutes)[0];
   if (bestImport) {
-    return `${ZONES.RS.name} trades above ${ZONES[bestImport.from].name} on a baseload basis. After validated CBC cost of ${bestImport.capacityCost?.toFixed(2)} EUR/MWh, ${bestImport.label} shows ${bestImport.netSpread?.toFixed(2)} EUR/MWh net spread.`;
+    return `${ZONES.RS.name} trades above ${ZONES[bestImport.from].name} on a baseload basis. After validated CBC cost of ${bestImport.capacityCost?.toFixed(2)} EUR/MWh, ${bestImport.label} shows ${bestImport.netSpread?.toFixed(2)} EUR/MWh net spread per MW. Executable volume is not inferred from public auction allocation.`;
   }
   if (bestExport) {
-    return `${ZONES.RS.name} trades below ${ZONES[bestExport.to].name} on a baseload basis. After validated CBC cost of ${bestExport.capacityCost?.toFixed(2)} EUR/MWh, ${bestExport.label} shows ${bestExport.netSpread?.toFixed(2)} EUR/MWh net spread.`;
+    return `${ZONES.RS.name} trades below ${ZONES[bestExport.to].name} on a baseload basis. After validated CBC cost of ${bestExport.capacityCost?.toFixed(2)} EUR/MWh, ${bestExport.label} shows ${bestExport.netSpread?.toFixed(2)} EUR/MWh net spread per MW. Executable volume is not inferred from public auction allocation.`;
   }
   const indicative = [...importRoutes, ...exportRoutes].find(
     (route) => route.status === "indicative" && (route.grossSpread ?? 0) > 0,
