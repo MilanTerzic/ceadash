@@ -117,9 +117,10 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
     const results = await allSettledBounded(
       PRICE_MARKET_CODES.map((zone) => async () => {
         const market = `DA_${zone}`;
-        const cached = force
-          ? []
+        const cacheResult = force
+          ? { points: [] as PricePoint[], source: "empty" as const }
           : await readCanonicalPriceCache(supabaseAdmin, market, fromIso, toIso);
+        const cached = cacheResult.points;
         const cachedStats = calculatePricePeriodStats(cached, days);
         const complete = cachedStats.completeDays === days.length && days.length > 0;
 
@@ -165,6 +166,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
           source,
           reason,
           fetched_at: fetchedAt,
+          cache_source: cacheResult.source,
         };
       }),
     );
@@ -180,6 +182,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
             source: "empty" as const,
             reason: result.reason instanceof Error ? result.reason.message : "error",
             fetched_at: new Date().toISOString(),
+            cache_source: "empty" as const,
           };
     });
 
