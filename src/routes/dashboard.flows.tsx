@@ -19,7 +19,7 @@ import {
 } from "recharts";
 import { Download, ArrowLeftRight, AlertTriangle, TrendingUp, Activity } from "lucide-react";
 
-import { getFlowAnalytics } from "@/lib/data.functions";
+import { getFlowAnalytics } from "@/lib/flow-analytics.functions";
 import { TopBar } from "@/components/top-bar";
 import { Panel } from "@/components/panel";
 import { KPI } from "@/components/kpi";
