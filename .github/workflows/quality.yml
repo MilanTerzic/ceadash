@@ -13,15 +13,22 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
+      TMPDIR: ${{ github.workspace }}/.tmp
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare writable install directories
+        run: mkdir -p "$BUN_INSTALL_CACHE_DIR" "$TMPDIR"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.20
+          no-cache: true
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
