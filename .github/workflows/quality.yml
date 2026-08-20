@@ -34,13 +34,32 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Typecheck
+        id: typecheck
+        continue-on-error: true
         run: bun run typecheck
 
       - name: Lint
+        id: lint
+        if: always()
+        continue-on-error: true
         run: bun run lint
 
       - name: Tests
+        id: tests
+        if: always()
+        continue-on-error: true
         run: bun run test
 
       - name: Build
+        id: build
+        if: always()
+        continue-on-error: true
         run: bun run build
+
+      - name: Enforce quality gate
+        if: always()
+        run: |
+          test "${{ steps.typecheck.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
+          test "${{ steps.tests.outcome }}" = "success"
+          test "${{ steps.build.outcome }}" = "success"
