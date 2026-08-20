@@ -29,7 +29,12 @@ await transpile(
   path.join(outdir, "trading-calculations.mjs"),
   [['from "./markets"', 'from "./markets.mjs"']],
 );
+await transpile(
+  path.join(root, "src/lib/capacity-semantics.ts"),
+  path.join(outdir, "capacity-semantics.mjs"),
+);
 const mod = await import(pathToFileURL(path.join(outdir, "trading-calculations.mjs")).href);
+const semantics = await import(pathToFileURL(path.join(outdir, "capacity-semantics.mjs")).href);
 
 test.after(async () => rm(outdir, { recursive: true, force: true }));
 
@@ -80,4 +85,44 @@ test("verified executable capacity may populate available capacity", () => {
 
   assert.equal(opportunity.availableCapacityMw, 12);
   assert.equal(opportunity.netSpread, 15);
+});
+
+test("A43 is requested capacity and never executable capacity", () => {
+  const row = semantics.capacityAuctionObservation({ businessType: "A43", quantityMw: 700 });
+  assert.equal(row.requestedMw, 700);
+  assert.equal(row.allocatedMw, null);
+  assert.equal(row.executableCapacityMw, null);
+});
+
+test("B05 is allocated capacity with auction price and never executable capacity", () => {
+  const row = semantics.capacityAuctionObservation({
+    businessType: "B05",
+    quantityMw: 500,
+    priceEurPerMWh: 4.25,
+  });
+  assert.equal(row.allocatedMw, 500);
+  assert.equal(row.auctionPriceEurPerMWh, 4.25);
+  assert.equal(row.executableCapacityMw, null);
+});
+
+test("A31 is not silently reinterpreted as offered or executable A25 capacity", () => {
+  const row = semantics.capacityAuctionObservation({ businessType: "A31", quantityMw: 600 });
+  assert.equal(row.semantic, "unknown");
+  assert.equal(row.requestedMw, null);
+  assert.equal(row.allocatedMw, null);
+  assert.equal(row.executableCapacityMw, null);
+});
+
+test("requested and allocated quantities remain separate when merged", () => {
+  const requested = semantics.capacityAuctionObservation({ businessType: "A43", quantityMw: 700 });
+  const allocated = semantics.capacityAuctionObservation({
+    businessType: "B05",
+    quantityMw: 500,
+    priceEurPerMWh: 4.25,
+  });
+  const merged = semantics.mergeCapacityAuctionObservations([requested, allocated]);
+  assert.equal(merged.requestedMw, 700);
+  assert.equal(merged.allocatedMw, 500);
+  assert.equal(merged.auctionPriceEurPerMWh, 4.25);
+  assert.equal(merged.executableCapacityMw, null);
 });
