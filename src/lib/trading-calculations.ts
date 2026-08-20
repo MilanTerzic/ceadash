@@ -61,8 +61,39 @@ export function isNumber(value: unknown): value is number {
 }
 
 export function averagePrice(points: PricePoint[] | undefined): number | null {
-  const values = (points ?? []).map((point) => point.price).filter(isNumber);
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  let weightedSum = 0;
+  let totalMinutes = 0;
+  for (const point of points ?? []) {
+    if (!isNumber(point.price)) continue;
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    weightedSum += point.price * duration;
+    totalMinutes += duration;
+  }
+  return totalMinutes > 0 ? weightedSum / totalMinutes : null;
+}
+
+export function aggregatePricePointsToHourly(points: PricePoint[] | undefined): PricePoint[] {
+  const acc = new Map<string, { weightedSum: number; durationMinutes: number }>();
+  for (const point of points ?? []) {
+    if (!isNumber(point.price)) continue;
+    const timestamp = new Date(point.ts);
+    if (Number.isNaN(timestamp.getTime())) continue;
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    timestamp.setUTCMinutes(0, 0, 0);
+    const key = timestamp.toISOString();
+    const bucket = acc.get(key) ?? { weightedSum: 0, durationMinutes: 0 };
+    bucket.weightedSum += point.price * duration;
+    bucket.durationMinutes += duration;
+    acc.set(key, bucket);
+  }
+  return [...acc.entries()]
+    .filter(([, bucket]) => bucket.durationMinutes > 0)
+    .map(([ts, bucket]) => ({
+      ts,
+      price: bucket.weightedSum / bucket.durationMinutes,
+      durationMinutes: 60,
+    }))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 export function calculateGrossSpread(
@@ -95,8 +126,10 @@ export function calculateNetSpread(
 }
 
 function matchedSpreads(source: PricePoint[] | undefined, destination: PricePoint[] | undefined) {
-  const byDestination = new Map((destination ?? []).map((point) => [point.ts, point]));
-  return (source ?? [])
+  const sourceHourly = aggregatePricePointsToHourly(source);
+  const destinationHourly = aggregatePricePointsToHourly(destination);
+  const byDestination = new Map(destinationHourly.map((point) => [point.ts, point]));
+  return sourceHourly
     .map((sourcePoint) => {
       const destinationPoint = byDestination.get(sourcePoint.ts);
       if (!destinationPoint) return null;
@@ -106,9 +139,7 @@ function matchedSpreads(source: PricePoint[] | undefined, destination: PricePoin
         : {
             ts: sourcePoint.ts,
             gross,
-            durationHours:
-              Math.min(sourcePoint.durationMinutes ?? 60, destinationPoint.durationMinutes ?? 60) /
-              60,
+            durationHours: 1,
           };
     })
     .filter((point): point is { ts: string; gross: number; durationHours: number } => !!point);
@@ -146,10 +177,14 @@ export function completenessForSeries(
   points: PricePoint[] | undefined,
   days: string[],
 ): DataCompleteness {
-  const receivedIntervals = points?.length ?? 0;
-  const stepMinutes =
-    points?.find((point) => isNumber(point.durationMinutes) && point.durationMinutes > 0)
-      ?.durationMinutes ?? 60;
+  const validDurations = (points ?? [])
+    .map((point) => point.durationMinutes)
+    .filter((duration): duration is number => isNumber(duration) && duration > 0);
+  const stepMinutes = validDurations.length ? Math.min(...validDurations) : 60;
+  const receivedIntervals = (points ?? []).reduce((sum, point) => {
+    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    return sum + duration / stepMinutes;
+  }, 0);
   const expectedIntervals = days.reduce(
     (sum, day) => sum + expectedIntervalsForBelgradeDay(day, stepMinutes),
     0,
