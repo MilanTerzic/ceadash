@@ -1,0 +1,49 @@
+name: Warm market data slow
+
+on:
+  schedule:
+    - cron: "11 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cea-warm-market-data-slow
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    env:
+      AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+      CEA_DASH_URL: https://ceadash.lovable.app
+    steps:
+      - name: Require automation token
+        shell: bash
+        run: |
+          if [ -z "$AUTOMATION_TOKEN" ]; then
+            echo "AUTOMATION_TOKEN repository secret is required." >&2
+            exit 1
+          fi
+
+      - name: Refresh capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail --silent --show-error --max-time 900 \
+            --retry 2 --retry-delay 20 --retry-all-errors \
+            --request POST \
+            -H "Authorization: Bearer ${AUTOMATION_TOKEN}" \
+            "${CEA_DASH_URL}/api/warm-market-data?pipeline=capacity&mode=tail")
+          echo "$response" | jq .
+          test "$(echo "$response" | jq -r '.ok')" = "true"
+
+      - name: Refresh fundamentals cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail --silent --show-error --max-time 900 \
+            --retry 2 --retry-delay 20 --retry-all-errors \
+            --request POST \
+            -H "Authorization: Bearer ${AUTOMATION_TOKEN}" \
+            "${CEA_DASH_URL}/api/warm-market-data?pipeline=fundamentals&mode=tail")
+          echo "$response" | jq .
+          test "$(echo "$response" | jq -r '.ok')" = "true"
