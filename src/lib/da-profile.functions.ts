@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { fetchDayAheadPricesRange } from "./entsoe.server";
-import { readCanonicalPriceCache, writeCanonicalPriceCache } from "./interval-price-cache.server";
+import { readCanonicalPrices } from "./canonical-market-data.server";
 import { calculatePricePeriodStats } from "./price-analysis";
 import { PRICE_MARKET_CODES } from "./price-markets";
-import type { PricePoint } from "./trading-calculations";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -41,50 +39,6 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayBelgradeISO()];
 }
 
-function belgradeOffsetHours(dayISO: string): number {
-  const noonUtc = new Date(`${dayISO}T12:00:00Z`);
-  const part =
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Belgrade",
-      timeZoneName: "shortOffset",
-    })
-      .formatToParts(noonUtc)
-      .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
-  const match = /GMT([+-]\d+)/.exec(part);
-  return match ? Number(match[1]) : 1;
-}
-
-function boundaryUtc(dayISO: string): Date {
-  const [year, month, day] = dayISO.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, -belgradeOffsetHours(dayISO), 0, 0, 0));
-}
-
-function addDaysISO(dayISO: string, days: number): string {
-  const date = new Date(`${dayISO}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function mergeIntervals(...groups: PricePoint[][]): PricePoint[] {
-  const byKey = new Map<string, PricePoint>();
-  for (const group of groups) {
-    for (const point of group) {
-      if (!Number.isFinite(point.price)) continue;
-      const timestamp = new Date(point.ts);
-      if (Number.isNaN(timestamp.getTime())) continue;
-      const durationMinutes = Number(point.durationMinutes ?? 60);
-      if (![15, 30, 60].includes(durationMinutes)) continue;
-      const normalized: PricePoint = {
-        ts: timestamp.toISOString(),
-        price: point.price,
-        durationMinutes,
-      };
-      byKey.set(`${normalized.ts}|${durationMinutes}`, normalized);
-    }
-  }
-  return [...byKey.values()].sort((a, b) => a.ts.localeCompare(b.ts));
-}
-
 async function allSettledBounded<T>(
   tasks: Array<() => Promise<T>>,
   concurrency = 6,
@@ -105,68 +59,34 @@ async function allSettledBounded<T>(
   return output;
 }
 
+/**
+ * Regional price analytics read only from persisted canonical intervals.
+ * The `force` input is retained for UI compatibility but intentionally does not
+ * trigger provider traffic. Scheduled ingestion is the only refresh owner.
+ */
 export const getAverageDAProfile = createServerFn({ method: "GET" })
   .inputValidator((data: RangeInput) => data ?? {})
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const days = expandRange(data?.from, data?.to, data?.day);
-    const force = Boolean(data?.force);
-    const fromIso = boundaryUtc(days[0]).toISOString();
-    const toIso = boundaryUtc(addDaysISO(days[days.length - 1], 1)).toISOString();
 
     const results = await allSettledBounded(
       PRICE_MARKET_CODES.map((zone) => async () => {
-        const market = `DA_${zone}`;
-        const cacheResult = force
-          ? { points: [] as PricePoint[], source: "empty" as const }
-          : await readCanonicalPriceCache(supabaseAdmin, market, fromIso, toIso);
-        const cached = cacheResult.points;
-        const cachedStats = calculatePricePeriodStats(cached, days);
-        const complete = cachedStats.completeDays === days.length && days.length > 0;
-
-        let points = cached;
-        let source: "live" | "cache" | "demo" | "empty" = cached.length ? "cache" : "empty";
-        let reason: string | undefined;
-        let fetchedAt = new Date().toISOString();
-
-        if (force || !complete) {
-          const live = await fetchDayAheadPricesRange(
-            zone,
-            days[0],
-            days[days.length - 1],
-            false,
-            force || !complete,
-          );
-          const livePoints: PricePoint[] = live.data.points.map((point) => ({
-            ts: point.ts,
-            price: point.price,
-            durationMinutes: point.durationMinutes,
-          }));
-          if (livePoints.length) {
-            try {
-              await writeCanonicalPriceCache(supabaseAdmin, market, livePoints, "ENTSO-E");
-            } catch {
-              // Cache persistence is best-effort. The live response remains usable.
-            }
-          }
-          points = mergeIntervals(cached, livePoints);
-          source = live.source === "empty" && points.length ? source : live.source;
-          reason = live.reason;
-          fetchedAt = live.fetched_at;
-        }
-
-        const stats = calculatePricePeriodStats(points, days);
-        if (points.length && stats.completeDays < days.length) {
-          reason = reason ?? "partial_market_price_coverage";
-        }
+        const canonical = await readCanonicalPrices(zone, days[0], days[days.length - 1]);
+        const stats = calculatePricePeriodStats(canonical.points, days);
+        const hasData = canonical.points.length > 0;
+        const complete = stats.completeDays === days.length && days.length > 0;
         return {
           zone,
           profile: stats.hourlyProfile,
           stats,
-          source,
-          reason,
-          fetched_at: fetchedAt,
-          cache_source: cacheResult.source,
+          source: hasData ? ("cache" as const) : ("empty" as const),
+          reason: !hasData
+            ? "canonical_market_data_unavailable"
+            : complete
+              ? undefined
+              : "partial_market_price_coverage",
+          fetched_at: new Date().toISOString(),
+          cache_source: canonical.cacheSource,
         };
       }),
     );
