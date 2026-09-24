@@ -1,4 +1,4 @@
-name: Fetch October JAO and SEECAO winners
+name: Package October winner data
 
 on:
   push:
@@ -7,145 +7,16 @@ on:
       - ".github/workflows/probe-jao-seecao.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  fetch:
+  package:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fetch and normalize October 2026 winners
-        shell: bash
-        run: |
-          cat > /tmp/fetch_winners.py <<'PY'
-          import csv, json, re, html, os, urllib.parse, urllib.request
-          from datetime import datetime, timezone
-          
-          MONTH = "2026-10"
-          JAO_PROXY = "https://www.jao.eu/api/v1/auction/calls/getauctions"
-          JAO_AUCTIONS_PAGE = "https://www.jao.eu/auctions"
-          SEE_BASE = "https://api.seecao.com"
-          EIC_XML = "https://eepublicdownloads.blob.core.windows.net/cio-lio/xml/allocated-eic-codes.xml"
-          EIC_PAGE = "https://www.entsoe.eu/data/energy-identification-codes-eic/eic-approved-codes/"
-          JAO_CORRIDORS = {"HU-RS","RS-HU","HR-RS","RS-HR","RO-RS","RS-MK","HU-UA","UA-HU","RO-UA","UA-RO","SK-UA","UA-SK"}
-          AREAS = {"AL":"10YAL-KESH-----5","BA":"10YBA-JPCC-----D","GR":"10YGR-HTSO-----Y","HR":"10YHR-HEP------M","IT":"10YIT-GRTN-----B","ME":"10YCS-CG-TSO---S","MK":"10YMK-MEPSO----8","TR":"10YTR-TEIAS----W","XK":"10Y1001C--00100H"}
-          SEE_DIRECTIONS=[("AL","GR"),("AL","ME"),("AL","XK"),("BA","HR"),("BA","ME"),("GR","AL"),("GR","MK"),("GR","TR"),("HR","BA"),("IT","ME"),("ME","AL"),("ME","BA"),("ME","IT"),("ME","XK"),("MK","GR"),("MK","XK"),("TR","GR"),("XK","AL"),("XK","ME"),("XK","MK")]
-          UA="Mozilla/5.0 (compatible; OctoberWinnerCollector/1.0)"
-          
-          def http_json(url, method="GET", data=None, headers=None, timeout=60):
-              h={"User-Agent":UA,"Accept":"application/json, text/plain, */*"}
-              if headers: h.update(headers)
-              body=None
-              if data is not None:
-                  body=json.dumps(data).encode()
-                  h["Content-Type"]="application/json"
-              req=urllib.request.Request(url,data=body,headers=h,method=method)
-              with urllib.request.urlopen(req,timeout=timeout) as resp:
-                  return json.loads(resp.read().decode())
-          
-          def fetch_jao():
-              p=http_json(JAO_PROXY,"POST",{"horizon":"Monthly","shadow":"0","fromdate":"2026-09-01-00:00:00","todate":"2026-09-30-23:59:59"},{"Origin":"https://www.jao.eu","Referer":"https://www.jao.eu/auctions"},120)
-              rows=[]; auctions=[]
-              for a in p if isinstance(p,list) else []:
-                  c=str(a.get("corridorCode") or "")
-                  if c not in JAO_CORRIDORS: continue
-                  ident=str(a.get("identification") or "")
-                  start=str(a.get("marketPeriodStart") or "")
-                  if "261001" not in ident and not start.startswith(("2026-09-30","2026-10-01")): continue
-                  res=(a.get("results") or [{}])[0] or {}
-                  prod=(a.get("products") or [{}])[0] or {}
-                  eics=[]
-                  for x in a.get("winningParties") or []:
-                      e=str(x.get("eicCode") if isinstance(x,dict) else x).strip().upper()
-                      if e: eics.append(e)
-                  fr,to=c.split("-")[:2]
-                  auctions.append({"provider":"JAO","auction_id":ident,"direction":f"{fr}→{to}","from_zone":fr,"to_zone":to,"offered_mw":res.get("offeredCapacity"),"requested_mw":res.get("requestedCapacity"),"allocated_mw":res.get("allocatedCapacity"),"clearing_price":res.get("auctionPrice"),"successful_participants":prod.get("winnerPartyCount"),"winner_eics":eics,"source_url":JAO_AUCTIONS_PAGE})
-                  for e in eics:
-                      rows.append({"Delivery Month":MONTH,"Provider":"JAO","Direction":f"{fr}→{to}","From Zone":fr,"To Zone":to,"Winner":"","Winner EIC":e,"Participant Awarded MW":"","Auction Offered MW":res.get("offeredCapacity"),"Auction Requested MW":res.get("requestedCapacity"),"Auction Allocated MW":res.get("allocatedCapacity"),"Clearing Price EUR/MWh":res.get("auctionPrice"),"Auction ID":ident,"Winner Evidence":"JAO winningParties explicit Party EIC; participant MW not published","Source URL":JAO_AUCTIONS_PAGE,"Successful Participants":prod.get("winnerPartyCount")})
-              return rows,auctions
-          
-          def fetch_see():
-              rows=[]; auctions=[]; errors=[]
-              h={"Origin":"https://seecao.com","Referer":"https://seecao.com/auctions/"}
-              for fr,to in SEE_DIRECTIONS:
-                  q=urllib.parse.urlencode({"type":"monthly","inArea":AREAS[to],"outArea":AREAS[fr],"month":MONTH})
-                  try:
-                      f=http_json(f"{SEE_BASE}/api/data/filter?{q}",headers=h)
-                      ids=(f.get("auctions") or []) if isinstance(f,dict) else []
-                  except Exception as ex:
-                      errors.append({"stage":"filter","direction":f"{fr}→{to}","error":repr(ex)}); continue
-                  for aid in ids:
-                      url=f"{SEE_BASE}/api/data?auctionIdentification={urllib.parse.quote(str(aid))}"
-                      try: d=http_json(url,headers=h)
-                      except Exception as ex:
-                          errors.append({"stage":"detail","direction":f"{fr}→{to}","auction_id":str(aid),"error":repr(ex)}); continue
-                      table=((d.get("auctionData") or {}).get("table") or []) if isinstance(d,dict) else []
-                      for t in table:
-                          rid=str(t.get("auctionId") or aid)
-                          eics=[str(e).strip().upper() for e in (t.get("participantsSold") or []) if str(e).strip()]
-                          auctions.append({"provider":"SEE_CAO","auction_id":rid,"direction":f"{fr}→{to}","from_zone":fr,"to_zone":to,"offered_mw":t.get("offered"),"requested_mw":t.get("requested"),"allocated_mw":t.get("allocated"),"clearing_price":t.get("price"),"successful_participants":t.get("numberOfSuccessfullParticipants"),"winner_eics":eics,"source_url":url})
-                          for e in eics:
-                              rows.append({"Delivery Month":MONTH,"Provider":"SEE CAO","Direction":f"{fr}→{to}","From Zone":fr,"To Zone":to,"Winner":"","Winner EIC":e,"Participant Awarded MW":"","Auction Offered MW":t.get("offered"),"Auction Requested MW":t.get("requested"),"Auction Allocated MW":t.get("allocated"),"Clearing Price EUR/MWh":t.get("price"),"Auction ID":rid,"Winner Evidence":"SEE CAO participantsSold explicit EIC; participant MW not published","Source URL":url,"Successful Participants":t.get("numberOfSuccessfullParticipants")})
-              return rows,auctions,errors
-          
-          def tag(block,names):
-              for name in names:
-                  m=re.search(r"<"+re.escape(name)+r"(?:\s[^>]*)?>([\s\S]*?)</"+re.escape(name)+r">",block,re.I)
-                  if m: return html.unescape(re.sub(r"<[^>]+>"," ",m.group(1))).strip()
-              return None
-          
-          def resolve(eics):
-              wanted=set(eics); found={}; err=None
-              try:
-                  req=urllib.request.Request(EIC_XML,headers={"User-Agent":UA,"Accept":"application/xml,text/xml,*/*"})
-                  with urllib.request.urlopen(req,timeout=120) as resp: xml=resp.read().decode("utf-8","replace")
-                  for m in re.finditer(r"<EICCode_MarketDocument\b[\s\S]*?</EICCode_MarketDocument>",xml,re.I):
-                      b=m.group(0)
-                      missing=wanted-set(found)
-                      if missing and not any(e in b for e in missing): continue
-                      e=(tag(b,["mRID","EICCode","eicCode"]) or "").upper()
-                      if e not in wanted: continue
-                      company=tag(b,["long_Names.name","longName","name","eICCode_MarketParticipant.name"])
-                      display=tag(b,["display_Names.name","displayName","short_Names.name"])
-                      if company or display: found[e]=(company or display or e,display or "")
-                      if len(found)==len(wanted): break
-              except Exception as ex: err=repr(ex)
-              return found,err
-          
-          def dedupe(rows):
-              out=[]; seen=set()
-              for r in rows:
-                  k=(r["Provider"],r["Auction ID"],r["Direction"],r["Winner EIC"])
-                  if k not in seen: seen.add(k); out.append(r)
-              return out
-          
-          outdir="tmp/october-winners"; os.makedirs(outdir,exist_ok=True)
-          jr,ja=fetch_jao(); sr,sa,se=fetch_see(); rows=dedupe(jr+sr)
-          eics=[r["Winner EIC"] for r in rows]; names,eerr=resolve(eics)
-          for r in rows: r["Winner"]=names.get(r["Winner EIC"],("Unresolved EIC",""))[0]
-          rows.sort(key=lambda r:(r["Provider"],r["Direction"],r["Auction ID"],r["Winner"]))
-          fields=["Delivery Month","Provider","Direction","From Zone","To Zone","Winner","Winner EIC","Participant Awarded MW","Auction Offered MW","Auction Requested MW","Auction Allocated MW","Clearing Price EUR/MWh","Auction ID","Winner Evidence","Source URL","Successful Participants"]
-          with open(f"{outdir}/JAO_SEECAO_monthly_winners_2026-10.csv","w",newline="",encoding="utf-8-sig") as f:
-              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
-          with open(f"{outdir}/jao_october_2026.json","w",encoding="utf-8") as f: json.dump({"auctions":ja,"rows":jr},f,ensure_ascii=False,indent=2)
-          with open(f"{outdir}/seecao_october_2026.json","w",encoding="utf-8") as f: json.dump({"auctions":sa,"rows":sr,"errors":se},f,ensure_ascii=False,indent=2)
-          with open(f"{outdir}/eic_lookup_used.csv","w",newline="",encoding="utf-8-sig") as f:
-              w=csv.writer(f); w.writerow(["EIC","Company","Display Name","Source URL","Registry Download URL"])
-              for e in sorted(set(eics)):
-                  co,di=names.get(e,("Unresolved EIC","")); w.writerow([e,co,di,EIC_PAGE,EIC_XML])
-          summary={"month":MONTH,"generated_at_utc":datetime.now(timezone.utc).isoformat(),"total_rows":len(rows),"unique_eics":len(set(eics)),"unresolved_eics":len(set(eics)-set(names)),"JAO":{"winner_rows":sum(r["Provider"]=="JAO" for r in rows),"auctions":len({r["Auction ID"] for r in rows if r["Provider"]=="JAO"}),"unique_eics":len({r["Winner EIC"] for r in rows if r["Provider"]=="JAO"}),"corridors":sorted({r["Direction"] for r in rows if r["Provider"]=="JAO"})},"SEE_CAO":{"winner_rows":sum(r["Provider"]=="SEE CAO" for r in rows),"auctions":len({r["Auction ID"] for r in rows if r["Provider"]=="SEE CAO"}),"unique_eics":len({r["Winner EIC"] for r in rows if r["Provider"]=="SEE CAO"}),"corridors":sorted({r["Direction"] for r in rows if r["Provider"]=="SEE CAO"}),"errors":se},"eic_registry_error":eerr}
-          with open(f"{outdir}/summary.json","w",encoding="utf-8") as f: json.dump(summary,f,ensure_ascii=False,indent=2)
-          print(json.dumps(summary,ensure_ascii=False,indent=2))
-          PY
-          python /tmp/fetch_winners.py
-
-      - name: Commit temporary normalized data
-        shell: bash
-        run: |
-          git config user.name "October Winner Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add tmp/october-winners/
-          git commit -m "Add temporary October JAO SEECAO winner data"
-          git push
+      - name: Upload October data
+        uses: actions/upload-artifact@v4
+        with:
+          name: october-jao-seecao-winners
+          path: tmp/october-winners/
+          retention-days: 7
