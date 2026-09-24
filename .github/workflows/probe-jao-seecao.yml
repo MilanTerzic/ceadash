@@ -24,19 +24,28 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Origin: https://www.jao.eu" \
             -H "Referer: https://www.jao.eu/auctions" \
-            --data '{"horizon":"Monthly","shadow":"0","fromdate":"2026-08-15-00:00:00","todate":"2026-09-30-23:59:59"}'
+            --data '{"horizon":"Monthly","shadow":"0","fromdate":"2026-09-01-00:00:00","todate":"2026-09-30-23:59:59"}'
           cat /tmp/jao_headers.txt
-          head -c 8000 /tmp/jao.json
+          head -c 12000 /tmp/jao.json
           echo
-      - name: Probe SEECAO filter
+      - name: Probe SEECAO filter and detail
         shell: bash
         run: |
           set -x
-          curl -sS -D /tmp/see_headers.txt -o /tmp/see.json \
+          curl -sS -o /tmp/see_filter.json \
             "https://api.seecao.com/api/data/filter?type=monthly&inArea=10YGR-HTSO-----Y&outArea=10YAL-KESH-----5&month=2026-10" \
             -H "Accept: application/json, text/plain, */*" \
             -H "Origin: https://seecao.com" \
             -H "Referer: https://seecao.com/auctions/"
-          cat /tmp/see_headers.txt
-          head -c 8000 /tmp/see.json
+          cat /tmp/see_filter.json
           echo
+          id=$(jq -r '.auctions[0] // empty' /tmp/see_filter.json)
+          if [ -n "$id" ]; then
+            curl -sS -o /tmp/see_detail.json \
+              "https://api.seecao.com/api/data?auctionIdentification=${id}" \
+              -H "Accept: application/json, text/plain, */*" \
+              -H "Origin: https://seecao.com" \
+              -H "Referer: https://seecao.com/auctions/"
+            head -c 12000 /tmp/see_detail.json
+            echo
+          fi
