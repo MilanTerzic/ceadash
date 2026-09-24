@@ -1,0 +1,42 @@
+name: Probe JAO SEECAO APIs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/probe-jao-seecao.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe JAO public proxy
+        shell: bash
+        run: |
+          set -x
+          curl -sS -D /tmp/jao_headers.txt -o /tmp/jao.json \
+            -X POST "https://www.jao.eu/api/v1/auction/calls/getauctions" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://www.jao.eu" \
+            -H "Referer: https://www.jao.eu/auctions" \
+            --data '{"horizon":"Monthly","shadow":"0","fromdate":"2026-08-15-00:00:00","todate":"2026-09-30-23:59:59"}'
+          cat /tmp/jao_headers.txt
+          head -c 8000 /tmp/jao.json
+          echo
+      - name: Probe SEECAO filter
+        shell: bash
+        run: |
+          set -x
+          curl -sS -D /tmp/see_headers.txt -o /tmp/see.json \
+            "https://api.seecao.com/api/data/filter?type=monthly&inArea=10YGR-HTSO-----Y&outArea=10YAL-KESH-----5&month=2026-10" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Origin: https://seecao.com" \
+            -H "Referer: https://seecao.com/auctions/"
+          cat /tmp/see_headers.txt
+          head -c 8000 /tmp/see.json
+          echo
