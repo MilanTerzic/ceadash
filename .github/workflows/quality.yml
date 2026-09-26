@@ -13,16 +13,17 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/cea-bun-cache
-      TMPDIR: ${{ runner.temp }}/cea-tmp
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare writable install directories
-        run: mkdir -p "$BUN_INSTALL_CACHE_DIR" "$TMPDIR"
+        shell: bash
+        run: |
+          echo "BUN_INSTALL_CACHE_DIR=${RUNNER_TEMP}/cea-bun-cache" >> "$GITHUB_ENV"
+          echo "TMPDIR=${RUNNER_TEMP}/cea-tmp" >> "$GITHUB_ENV"
+          mkdir -p "${RUNNER_TEMP}/cea-bun-cache" "${RUNNER_TEMP}/cea-tmp"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

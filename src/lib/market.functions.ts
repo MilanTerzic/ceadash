@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { expectedBelgradeDeliveryHours } from "@/lib/baseload";
-import { fetchDayAheadPricesRange } from "@/lib/entsoe.server";
+import { readCanonicalPrices } from "@/lib/canonical-market-data.server";
 import { aggregatePricePointsToHourly, type PricePoint } from "@/lib/trading-calculations";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -88,6 +88,12 @@ function analyseRange(pointsIn: PricePoint[], from: string, to: string): Analyse
   return { points: hourly, completeDays, incompleteDays, missingDays };
 }
 
+/**
+ * Public overview read path.
+ *
+ * This function deliberately never calls ENTSO-E. Background ingestion owns
+ * provider traffic and persists the canonical mixed-MTU interval history.
+ */
 export const fetchMarketPrices = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
@@ -95,65 +101,37 @@ export const fetchMarketPrices = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { from, to } = normalizeRequestedRange(data);
     const selectedDays = daysBetween(from, to);
+    const canonical = await readCanonicalPrices("RS", from, to);
+    const analysed = analyseRange(canonical.points, from, to);
 
-    let result = await fetchDayAheadPricesRange("RS", from, to);
-    let analysed = analyseRange(
-      result.data.points.map((point) => ({
-        ts: point.ts,
-        price: point.price,
-        durationMinutes: point.durationMinutes,
-      })),
-      from,
-      to,
-    );
-
-    // A partial cached range should never be treated as authoritative. Re-fetch
-    // the exact selected period once so historical cache gaps can heal.
-    if (
-      result.source === "cache" &&
-      (analysed.missingDays.length > 0 || analysed.incompleteDays.length > 0)
-    ) {
-      result = await fetchDayAheadPricesRange("RS", from, to, false, true);
-      analysed = analyseRange(
-        result.data.points.map((point) => ({
-          ts: point.ts,
-          price: point.price,
-          durationMinutes: point.durationMinutes,
-        })),
-        from,
-        to,
-      );
-    }
-
-    const source =
-      result.source === "live"
-        ? ("entsoe" as const)
-        : result.source === "cache"
-          ? ("cache" as const)
-          : ("none" as const);
+    const source = analysed.points.length ? ("cache" as const) : ("none" as const);
     const loadedFrom = analysed.completeDays[0];
     const loadedTo = analysed.completeDays[analysed.completeDays.length - 1];
     const daysWithAnyData = selectedDays.length - analysed.missingDays.length;
-    const reasons = [result.reason].filter((value): value is string => Boolean(value));
+    const reason =
+      analysed.points.length === 0
+        ? "canonical_market_data_unavailable"
+        : analysed.missingDays.length || analysed.incompleteDays.length
+          ? "partial_canonical_market_price_coverage"
+          : undefined;
     const failedFetches = analysed.missingDays.map((day) => ({
       day,
-      reason: result.reason ?? "entsoe_no_data",
-      attempts: 1,
+      reason: "canonical_data_missing",
+      attempts: 0,
     }));
     const failureCounts = failedFetches.length
-      ? { [result.reason ?? "entsoe_no_data"]: failedFetches.length }
+      ? { canonical_data_missing: failedFetches.length }
       : {};
     const debugSummary =
-      `ENTSO-E debug: selected ${from} → ${to}; total ${selectedDays.length} d; ` +
+      `Canonical price store: selected ${from} → ${to}; total ${selectedDays.length} d; ` +
       `complete ${analysed.completeDays.length}; incomplete ${analysed.incompleteDays.length}; ` +
-      `missing ${analysed.missingDays.length}; source ${source}` +
-      (result.reason ? `; reason ${result.reason}` : "");
+      `missing ${analysed.missingDays.length}; cache ${canonical.cacheSource}`;
 
     return {
       ok: analysed.points.length > 0,
       source,
-      reason: result.reason,
-      fetched: result.source === "live" ? analysed.points.length : 0,
+      reason,
+      fetched: 0,
       fetchedDaysCount: daysWithAnyData,
       fetchedHoursCount: analysed.points.length,
       windowFrom: from,
@@ -166,13 +144,13 @@ export const fetchMarketPrices = createServerFn({ method: "GET" })
       incompleteDays: analysed.incompleteDays,
       failedFetches,
       failureCounts,
-      attemptedDaysCount: selectedDays.length,
+      attemptedDaysCount: 0,
       totalSelectedDays: selectedDays.length,
       capReached: false,
-      maxFetchPerCall: selectedDays.length,
+      maxFetchPerCall: 0,
       debugSummary,
       truncated: false,
-      reasons: reasons.length ? reasons : undefined,
+      reasons: reason ? [reason] : undefined,
       points: analysed.points.map((point) => ({ ts: point.ts, price: point.price })),
     };
   });
