@@ -1,6 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 
-const PRESERVED_SEARCH = ["from", "to", "preset"] as const;
+const PRESERVED_SEARCH = ["from", "to", "preset", "compare", "asset"] as const;
 
 export function legacyDashboardRedirect(
   to: string,

@@ -257,7 +257,7 @@ function mergeSerbiaFullRange(
   return [serbiaFullRange, ...others];
 }
 
-export const getCeaTraderReport = createServerFn({ method: "POST" })
+export const getCeaTraderReport = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z
       .object({

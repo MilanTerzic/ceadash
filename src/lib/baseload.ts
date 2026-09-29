@@ -115,7 +115,9 @@ function isCompleteDeliveryDay(key: string, hours: HourlyPrice[]): boolean {
     ),
   );
   const observed = new Set(hours.map((point) => point.ts.toISOString()));
-  return observed.size === expected.size && Array.from(expected).every((stamp) => observed.has(stamp));
+  return (
+    observed.size === expected.size && Array.from(expected).every((stamp) => observed.has(stamp))
+  );
 }
 
 export function bucketByBelgradeDay(points: HourlyPrice[]): DayBucket[] {

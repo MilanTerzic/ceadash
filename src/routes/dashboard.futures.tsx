@@ -149,7 +149,9 @@ function FuturesPage() {
         : `${result.status}: fetched ${result.rows} public EEX rows`;
       setRefreshResult(summary);
     } catch (error) {
-      setRefreshResult(error instanceof Error ? `error: ${error.message}` : "error: refresh failed");
+      setRefreshResult(
+        error instanceof Error ? `error: ${error.message}` : "error: refresh failed",
+      );
     } finally {
       await q.refetch();
       setIsRefreshingSnapshot(false);

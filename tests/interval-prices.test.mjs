@@ -77,9 +77,7 @@ test("mixed 15-minute and hourly markets produce an hourly spread", () => {
     price,
     durationMinutes: 15,
   }));
-  const serbia = [
-    { ts: "2026-01-15T00:00:00.000Z", price: 100, durationMinutes: 60 },
-  ];
+  const serbia = [{ ts: "2026-01-15T00:00:00.000Z", price: 100, durationMinutes: 60 }];
   const spreads = analysis.matchedSpreadPoints(market, serbia);
   assert.equal(spreads.length, 1);
   assert.equal(spreads[0].marketPrice, 110);

@@ -464,9 +464,7 @@ export const fetchCaptureSeries = createServerFn({ method: "GET" })
     const solarHours = points.filter((p) => Number.isFinite(p.solar) && p.solar > 0).length;
     const windHours = points.filter((p) => Number.isFinite(p.wind) && p.wind > 0).length;
     const matchedHours = points.filter(
-      (p) =>
-        (Number.isFinite(p.solar) && p.solar > 0) ||
-        (Number.isFinite(p.wind) && p.wind > 0),
+      (p) => (Number.isFinite(p.solar) && p.solar > 0) || (Number.isFinite(p.wind) && p.wind > 0),
     ).length;
 
     const firstPriceTs = marketPoints[0]?.ts ?? null;

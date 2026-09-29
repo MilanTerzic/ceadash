@@ -35,8 +35,14 @@ test("interval cache preserves original timestamps and MTU", () => {
     { ts: "2026-08-20T10:45:00.000Z", price: 110, durationMinutes: 15 },
   ];
   const rows = mod.toIntervalRows("DA_HU", points);
-  assert.deepEqual(rows.map((row) => row.datetime), points.map((point) => point.ts));
-  assert.deepEqual(rows.map((row) => row.duration_minutes), [15, 15, 15, 15]);
+  assert.deepEqual(
+    rows.map((row) => row.datetime),
+    points.map((point) => point.ts),
+  );
+  assert.deepEqual(
+    rows.map((row) => row.duration_minutes),
+    [15, 15, 15, 15],
+  );
   assert.deepEqual(mod.fromIntervalRows(rows), points);
 });
 
@@ -60,30 +66,18 @@ test("exact timestamp duplicates use the latest observation", () => {
 
 test("post-cutover coupled markets never trust duration-less legacy hourly rows", () => {
   assert.equal(
-    mod.canUseLegacyHourlyFallback(
-      "DA_HU",
-      "2026-08-20T00:00:00.000Z",
-      "2026-08-21T00:00:00.000Z",
-    ),
+    mod.canUseLegacyHourlyFallback("DA_HU", "2026-08-20T00:00:00.000Z", "2026-08-21T00:00:00.000Z"),
     false,
   );
   assert.equal(
-    mod.canUseLegacyHourlyFallback(
-      "DA_RO",
-      "2025-09-01T00:00:00.000Z",
-      "2025-09-02T00:00:00.000Z",
-    ),
+    mod.canUseLegacyHourlyFallback("DA_RO", "2025-09-01T00:00:00.000Z", "2025-09-02T00:00:00.000Z"),
     true,
   );
 });
 
 test("Serbia can keep using known-hourly legacy cache after the SDAC cutover", () => {
   assert.equal(
-    mod.canUseLegacyHourlyFallback(
-      "DA_RS",
-      "2026-08-20T00:00:00.000Z",
-      "2026-08-21T00:00:00.000Z",
-    ),
+    mod.canUseLegacyHourlyFallback("DA_RS", "2026-08-20T00:00:00.000Z", "2026-08-21T00:00:00.000Z"),
     true,
   );
 });

@@ -133,7 +133,12 @@ function belgradeLocalMidnightUtc(year: number, month: number, day = 1): number 
 
 export function belgradeMonthDeliveryHours(month: string): number {
   const [year, monthNumber] = month.split("-").map(Number);
-  if (!Number.isFinite(year) || !Number.isFinite(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(monthNumber) ||
+    monthNumber < 1 ||
+    monthNumber > 12
+  ) {
     return 0;
   }
   const nextYear = monthNumber === 12 ? year + 1 : year;

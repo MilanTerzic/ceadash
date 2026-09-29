@@ -446,9 +446,7 @@ export async function fetchWeatherRange(
   const data = mergeWeatherPoints(segmentResults.map((result) => result.data));
   const actualSources = [
     ...new Set(
-      segmentResults
-        .filter((result) => result.data.length)
-        .map((result) => result.source),
+      segmentResults.filter((result) => result.data.length).map((result) => result.source),
     ),
   ];
   const aggregate = aggregateDataStatus(

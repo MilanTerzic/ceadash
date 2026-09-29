@@ -597,7 +597,6 @@ export async function fetchDayAheadPricesRange(
     for (let i = 0; i < toBackfill.length; i += CONCURRENCY) {
       await Promise.allSettled(
         toBackfill.slice(i, i + CONCURRENCY).map(async (day) => {
-
           const { start, end } = belgradeDeliveryWindow(day);
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
@@ -624,7 +623,6 @@ export async function fetchDayAheadPricesRange(
     fetched_at: new Date().toISOString(),
   };
 }
-
 
 function chunkDateRange(fromISO: string, toISO: string, maxDays: number) {
   const chunks: Array<{ from: string; to: string }> = [];

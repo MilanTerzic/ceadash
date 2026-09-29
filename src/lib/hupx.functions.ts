@@ -89,7 +89,7 @@ export type HupxResponse = {
 const HOT = new Map<string, { ts: number; data: HupxResponse }>();
 const HOT_TTL_MS = 30 * 60 * 1000;
 
-export const fetchHupxPrices = createServerFn({ method: "POST" })
+export const fetchHupxPrices = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
   )

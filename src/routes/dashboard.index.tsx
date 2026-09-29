@@ -21,10 +21,7 @@ import {
   KpiCard,
   PageLoadingSkeleton,
 } from "@/components/dashboard/atoms";
-import {
-  useDashboardRange,
-  useRequestedRangeKeys,
-} from "@/components/dashboard/DateRangeControl";
+import { useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { fetchMarketPrices } from "@/lib/market.functions";
 import { useLang } from "@/lib/i18n";
@@ -183,14 +180,10 @@ function OverviewPage() {
     staleTime: 5 * 60_000,
   });
   const comparisonData = useMemo<HourlyPrice[]>(
-    () =>
-      (comparisonQuery.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
+    () => (comparisonQuery.data?.points ?? []).map((p) => ({ ts: new Date(p.ts), price: p.price })),
     [comparisonQuery.data],
   );
-  const comparisonBuckets = useMemo(
-    () => bucketByBelgradeDay(comparisonData),
-    [comparisonData],
-  );
+  const comparisonBuckets = useMemo(() => bucketByBelgradeDay(comparisonData), [comparisonData]);
   const comparisonCompleteDays = useMemo(
     () => comparisonBuckets.filter((b) => b.complete),
     [comparisonBuckets],
@@ -406,8 +399,18 @@ function OverviewPage() {
               "Population standard deviation of hourly DA prices on the same complete-day sample as baseload.",
           })}
         />
-        <KpiCard loading={refreshing} label={t("Min hour", "Najniži sat")} value={fmt(period.minHour, 0)} unit="EUR/MWh" />
-        <KpiCard loading={refreshing} label={t("Max hour", "Najviši sat")} value={fmt(period.maxHour, 0)} unit="EUR/MWh" />
+        <KpiCard
+          loading={refreshing}
+          label={t("Min hour", "Najniži sat")}
+          value={fmt(period.minHour, 0)}
+          unit="EUR/MWh"
+        />
+        <KpiCard
+          loading={refreshing}
+          label={t("Max hour", "Najviši sat")}
+          value={fmt(period.maxHour, 0)}
+          unit="EUR/MWh"
+        />
         <KpiCard
           loading={refreshing}
           label={t("7-day baseload", "Bazna cena 7 dana")}
@@ -437,32 +440,103 @@ function OverviewPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard loading={refreshing} title={t("Hourly day-ahead price", "Satna day-ahead cena")} description={t("Last 48 hours of SEEPEX-style hourly prices.", "Poslednjih 48 sati satnih cena u SEEPEX formatu.")}>
+        <ChartCard
+          loading={refreshing}
+          title={t("Hourly day-ahead price", "Satna day-ahead cena")}
+          description={t(
+            "Last 48 hours of SEEPEX-style hourly prices.",
+            "Poslednjih 48 sati satnih cena u SEEPEX formatu.",
+          )}
+        >
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={last48Chart} margin={{ left: 0, right: 12, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--color-border)"
+                strokeOpacity={0.5}
+              />
               <XAxis dataKey="t" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <RTooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--color-popover-foreground)",
+                }}
+                labelStyle={{ color: "var(--color-muted-foreground)" }}
+              />
               <Legend />
               <ReferenceLine y={0} stroke="var(--color-critical)" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="price" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} name={t("Current period", "Tekući period")} />
-              <Line type="monotone" dataKey="prevPrice" stroke="var(--color-chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
+              <Line
+                type="monotone"
+                dataKey="price"
+                stroke="var(--color-chart-1)"
+                strokeWidth={2}
+                dot={false}
+                name={t("Current period", "Tekući period")}
+              />
+              <Line
+                type="monotone"
+                dataKey="prevPrice"
+                stroke="var(--color-chart-3)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard loading={refreshing} title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")} description={t("In selected range. Peakload = Mon–Fri 08:00–20:00.", "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.")}>
+        <ChartCard
+          loading={refreshing}
+          title={t("Daily baseload & peakload (period)", "Dnevna bazna i vršna cena u periodu")}
+          description={t(
+            "In selected range. Peakload = Mon–Fri 08:00–20:00.",
+            "U izabranom periodu. Peakload = ponedeljak-petak 08:00-20:00.",
+          )}
+        >
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={inRangeDaily}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--color-border)"
+                strokeOpacity={0.5}
+              />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <RTooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--color-popover-foreground)",
+                }}
+                labelStyle={{ color: "var(--color-muted-foreground)" }}
+              />
               <Legend />
-              <Bar dataKey="baseload" fill="var(--color-chart-1)" name={t("Baseload", "Bazna cena")} />
-              <Bar dataKey="peakload" fill="var(--color-chart-3)" name={t("Peakload", "Vršno opterećenje")} />
-              <Line type="monotone" dataKey="prevBaseload" stroke="var(--color-chart-2)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
+              <Bar
+                dataKey="baseload"
+                fill="var(--color-chart-1)"
+                name={t("Baseload", "Bazna cena")}
+              />
+              <Bar
+                dataKey="peakload"
+                fill="var(--color-chart-3)"
+                name={t("Peakload", "Vršno opterećenje")}
+              />
+              <Line
+                type="monotone"
+                dataKey="prevBaseload"
+                stroke="var(--color-chart-2)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -470,24 +544,73 @@ function OverviewPage() {
         <ChartCard title={t("Monthly baseload", "Mesečna bazna cena")} loading={refreshing}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--color-border)"
+                strokeOpacity={0.5}
+              />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <RTooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--color-popover-foreground)",
+                }}
+                labelStyle={{ color: "var(--color-muted-foreground)" }}
+              />
               <Legend />
-              <Line type="monotone" dataKey="baseload" stroke="var(--color-chart-2)" strokeWidth={2} name={t("Baseload", "Bazna cena")} />
-              <Line type="monotone" dataKey="prevBaseload" stroke="var(--color-chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("Prev. period", "Prethodni period")} />
+              <Line
+                type="monotone"
+                dataKey="baseload"
+                stroke="var(--color-chart-2)"
+                strokeWidth={2}
+                name={t("Baseload", "Bazna cena")}
+              />
+              <Line
+                type="monotone"
+                dataKey="prevBaseload"
+                stroke="var(--color-chart-3)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name={t("Prev. period", "Prethodni period")}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard loading={refreshing} title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}>
+        <ChartCard
+          loading={refreshing}
+          title={t("Negative price hours per month", "Sati sa negativnom cenom po mesecu")}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--color-border)"
+                strokeOpacity={0.5}
+              />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <RTooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12, color: "var(--color-popover-foreground)" }} labelStyle={{ color: "var(--color-muted-foreground)" }} />
+              <RTooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--color-popover-foreground)",
+                }}
+                labelStyle={{ color: "var(--color-muted-foreground)" }}
+              />
               <Bar dataKey="negHours" fill="var(--color-critical)" />
             </BarChart>
           </ResponsiveContainer>
@@ -495,7 +618,9 @@ function OverviewPage() {
       </div>
 
       <div className="space-y-2 rounded-[10px] border border-border/70 bg-card p-4 text-sm">
-        <h3 className="font-display text-base font-semibold">{t("Data check & methodology", "Provera podataka i metodologija")}</h3>
+        <h3 className="font-display text-base font-semibold">
+          {t("Data check & methodology", "Provera podataka i metodologija")}
+        </h3>
         <p className="text-muted-foreground">
           {t(
             "Period baseload is calculated only from complete Europe/Belgrade delivery days. A complete hourly day contains every expected delivery interval: 23 hours on the spring DST transition, 24 on a normal day and 25 on the autumn transition. Incomplete days are excluded from baseload, peakload and volatility. Coverage status also becomes partial when internal days are missing, source fetches fail or the fetch cap is reached.",

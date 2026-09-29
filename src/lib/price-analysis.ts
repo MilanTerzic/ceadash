@@ -46,6 +46,10 @@ export interface PricePeriodStats {
   hourlyProfile: Array<number | null>;
 }
 
+function hour0Minutes(ts: string): number {
+  return new Date(ts).getUTCMinutes();
+}
+
 export function normalizeToHourlyPrices(points: PricePoint[]): PricePoint[] {
   const acc = new Map<string, { weightedSum: number; durationMinutes: number }>();
   for (const point of points) {
@@ -58,13 +62,16 @@ export function normalizeToHourlyPrices(points: PricePoint[]): PricePoint[] {
       Number.isFinite(point.durationMinutes) && (point.durationMinutes ?? 0) > 0
         ? point.durationMinutes!
         : 60;
+    // Misaligned intervals (e.g. a 60-min price starting at :30) cannot be matched
+    // to a delivery hour without fabricating overlap, so they are dropped.
+    if (duration <= 60 && hour0Minutes(point.ts) % duration !== 0) continue;
     const next = acc.get(key) ?? { weightedSum: 0, durationMinutes: 0 };
     next.weightedSum += point.price * duration;
     next.durationMinutes += duration;
     acc.set(key, next);
   }
   return [...acc.entries()]
-    .filter(([, value]) => value.durationMinutes > 0)
+    .filter(([, value]) => value.durationMinutes >= 60)
     .map(([ts, value]) => ({
       ts,
       price: value.weightedSum / value.durationMinutes,

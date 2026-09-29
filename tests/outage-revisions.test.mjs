@@ -24,7 +24,10 @@ async function transpileModule(sourcePath, outPath, replacements = []) {
 }
 
 await mkdir(outdir, { recursive: true });
-await transpileModule(path.join(root, "src/lib/fundamentals.ts"), path.join(outdir, "fundamentals.mjs"));
+await transpileModule(
+  path.join(root, "src/lib/fundamentals.ts"),
+  path.join(outdir, "fundamentals.mjs"),
+);
 await transpileModule(path.join(root, "src/lib/markets.ts"), path.join(outdir, "markets.mjs"));
 await transpileModule(
   path.join(root, "src/lib/entsoe-outages.ts"),

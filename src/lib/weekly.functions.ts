@@ -58,6 +58,9 @@ export type WeeklyReport = {
 export const generateWeeklyReport = createServerFn({ method: "POST" })
   .inputValidator((input: { metrics: WeeklyMetrics; news: WeeklyNewsItem[] }) => input)
   .handler(async ({ data }): Promise<WeeklyReport> => {
+    // Public but paid upstream (LLM): cap how often it can run across all callers.
+    const { enforceAdminRateLimit } = await import("./admin-write-guard.server");
+    await enforceAdminRateLimit("generateWeeklyReport", 20);
     const prompt = `Generate a weekly market intelligence report for RES producers in Serbia / SEE.
 
 METRICS (Europe/Belgrade, SEEPEX-Serbia, EIC 10YCS-SERBIATSOV):
@@ -105,6 +108,9 @@ Pick 4-6 most relevant news items. Do not invent prices, sources, or URLs.`;
 export const generateLinkedInPost = createServerFn({ method: "POST" })
   .inputValidator((input: { report: WeeklyReport; metrics: WeeklyMetrics }) => input)
   .handler(async ({ data }): Promise<{ post: string; hashtags: string[] }> => {
+    // Public but paid upstream (LLM): cap how often it can run across all callers.
+    const { enforceAdminRateLimit } = await import("./admin-write-guard.server");
+    await enforceAdminRateLimit("generateLinkedInPost", 20);
     const prompt = `Write a LinkedIn post (1200-1800 characters total, NOT counting hashtags) based on this weekly Serbia/SEE power market report.
 
 Style: professional but conversational, visually structured with short lines and tasteful emoji bullets (▸ ⚡ 📉 📈 🌞 ⚠️ — not all of them, use 2-3 well). Focus on RES producers, investors, market participants. Different from a generic LinkedIn corporate post.

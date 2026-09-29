@@ -73,7 +73,8 @@ export function averagePrice(points: PricePoint[] | undefined): number | null {
   let totalMinutes = 0;
   for (const point of points ?? []) {
     if (!isNumber(point.price)) continue;
-    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    const duration =
+      isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
     weightedSum += point.price * duration;
     totalMinutes += duration;
   }
@@ -86,7 +87,8 @@ export function aggregatePricePointsToHourly(points: PricePoint[] | undefined): 
     if (!isNumber(point.price)) continue;
     const timestamp = new Date(point.ts);
     if (Number.isNaN(timestamp.getTime())) continue;
-    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    const duration =
+      isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
     timestamp.setUTCMinutes(0, 0, 0);
     const key = timestamp.toISOString();
     const bucket = acc.get(key) ?? { weightedSum: 0, durationMinutes: 0 };
@@ -192,7 +194,8 @@ export function completenessForSeries(
     .filter((duration): duration is number => isNumber(duration) && duration > 0);
   const stepMinutes = validDurations.length ? Math.min(...validDurations) : 60;
   const receivedIntervals = (points ?? []).reduce((sum, point) => {
-    const duration = isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
+    const duration =
+      isNumber(point.durationMinutes) && point.durationMinutes > 0 ? point.durationMinutes : 60;
     return sum + duration / stepMinutes;
   }, 0);
   const expectedIntervals = days.reduce(
@@ -239,7 +242,9 @@ export function buildRouteOpportunity({
   const source = capacity?.source;
   const capCost = multiDay ? null : validCapacityCost(capacity);
   const capacityMw = multiDay ? null : availableCapacity(capacity);
-  const auctionAllocatedMw = isNumber(capacity?.data?.allocated_mw) ? capacity!.data!.allocated_mw : null;
+  const auctionAllocatedMw = isNumber(capacity?.data?.allocated_mw)
+    ? capacity!.data!.allocated_mw
+    : null;
   const auctionOfferedMw = isNumber(capacity?.data?.offered_mw) ? capacity!.data!.offered_mw : null;
   const hasValidatedCost = capCost != null;
   const netSpread = hasValidatedCost ? calculateNetSpread(grossSpread, capCost) : null;

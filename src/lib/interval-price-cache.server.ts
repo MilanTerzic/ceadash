@@ -202,7 +202,8 @@ export async function writeCanonicalPriceCache(
   const clean = dedupeIntervalPoints(points);
   await writeIntervalPriceCache(supabaseAdmin, market, clean, source);
 
-  const allHourly = clean.length > 0 && clean.every((point) => (point.durationMinutes ?? 60) === 60);
+  const allHourly =
+    clean.length > 0 && clean.every((point) => (point.durationMinutes ?? 60) === 60);
   if (!allHourly) {
     return { wroteIntervalRows: clean.length, wroteLegacyHourlyRows: 0 };
   }
