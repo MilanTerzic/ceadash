@@ -10,11 +10,17 @@ import { DateRangeProvider } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 
 const searchSchema = z.object({
-  from: z.string().optional(),
-  to: z.string().optional(),
-  preset: z.enum(["today", "d1", "7d", "30d", "mtd", "prev_month", "ytd", "custom"]).optional(),
-  compare: z.enum(["previous_equivalent", "previous_month", "previous_year", "none"]).optional(),
-  asset: z.enum(["solar", "wind", "bess", "hybrid"]).optional(),
+  from: z.string().optional().catch(undefined),
+  to: z.string().optional().catch(undefined),
+  preset: z
+    .enum(["today", "d1", "7d", "30d", "mtd", "prev_month", "ytd", "custom"])
+    .optional()
+    .catch(undefined),
+  compare: z
+    .enum(["previous_equivalent", "previous_month", "previous_year", "none"])
+    .optional()
+    .catch(undefined),
+  asset: z.enum(["solar", "wind", "bess", "hybrid"]).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/dashboard")({

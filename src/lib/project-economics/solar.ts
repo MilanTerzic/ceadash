@@ -48,8 +48,7 @@ function settleRevenue(
 
   if (structure === "merchant") {
     for (let index = 0; index < hourlyGenerationMWh.length; index++) {
-      hourly[index].merchantRevenueEur =
-        hourlyGenerationMWh[index] * (hourlyPrices[index] ?? 0);
+      hourly[index].merchantRevenueEur = hourlyGenerationMWh[index] * (hourlyPrices[index] ?? 0);
     }
   } else if (structure === "fixed" || structure === "pay_as_produced") {
     for (let index = 0; index < hourlyGenerationMWh.length; index++) {

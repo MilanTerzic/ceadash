@@ -18,10 +18,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { ChartCard, KpiCard } from "@/components/dashboard/atoms";
-import {
-  useDashboardRange,
-  useRequestedRangeKeys,
-} from "@/components/dashboard/DateRangeControl";
+import { useDashboardRange, useRequestedRangeKeys } from "@/components/dashboard/DateRangeControl";
 import { DataStatusBanner } from "@/components/dashboard/DataStatusBanner";
 import { useLang } from "@/lib/i18n";
 import { belgradeDayKey, bucketByBelgradeDay, type HourlyPrice } from "@/lib/baseload";
@@ -416,8 +413,6 @@ function CapturePage() {
         marketArea="Serbia day-ahead + ENTSO-E RES generation"
         warning={warning}
       />
-
-
 
       <ChartCard title={t("Methodology", "Metodologija")} description={methodologyHint}>
         <div className="grid gap-3 md:grid-cols-3 text-sm">

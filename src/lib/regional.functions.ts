@@ -297,7 +297,7 @@ function yearChunks(from: Date, to: Date): { from: Date; to: Date }[] {
 type CacheKey = string;
 const HOT_MAP = new Map<CacheKey, { ts: number; data: RegionalSnapshot }>();
 
-export const fetchRegionalSnapshot = createServerFn({ method: "POST" })
+export const fetchRegionalSnapshot = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(data ?? {}),
   )

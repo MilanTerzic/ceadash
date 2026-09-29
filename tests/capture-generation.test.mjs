@@ -35,11 +35,14 @@ test("missing ENTSO-E generation positions are not forward-filled", () => {
       </Period></TimeSeries>
     </Publication_MarketDocument>`;
   const points = mod.parseTimeSeriesHourly(xml);
-  assert.deepEqual(points.map((point) => point.ts), [
-    "2026-01-01T00:00:00.000Z",
-    "2026-01-01T02:00:00.000Z",
-  ]);
-  assert.deepEqual(points.map((point) => point.value), [10, 30]);
+  assert.deepEqual(
+    points.map((point) => point.ts),
+    ["2026-01-01T00:00:00.000Z", "2026-01-01T02:00:00.000Z"],
+  );
+  assert.deepEqual(
+    points.map((point) => point.value),
+    [10, 30],
+  );
 });
 
 test("distinct generation TimeSeries are explicitly summed at the same timestamp", () => {

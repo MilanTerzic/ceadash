@@ -184,7 +184,6 @@ function TraderReportPage() {
   if (reportQuery.isLoading) {
     return (
       <div className="space-y-6">
-
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
           <p className="text-sm text-muted-foreground">
             {t("Building CEA report...", "Priprema CEA izveštaja...")}
@@ -198,7 +197,6 @@ function TraderReportPage() {
     return (
       <div className="space-y-6">
         <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm">
-
           {t(
             "No report data is available for this period.",
             "Nema dostupnih podataka za izveštaj u ovom periodu.",
@@ -215,9 +213,6 @@ function TraderReportPage() {
 
   return (
     <div className="space-y-6 print:bg-white">
-
-
-
       <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

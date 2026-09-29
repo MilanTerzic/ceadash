@@ -155,7 +155,14 @@ function InsightsPage() {
       title: "Solar capture vs baseload",
       text: "Shows the realised solar-profile price relative to Serbian day-ahead baseload in the rolling 30-day window.",
       metric: `Solar ${fmt(metrics.solarCapture)} €/MWh · capture rate ${pct(metrics.solarRate)}`,
-      signal: metrics.solarRate == null ? "Neutral" : metrics.solarRate < 0.75 ? "Critical" : metrics.solarRate < 0.9 ? "Warning" : "Neutral",
+      signal:
+        metrics.solarRate == null
+          ? "Neutral"
+          : metrics.solarRate < 0.75
+            ? "Critical"
+            : metrics.solarRate < 0.9
+              ? "Warning"
+              : "Neutral",
     },
     {
       title: "Negative-price hours",
@@ -167,13 +174,21 @@ function InsightsPage() {
       title: "Midday discount",
       text: "Compares the 11:00–16:00 average with baseload to quantify the midday price dip.",
       metric: `${fmt(metrics.middayAvg)} €/MWh · ${pct(metrics.middayDelta)} vs baseload`,
-      signal: metrics.middayDelta == null ? "Neutral" : metrics.middayDelta < -0.3 ? "Critical" : metrics.middayDelta < -0.15 ? "Warning" : "Neutral",
+      signal:
+        metrics.middayDelta == null
+          ? "Neutral"
+          : metrics.middayDelta < -0.3
+            ? "Critical"
+            : metrics.middayDelta < -0.15
+              ? "Warning"
+              : "Neutral",
     },
     {
       title: "Evening premium",
       text: "Compares 18:00–22:00 prices with baseload to quantify the evening premium.",
       metric: `${fmt(metrics.eveningPremium)} €/MWh above baseload`,
-      signal: metrics.eveningPremium != null && metrics.eveningPremium > 10 ? "Positive" : "Neutral",
+      signal:
+        metrics.eveningPremium != null && metrics.eveningPremium > 10 ? "Positive" : "Neutral",
     },
     {
       title: "BESS 2h net spread",
@@ -185,7 +200,12 @@ function InsightsPage() {
       title: "Wind vs solar capture",
       text: "Compares technology-specific capture rates to show how production shape affects realised market prices.",
       metric: `Wind ${pct(metrics.windRate)} · Solar ${pct(metrics.solarRate)}`,
-      signal: metrics.windRate != null && metrics.solarRate != null && metrics.windRate - metrics.solarRate > 0.1 ? "Positive" : "Neutral",
+      signal:
+        metrics.windRate != null &&
+        metrics.solarRate != null &&
+        metrics.windRate - metrics.solarRate > 0.1
+          ? "Positive"
+          : "Neutral",
     },
     {
       title: "Intraday price range",
@@ -213,15 +233,23 @@ function InsightsPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/40 p-3 text-xs text-muted-foreground">
           <span>
             Source: Serbian DA prices + ENTSO-E generation where available
-            {liveQuery.data?.solarSource === "modelled" ? " · solar profile modelled where B16 is unavailable" : ""}
+            {liveQuery.data?.solarSource === "modelled"
+              ? " · solar profile modelled where B16 is unavailable"
+              : ""}
           </span>
           <span>
-            {liveQuery.isFetching ? "Refreshing…" : lastTs ? `Data through ${new Date(lastTs).toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}` : "No live timestamp"}
+            {liveQuery.isFetching
+              ? "Refreshing…"
+              : lastTs
+                ? `Data through ${new Date(lastTs).toLocaleString("en-GB", { timeZone: "Europe/Belgrade" })}`
+                : "No live timestamp"}
           </span>
         </div>
 
         {liveQuery.isLoading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Loading live indicators...</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            Loading live indicators...
+          </p>
         ) : points.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             Live market data is currently unavailable. Demo values are not substituted.
@@ -229,13 +257,18 @@ function InsightsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {indicators.map((i) => (
-              <article key={i.title} className="rounded-xl border border-border/70 bg-background/40 p-4">
+              <article
+                key={i.title}
+                className="rounded-xl border border-border/70 bg-background/40 p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-display text-lg leading-tight">{i.title}</h4>
                   <SignalPill signal={i.signal} />
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{i.text}</p>
-                <div className="mt-3 text-xs font-medium uppercase tracking-wider text-foreground/80">{i.metric}</div>
+                <div className="mt-3 text-xs font-medium uppercase tracking-wider text-foreground/80">
+                  {i.metric}
+                </div>
               </article>
             ))}
           </div>

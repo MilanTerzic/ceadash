@@ -39,9 +39,9 @@ function MethPage() {
       <ChartCard title={t("Data sources & status policy", "Izvori podataka i status podataka")}>
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
           <li>
-            <strong>SEEPEX / ENTSO-E day-ahead data</strong> are the observed market-price inputs for
-            Serbia. Regional ENTSO-E A44 series retain their published market time unit, including
-            15-minute intervals where applicable.
+            <strong>SEEPEX / ENTSO-E day-ahead data</strong> are the observed market-price inputs
+            for Serbia. Regional ENTSO-E A44 series retain their published market time unit,
+            including 15-minute intervals where applicable.
           </li>
           <li>
             <strong>ENTSO-E Transparency Platform</strong> also supplies actual generation by
@@ -109,20 +109,22 @@ function MethPage() {
       <ChartCard title={t("Coverage rules", "Pravila pokrivenosti podacima")}>
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
           <li>
-            <strong>Complete</strong> means the selected range is covered without internal missing or
-            incomplete days and without failed/capped source fetches.
+            <strong>Complete</strong> means the selected range is covered without internal missing
+            or incomplete days and without failed/capped source fetches.
           </li>
           <li>
-            <strong>Partial</strong> is shown whenever range bounds are incomplete, an internal day is
-            missing/incomplete, a source fetch failed or the fetch cap was reached.
+            <strong>Partial</strong> is shown whenever range bounds are incomplete, an internal day
+            is missing/incomplete, a source fetch failed or the fetch cap was reached.
           </li>
           <li>
             Cached data are labelled separately as <strong>cached-complete</strong> or
-            <strong> cached-partial</strong>. An unavailable source is not represented as numeric zero.
+            <strong> cached-partial</strong>. An unavailable source is not represented as numeric
+            zero.
           </li>
           <li>
             Physical-flow net positions require both directions for the same timestamp. If either
-            direction is missing, net flow for that timestamp is unavailable rather than assumed 0 MW.
+            direction is missing, net flow for that timestamp is unavailable rather than assumed 0
+            MW.
           </li>
         </ul>
       </ChartCard>

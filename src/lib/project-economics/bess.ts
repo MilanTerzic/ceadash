@@ -303,7 +303,9 @@ export function runBessEconomics(input: {
       ancillaryRevenueEur -
       summary.variableCostsEur,
     lcosEurPerMWh:
-      discountedLifetimeDischarge > 0 ? discountedLifetimeCosts / discountedLifetimeDischarge : null,
+      discountedLifetimeDischarge > 0
+        ? discountedLifetimeCosts / discountedLifetimeDischarge
+        : null,
     annualUsableCapacityMWh,
     dispatch: firstDispatch,
   };

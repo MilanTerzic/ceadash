@@ -2,7 +2,11 @@
 
 Date: 20 August 2026
 Branch: `chore/stabilize-dashboard`
-Status: in progress
+Status: historical snapshot. Since this audit: `src/lib/auth.ts` was removed, futures write actions
+are guarded by `requireAdminWriteToken` with rate limiting, read-style server functions are `GET`,
+LLM-backed POST functions are rate limited, and mixed-resolution spread matching no longer snaps
+misaligned points to a neighbouring hour. Items below are kept for context; check the issue tracker
+for what remains open.
 
 ## Executive summary
 

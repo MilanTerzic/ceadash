@@ -307,11 +307,7 @@ export function parseOutageRows(
   // internal marker so dedupeOutageRevisions can still suppress every older
   // active revision of the same ENTSO-E document. The marker is always removed
   // before rows are returned to the dashboard.
-  if (
-    !rows.length &&
-    documentId &&
-    CANCELLED_DOCUMENT_STATUSES.has(documentStatus)
-  ) {
+  if (!rows.length && documentId && CANCELLED_DOCUMENT_STATUSES.has(documentStatus)) {
     rows.push({
       zone,
       unit: DOCUMENT_STATUS_MARKER_UNIT,
@@ -366,10 +362,7 @@ export function dedupeOutageRevisions(rows: OutageRow[]): OutageRow[] {
       } else {
         cancelledLatestDocuments.delete(documentKey);
       }
-    } else if (
-      revision === current &&
-      CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? "")
-    ) {
+    } else if (revision === current && CANCELLED_DOCUMENT_STATUSES.has(row.document_status ?? "")) {
       // If ENTSO-E sends conflicting rows at the same revision, cancellation
       // wins so we never surface a publication that the source withdrew.
       cancelledLatestDocuments.add(documentKey);

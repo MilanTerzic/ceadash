@@ -313,7 +313,8 @@ export const importManualFuturesData = createServerFn({ method: "POST" })
     const text = data?.text ?? "";
     if (text.length > MAX_MANUAL_IMPORT_CHARS) throw new Error("manual_futures_import_too_large");
     const preview = parseManualFuturesCsv(text);
-    if (preview.length > MAX_MANUAL_IMPORT_ROWS) throw new Error("manual_futures_import_too_many_rows");
+    if (preview.length > MAX_MANUAL_IMPORT_ROWS)
+      throw new Error("manual_futures_import_too_many_rows");
     const snapshots = confirmedSnapshots(preview);
     if (snapshots.length) await upsertFuturesSnapshots(snapshots);
     return {

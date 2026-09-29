@@ -21,7 +21,7 @@ export type PvgisResult = {
   source: string;
 };
 
-export const fetchPvgis = createServerFn({ method: "POST" })
+export const fetchPvgis = createServerFn({ method: "GET" })
   .inputValidator((data) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<PvgisResult> => {
     const url = new URL("https://re.jrc.ec.europa.eu/api/seriescalc");

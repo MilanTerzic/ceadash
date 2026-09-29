@@ -8,7 +8,6 @@ It combines the original CEA dashboard features with market-intelligence modules
 - futures snapshots and forward-curve analytics
 - spreads, route economics, capacity, flows, utilization and balance
 - outages, weather, Danube hydrology and forecast context
-- CBC resale analysis
 - CEA Market Report with CSV, print and JPEG export
 - RES capture prices, flexibility/storage signals, CBAM and solar-project calculators
 - bilingual English/Serbian UI through `useLang()` / `t()`
@@ -18,7 +17,7 @@ It combines the original CEA dashboard features with market-intelligence modules
 1. Install dependencies.
 
    ```bash
-   pnpm install
+   bun install
    ```
 
 2. Copy `.env.example` to `.env` and configure the required server variables.
@@ -28,24 +27,23 @@ It combines the original CEA dashboard features with market-intelligence modules
 4. Run locally.
 
    ```bash
-   pnpm dev
+   bun run dev
    ```
 
 ## Verification
 
 ```bash
-pnpm run test:calculations
-pnpm run lint
-pnpm run build
+bun run check   # typecheck + lint + tests + build (same gate as CI)
 ```
 
-In the Codex Windows runtime used for this migration, `npm` was not on PATH, so verification was run directly with bundled Node:
+Routes that are pure redirects (for example `/dashboard/cbc`) are covered by `tests/route-redirects.test.mjs`.
 
-```powershell
-node --test tests\trading-calculations.test.mjs tests\futures.test.mjs
-node node_modules\eslint\bin\eslint.js .
-node node_modules\vite\bin\vite.js build
-```
+## Repository layout
+
+- `src/` — TanStack Start application (routes, components, server functions)
+- `supabase/` — database migrations
+- `tests/` — Node test runner suites for calculations, security guards and routing
+- `legacy/` — the original Python/Flask dashboard, kept for reference only and not part of the build
 
 ## Documentation
 

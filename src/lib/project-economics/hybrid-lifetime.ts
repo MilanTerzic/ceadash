@@ -54,11 +54,7 @@ export function buildHybridLifetimeRevenue(
     const batteryMerchant = streams.batteryMerchantEur * priceFactor * bessFactor;
 
     return (
-      renewableMerchant +
-      renewablePpa +
-      batteryMerchant +
-      streams.tollingEur +
-      streams.ancillaryEur
+      renewableMerchant + renewablePpa + batteryMerchant + streams.tollingEur + streams.ancillaryEur
     );
   });
 }

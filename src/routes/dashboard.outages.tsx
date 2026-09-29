@@ -366,7 +366,9 @@ function OutagesPage() {
           <KPI
             label="Zones affected"
             value={
-              outageFailed || outageLoading ? "-" : String(new Set(rows.map((row) => row.zone)).size)
+              outageFailed || outageLoading
+                ? "-"
+                : String(new Set(rows.map((row) => row.zone)).size)
             }
             accent="primary"
           />
@@ -459,7 +461,9 @@ function OutagesPage() {
                           <td className="text-right">
                             <div className="flex flex-col items-end gap-0.5">
                               <DataBadge source={row.status} />
-                              <span className="text-[10px] text-muted-foreground">{row.source}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {row.source}
+                              </span>
                             </div>
                           </td>
                         </tr>
@@ -548,14 +552,17 @@ function OutagesPage() {
                     {!danubeStations.length && (
                       <tr>
                         <td colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
-                          RHMZ Danube water-level data unavailable. {sourceReason(danube.data?.reason)}
+                          RHMZ Danube water-level data unavailable.{" "}
+                          {sourceReason(danube.data?.reason)}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
                 <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                  Absolute centimetre readings should not be compared directly between stations because each gauge has its own zero elevation. Use each station's change and seven-day range for trend comparison.
+                  Absolute centimetre readings should not be compared directly between stations
+                  because each gauge has its own zero elevation. Use each station's change and
+                  seven-day range for trend comparison.
                 </p>
               </div>
             )}

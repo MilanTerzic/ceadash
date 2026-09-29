@@ -67,7 +67,8 @@ export const getFlowAnalytics = createServerFn({ method: "GET" })
         const sourceImp = aggregateSource(impParts);
         const sourceExp = aggregateSource(expParts);
         const partialDirection =
-          impParts.some((part) => part.source === "empty") || expParts.some((part) => part.source === "empty");
+          impParts.some((part) => part.source === "empty") ||
+          expParts.some((part) => part.source === "empty");
 
         return {
           neighbour,

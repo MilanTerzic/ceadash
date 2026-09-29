@@ -149,7 +149,6 @@ export function ChartCard({
   );
 }
 
-
 export function SignalPill({
   signal,
 }: {

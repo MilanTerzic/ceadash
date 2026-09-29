@@ -97,7 +97,8 @@ test("later-year futures average is delivery-hour weighted", () => {
   const contracts = [];
   for (let month = 1; month <= 12; month++) {
     const mm = String(month).padStart(2, "0");
-    const next = month === 12 ? "2028-12-31" : `2028-${mm}-${new Date(Date.UTC(2028, month, 0)).getUTCDate()}`;
+    const next =
+      month === 12 ? "2028-12-31" : `2028-${mm}-${new Date(Date.UTC(2028, month, 0)).getUTCDate()}`;
     contracts.push({
       contractName: `M${mm}-28`,
       loadType: "base",
@@ -134,11 +135,15 @@ test("later-year futures average is delivery-hour weighted", () => {
   const year2028 = curve.yearly.find((row) => row.year === 2028);
   assert.ok(year2028);
   const months = Array.from({ length: 12 }, (_, i) => `2028-${String(i + 1).padStart(2, "0")}`);
-  const totalHours = months.reduce((sum, month) => sum + priceCurve.belgradeMonthDeliveryHours(month), 0);
-  const expected = months.reduce((sum, month, i) => {
-    const price = i === 1 ? 0 : i === 2 ? 200 : 100;
-    return sum + price * priceCurve.belgradeMonthDeliveryHours(month);
-  }, 0) / totalHours;
+  const totalHours = months.reduce(
+    (sum, month) => sum + priceCurve.belgradeMonthDeliveryHours(month),
+    0,
+  );
+  const expected =
+    months.reduce((sum, month, i) => {
+      const price = i === 1 ? 0 : i === 2 ? 200 : 100;
+      return sum + price * priceCurve.belgradeMonthDeliveryHours(month);
+    }, 0) / totalHours;
   assert.ok(Math.abs(year2028.averageEurPerMWh - expected) < 1e-9);
   assert.notEqual(year2028.averageEurPerMWh, 100);
 });

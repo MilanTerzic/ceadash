@@ -38,9 +38,7 @@ const semantics = await import(pathToFileURL(path.join(outdir, "capacity-semanti
 
 test.after(async () => rm(outdir, { recursive: true, force: true }));
 
-const prices = (value) => [
-  { ts: "2026-08-20T00:00:00.000Z", price: value, durationMinutes: 60 },
-];
+const prices = (value) => [{ ts: "2026-08-20T00:00:00.000Z", price: value, durationMinutes: 60 }];
 
 test("public auction allocation is not exposed as available capacity", () => {
   const opportunity = mod.buildRouteOpportunity({

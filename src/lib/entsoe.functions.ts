@@ -60,7 +60,7 @@ function parsePoints(xml: string): { ts: Date; value: number }[] {
   return out;
 }
 
-export const fetchDayAheadPrices = createServerFn({ method: "POST" })
+export const fetchDayAheadPrices = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z
       .object({
@@ -84,7 +84,7 @@ export const fetchDayAheadPrices = createServerFn({ method: "POST" })
     return { ok: true, points: pts };
   });
 
-export const fetchActualGeneration = createServerFn({ method: "POST" })
+export const fetchActualGeneration = createServerFn({ method: "GET" })
   .inputValidator((data) =>
     z
       .object({

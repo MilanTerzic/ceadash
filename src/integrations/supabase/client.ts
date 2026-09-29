@@ -7,8 +7,7 @@ import type { Database } from "./types";
 // but retain these production defaults so a missing host env cannot take the
 // public dashboard offline.
 const PUBLIC_SUPABASE_URL = "https://ialzzzzyqsnylbkeufsu.supabase.co";
-const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_89zRjG2oGrhXmU8oHPyc6w_0GWOfrvY";
+const PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_89zRjG2oGrhXmU8oHPyc6w_0GWOfrvY";
 
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement),

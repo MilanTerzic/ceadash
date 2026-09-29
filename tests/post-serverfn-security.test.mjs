@@ -17,7 +17,7 @@ async function walk(dir) {
   return files;
 }
 
-test("every POST TanStack server function is explicitly server-authorized", async () => {
+test("every POST TanStack server function is admin-guarded or rate-limited", async () => {
   const files = await walk(root);
   const unguarded = [];
   let postCount = 0;
@@ -32,7 +32,7 @@ test("every POST TanStack server function is explicitly server-authorized", asyn
       const start = match.index;
       const nextExport = source.indexOf("\nexport const ", start + match[0].length);
       const block = source.slice(start, nextExport === -1 ? source.length : nextExport);
-      if (!block.includes("requireAdminWriteToken(")) {
+      if (!block.includes("requireAdminWriteToken(") && !block.includes("enforceAdminRateLimit(")) {
         unguarded.push(path.relative(root, file));
       }
     }
@@ -42,6 +42,6 @@ test("every POST TanStack server function is explicitly server-authorized", asyn
   assert.deepEqual(
     unguarded,
     [],
-    `POST server functions without explicit requireAdminWriteToken guard: ${unguarded.join(", ")}`,
+    `POST server functions without requireAdminWriteToken/enforceAdminRateLimit guard: ${unguarded.join(", ")}`,
   );
 });
