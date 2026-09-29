@@ -1,7 +1,11 @@
 export type CoverageSource = "entsoe" | "cache" | "none";
 
 export type CoverageState =
-  "complete" | "partial" | "cached-complete" | "cached-partial" | "unavailable";
+  | "complete"
+  | "partial"
+  | "cached-complete"
+  | "cached-partial"
+  | "unavailable";
 
 export function classifyCoverage(input: {
   source: CoverageSource;

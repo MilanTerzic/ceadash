@@ -1,5 +1,17 @@
 export type PriceMarketCode =
-  "RS" | "HU" | "RO" | "BG" | "HR" | "ME" | "MK" | "SI" | "GR" | "IT_CSUD" | "AT" | "DE_LU" | "AL";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "HR"
+  | "ME"
+  | "MK"
+  | "SI"
+  | "GR"
+  | "IT_CSUD"
+  | "AT"
+  | "DE_LU"
+  | "AL";
 
 export type PriceMarketGroup = "serbia" | "direct-neighbour" | "regional" | "european-benchmark";
 

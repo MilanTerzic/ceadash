@@ -1,9 +1,27 @@
 export type FuturesMarketCode =
-  "RS" | "HU" | "RO" | "BG" | "HR" | "SI" | "GR" | "IT" | "AT" | "DE_LU" | "ME" | "MK" | "AL";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "HR"
+  | "SI"
+  | "GR"
+  | "IT"
+  | "AT"
+  | "DE_LU"
+  | "ME"
+  | "MK"
+  | "AL";
 
 export type FuturesLoadType = "base" | "peak";
 export type FuturesMaturityType =
-  "day" | "weekend" | "week" | "month" | "quarter" | "year" | "other";
+  | "day"
+  | "weekend"
+  | "week"
+  | "month"
+  | "quarter"
+  | "year"
+  | "other";
 export type FuturesSourceStatus =
   | "live"
   | "current-eod"

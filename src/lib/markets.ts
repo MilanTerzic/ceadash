@@ -1,6 +1,17 @@
 // Central market/zone/border config, ported from market_config.py + cbc_capacity_resale_dashboard.py
 export type ZoneCode =
-  "RS" | "HU" | "RO" | "BG" | "HR" | "SI" | "BA" | "ME" | "MK" | "AL" | "UA" | "XK";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "HR"
+  | "SI"
+  | "BA"
+  | "ME"
+  | "MK"
+  | "AL"
+  | "UA"
+  | "XK";
 
 export interface Zone {
   code: ZoneCode;
