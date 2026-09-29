@@ -3,10 +3,18 @@ export type PriceSourceMode = "futures" | "historical" | "manual";
 export type FuturesLoadSelection = "base" | "peak";
 export type NegativePriceRule = "always" | "curtail_negative" | "curtail_threshold";
 export type RenewableRevenueStructure =
-  "merchant" | "fixed" | "pay_as_produced" | "baseload" | "hybrid";
+  | "merchant"
+  | "fixed"
+  | "pay_as_produced"
+  | "baseload"
+  | "hybrid";
 export type BessRevenueStructure = "merchant" | "tolling" | "hybrid";
 export type HybridRevenueStructure =
-  "merchant" | "renewable_ppa" | "partial_ppa" | "baseload_ppa" | "battery_tolling";
+  | "merchant"
+  | "renewable_ppa"
+  | "partial_ppa"
+  | "baseload_ppa"
+  | "battery_tolling";
 export type HybridComponents = "solar_bess" | "wind_bess" | "solar_wind_bess";
 
 export type FinancingAssumptions = {

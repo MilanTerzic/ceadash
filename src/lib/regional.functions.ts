@@ -3,7 +3,18 @@ import { z } from "zod";
 import { getEntsoeToken } from "@/lib/entsoe-token";
 
 export type ZoneCode =
-  "RS" | "HU" | "RO" | "BG" | "MK" | "AL" | "ME" | "BA" | "HR" | "SI" | "GR" | "IT";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "MK"
+  | "AL"
+  | "ME"
+  | "BA"
+  | "HR"
+  | "SI"
+  | "GR"
+  | "IT";
 
 export const ZONES: Record<ZoneCode, { name: string; eic: string; lat: number; lng: number }> = {
   RS: { name: "Serbia", eic: "10YCS-SERBIATSOV", lat: 44.0, lng: 20.9 },

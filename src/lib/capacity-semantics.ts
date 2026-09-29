@@ -1,5 +1,7 @@
 export type CapacityAuctionSemantic =
-  "requested_capacity" | "allocated_capacity_with_price" | "unknown";
+  | "requested_capacity"
+  | "allocated_capacity_with_price"
+  | "unknown";
 
 export type CapacityAuctionObservation = {
   semantic: CapacityAuctionSemantic;
