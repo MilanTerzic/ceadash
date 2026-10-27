@@ -4,7 +4,7 @@ export type IntervalPriceRow = {
   market: string;
   datetime: string;
   duration_minutes: number;
-  price_eur_mwh: number | string;
+  price_eur_mwh: number | string | null;
   source?: string | null;
   fetched_at?: string | null;
 };
@@ -67,30 +67,30 @@ export function toIntervalRows(
   }));
 }
 
+// A missing database price must never become a real zero-EUR/MWh observation.
+// Validate timestamps before calling toISOString, which throws for malformed values.
 export function fromIntervalRows(rows: IntervalPriceRow[]): PricePoint[] {
   return rows
-    .map((row) => ({
-      ts: new Date(row.datetime).toISOString(),
-      price: Number(row.price_eur_mwh),
-      durationMinutes: Number(row.duration_minutes),
-    }))
-    .filter(
-      (point) =>
-        Number.isFinite(point.price) &&
-        [15, 30, 60].includes(point.durationMinutes) &&
-        !Number.isNaN(new Date(point.ts).getTime()),
-    )
+    .flatMap((row): PricePoint[] => {
+      if (row.price_eur_mwh == null || String(row.price_eur_mwh).trim() === "") return [];
+      const epoch = Date.parse(row.datetime);
+      const price = Number(row.price_eur_mwh);
+      const durationMinutes = Number(row.duration_minutes);
+      if (!Number.isFinite(epoch) || !Number.isFinite(price) || ![15, 30, 60].includes(durationMinutes)) return [];
+      return [{ ts: new Date(epoch).toISOString(), price, durationMinutes }];
+    })
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 export function fromLegacyHourlyRows(rows: LegacyHourlyPriceRow[]): PricePoint[] {
   return rows
-    .map((row) => ({
-      ts: new Date(row.datetime).toISOString(),
-      price: Number(row.price_eur_mwh),
-      durationMinutes: 60,
-    }))
-    .filter((point) => Number.isFinite(point.price) && !Number.isNaN(Date.parse(point.ts)))
+    .flatMap((row): PricePoint[] => {
+      if (row.price_eur_mwh == null || String(row.price_eur_mwh).trim() === "") return [];
+      const epoch = Date.parse(row.datetime);
+      const price = Number(row.price_eur_mwh);
+      if (!Number.isFinite(epoch) || !Number.isFinite(price)) return [];
+      return [{ ts: new Date(epoch).toISOString(), price, durationMinutes: 60 }];
+    })
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
@@ -112,7 +112,10 @@ export async function readIntervalPriceCache(
       .lt("datetime", toIso)
       .order("datetime", { ascending: true })
       .range(offset, offset + pageSize - 1);
-    if (response.error) return [];
+    if (response.error) {
+      console.warn(`[Price cache] Interval read failed for ${market}:`, response.error.message);
+      return [];
+    }
     const chunk = (response.data ?? []) as IntervalPriceRow[];
     rows.push(...chunk);
     if (chunk.length < pageSize) break;
@@ -138,7 +141,10 @@ async function readLegacyHourlyPriceCache(
       .lt("datetime", toIso)
       .order("datetime", { ascending: true })
       .range(offset, offset + pageSize - 1);
-    if (response.error) return [];
+    if (response.error) {
+      console.warn(`[Price cache] Legacy hourly read failed for ${market}:`, response.error.message);
+      return [];
+    }
     const chunk = (response.data ?? []) as LegacyHourlyPriceRow[];
     rows.push(...chunk);
     if (chunk.length < pageSize) break;
