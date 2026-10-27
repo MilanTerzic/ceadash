@@ -8,7 +8,13 @@ import type { PricePoint } from "./trading-calculations";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-type RangeInput = { day?: string; from?: string; to?: string; force?: boolean; markets?: PriceMarketCode[] };
+type RangeInput = {
+  day?: string;
+  from?: string;
+  to?: string;
+  force?: boolean;
+  markets?: PriceMarketCode[];
+};
 
 function todayBelgradeISO(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -49,8 +55,9 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
  */
 function requestedMarketCodes(input?: PriceMarketCode[]): PriceMarketCode[] {
   const selected = Array.isArray(input)
-    ? input.filter((code): code is PriceMarketCode =>
-        typeof code === "string" && PRICE_MARKET_CODES.includes(code as PriceMarketCode),
+    ? input.filter(
+        (code): code is PriceMarketCode =>
+          typeof code === "string" && PRICE_MARKET_CODES.includes(code as PriceMarketCode),
       )
     : [];
   return Array.from(new Set<PriceMarketCode>(["RS", ...selected]));
@@ -124,7 +131,9 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
 
         let points = cached;
         let source: "live" | "cache" | "demo" | "empty" = cached.length ? "cache" : "empty";
-        let reason: string | undefined = cacheConfigured ? undefined : "supabase_cache_not_configured";
+        let reason: string | undefined = cacheConfigured
+          ? undefined
+          : "supabase_cache_not_configured";
         let fetchedAt = new Date().toISOString();
 
         if (force || !complete) {
