@@ -192,13 +192,22 @@ function PricesPage() {
       />
       <div className="space-y-5 p-6">
         {(q.error || refreshError) && (
-          <div role="alert" className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {refreshError ?? (q.error instanceof Error ? q.error.message : String(q.error))}
           </div>
         )}
         {q.data && !q.data.cacheConfigured && (
-          <div role="status" className="rounded border border-warning/40 bg-warning/10 p-3 text-sm">
-            {t("Database caching is not configured. Live prices may load, but updates will not be stored.", "Keširanje u bazi nije konfigurisano. Cene mogu da se učitaju, ali ažuriranja neće biti sačuvana.")}
+          <div
+            role="status"
+            className="rounded border border-warning/40 bg-warning/10 p-3 text-sm"
+          >
+            {t(
+              "Database caching is not configured. Live prices may load, but updates will not be stored.",
+              "Keširanje u bazi nije konfigurisano. Cene mogu da se učitaju, ali ažuriranja neće biti sačuvana.",
+            )}
           </div>
         )}
         <Panel
