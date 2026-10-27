@@ -76,7 +76,12 @@ export function fromIntervalRows(rows: IntervalPriceRow[]): PricePoint[] {
       const epoch = Date.parse(row.datetime);
       const price = Number(row.price_eur_mwh);
       const durationMinutes = Number(row.duration_minutes);
-      if (!Number.isFinite(epoch) || !Number.isFinite(price) || ![15, 30, 60].includes(durationMinutes)) return [];
+      if (
+        !Number.isFinite(epoch) ||
+        !Number.isFinite(price) ||
+        ![15, 30, 60].includes(durationMinutes)
+      )
+        return [];
       return [{ ts: new Date(epoch).toISOString(), price, durationMinutes }];
     })
     .sort((a, b) => a.ts.localeCompare(b.ts));
@@ -142,7 +147,10 @@ async function readLegacyHourlyPriceCache(
       .order("datetime", { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (response.error) {
-      console.warn(`[Price cache] Legacy hourly read failed for ${market}:`, response.error.message);
+      console.warn(
+        `[Price cache] Legacy hourly read failed for ${market}:`,
+        response.error.message,
+      );
       return [];
     }
     const chunk = (response.data ?? []) as LegacyHourlyPriceRow[];
