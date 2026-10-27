@@ -2,12 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { fetchDayAheadPricesRange } from "./entsoe.server";
 import { readCanonicalPriceCache, writeCanonicalPriceCache } from "./interval-price-cache.server";
 import { calculatePricePeriodStats } from "./price-analysis";
-import { PRICE_MARKET_CODES } from "./price-markets";
+import { PRICE_MARKET_CODES, type PriceMarketCode } from "./price-markets";
+import { belgradeDeliveryStartUtc } from "./belgrade-delivery-boundary";
 import type { PricePoint } from "./trading-calculations";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-type RangeInput = { day?: string; from?: string; to?: string; force?: boolean };
+type RangeInput = { day?: string; from?: string; to?: string; force?: boolean; markets?: PriceMarketCode[] };
 
 function todayBelgradeISO(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -41,22 +42,18 @@ function expandRange(fromIn?: string, toIn?: string, dayIn?: string): string[] {
   return [day ?? from ?? to ?? todayBelgradeISO()];
 }
 
-function belgradeOffsetHours(dayISO: string): number {
-  const noonUtc = new Date(`${dayISO}T12:00:00Z`);
-  const part =
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Belgrade",
-      timeZoneName: "shortOffset",
-    })
-      .formatToParts(noonUtc)
-      .find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
-  const match = /GMT([+-]\d+)/.exec(part);
-  return match ? Number(match[1]) : 1;
-}
-
-function boundaryUtc(dayISO: string): Date {
-  const [year, month, day] = dayISO.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, -belgradeOffsetHours(dayISO), 0, 0, 0));
+/**
+ * Only request explicitly selected markets. Serbia is always included as the
+ * reference for spread calculations. Invalid market codes from public requests
+ * must never trigger unexpected provider fetches.
+ */
+function requestedMarketCodes(input?: PriceMarketCode[]): PriceMarketCode[] {
+  const selected = Array.isArray(input)
+    ? input.filter((code): code is PriceMarketCode =>
+        typeof code === "string" && PRICE_MARKET_CODES.includes(code as PriceMarketCode),
+      )
+    : [];
+  return Array.from(new Set<PriceMarketCode>(["RS", ...selected]));
 }
 
 function addDaysISO(dayISO: string, days: number): string {
@@ -87,7 +84,7 @@ function mergeIntervals(...groups: PricePoint[][]): PricePoint[] {
 
 async function allSettledBounded<T>(
   tasks: Array<() => Promise<T>>,
-  concurrency = 6,
+  concurrency = 2,
 ): Promise<Array<PromiseSettledResult<T>>> {
   const output: Array<PromiseSettledResult<T>> = new Array(tasks.length);
   let next = 0;
@@ -111,22 +108,23 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const days = expandRange(data?.from, data?.to, data?.day);
     const force = Boolean(data?.force);
-    const fromIso = boundaryUtc(days[0]).toISOString();
-    const toIso = boundaryUtc(addDaysISO(days[days.length - 1], 1)).toISOString();
+    const zones = requestedMarketCodes(data?.markets);
+    const cacheConfigured = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const fromIso = belgradeDeliveryStartUtc(days[0]).toISOString();
+    const toIso = belgradeDeliveryStartUtc(addDaysISO(days[days.length - 1], 1)).toISOString();
 
     const results = await allSettledBounded(
-      PRICE_MARKET_CODES.map((zone) => async () => {
+      zones.map((zone) => async () => {
         const market = `DA_${zone}`;
-        const cacheResult = force
-          ? { points: [] as PricePoint[], source: "empty" as const }
-          : await readCanonicalPriceCache(supabaseAdmin, market, fromIso, toIso);
+        // Keep previous valid observations even if a forced source refresh fails.
+        const cacheResult = await readCanonicalPriceCache(supabaseAdmin, market, fromIso, toIso);
         const cached = cacheResult.points;
         const cachedStats = calculatePricePeriodStats(cached, days);
         const complete = cachedStats.completeDays === days.length && days.length > 0;
 
         let points = cached;
         let source: "live" | "cache" | "demo" | "empty" = cached.length ? "cache" : "empty";
-        let reason: string | undefined;
+        let reason: string | undefined = cacheConfigured ? undefined : "supabase_cache_not_configured";
         let fetchedAt = new Date().toISOString();
 
         if (force || !complete) {
@@ -145,19 +143,21 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
           if (livePoints.length) {
             try {
               await writeCanonicalPriceCache(supabaseAdmin, market, livePoints, "ENTSO-E");
-            } catch {
-              // Cache persistence is best-effort. The live response remains usable.
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : "unknown";
+              console.warn(`[DA profile] Cache write failed for ${zone}: ${detail}`);
+              reason = [reason, "price_cache_write_failed"].filter(Boolean).join("; ");
             }
           }
           points = mergeIntervals(cached, livePoints);
           source = live.source === "empty" && points.length ? source : live.source;
-          reason = live.reason;
+          reason = [reason, live.reason].filter(Boolean).join("; ") || undefined;
           fetchedAt = live.fetched_at;
         }
 
         const stats = calculatePricePeriodStats(points, days);
         if (points.length && stats.completeDays < days.length) {
-          reason = reason ?? "partial_market_price_coverage";
+          reason = [reason, "partial_market_price_coverage"].filter(Boolean).join("; ");
         }
         return {
           zone,
@@ -171,7 +171,7 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
       }),
     );
 
-    const rows = PRICE_MARKET_CODES.map((zone, index) => {
+    const rows = zones.map((zone, index) => {
       const result = results[index];
       return result.status === "fulfilled"
         ? result.value
@@ -186,5 +186,5 @@ export const getAverageDAProfile = createServerFn({ method: "GET" })
           };
     });
 
-    return { from: days[0], to: days[days.length - 1], zones: PRICE_MARKET_CODES, rows };
+    return { from: days[0], to: days[days.length - 1], zones, rows, cacheConfigured };
   });
