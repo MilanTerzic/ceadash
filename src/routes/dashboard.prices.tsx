@@ -157,6 +157,10 @@ function PricesPage() {
   );
 
   const selectedStats = stats.filter((row) => selectedSet.has(row.zone));
+  const unavailableStats = selectedStats.filter((row) => row.receivedIntervals === 0);
+  const partialStats = selectedStats.filter(
+    (row) => row.receivedIntervals > 0 && row.receivedIntervals < row.expectedIntervals,
+  );
   const serbiaStats = stats.find((row) => row.zone === "RS");
   const spreadRows = stats
     .filter((row) => row.zone !== "RS")
@@ -207,6 +211,27 @@ function PricesPage() {
             {t(
               "Database caching is not configured. Live prices may load, but updates will not be stored.",
               "Keširanje u bazi nije konfigurisano. Cene mogu da se učitaju, ali ažuriranja neće biti sačuvana.",
+            )}
+          </div>
+        )}
+        {q.data && (unavailableStats.length > 0 || partialStats.length > 0) && (
+          <div role="status" className="rounded border border-warning/40 bg-warning/10 p-3 text-sm">
+            <div className="font-medium">
+              {t("Incomplete DA market coverage", "Nepotpuna pokrivenost DA podacima")}
+            </div>
+            {unavailableStats.length > 0 && (
+              <div className="mt-1">
+                {t("Unavailable", "Nedostupno")}:{" "}
+                {unavailableStats.map((row) => row.zone).join(", ")}
+              </div>
+            )}
+            {partialStats.length > 0 && (
+              <div className="mt-1">
+                {t("Partial", "Delimično")}:{" "}
+                {partialStats
+                  .map((row) => `${row.zone} (${row.receivedIntervals}/${row.expectedIntervals})`)
+                  .join(", ")}
+              </div>
             )}
           </div>
         )}
