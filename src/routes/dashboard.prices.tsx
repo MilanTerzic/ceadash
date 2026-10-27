@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -66,6 +66,7 @@ const COMPACT_MARKET_PRESETS: Record<
 
 function PricesPage() {
   const fn = useServerFn(getAverageDAProfile);
+  const queryClient = useQueryClient();
   const { range } = useDateRange();
   const { t } = useLang();
   const [selectedMarkets, setSelectedMarkets] = useState<PriceMarketCode[]>(
@@ -73,15 +74,45 @@ function PricesPage() {
   );
   const [preset, setPreset] = useState<MarketPresetId>("serbia");
   const [marketSearch, setMarketSearch] = useState("");
-  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  // A Serbia-only view should not backfill every exchange in the region.
+  // Keep RS as the reference even when only foreign markets are selected.
+  const requestedMarkets = useMemo(
+    () =>
+      PRICE_MARKET_LIST.filter(
+        (market) => market.code === "RS" || selectedMarkets.includes(market.code),
+      ).map((market) => market.code),
+    [selectedMarkets],
+  );
+  const marketKey = requestedMarkets.join(",");
+  const queryKey = ["da_profile", range.from, range.to, marketKey];
 
   const q = useQuery({
-    queryKey: ["da_profile", range.from, range.to, refreshNonce],
-    queryFn: () => fn({ data: { from: range.from, to: range.to, force: refreshNonce > 0 } }),
+    queryKey,
+    queryFn: () =>
+      fn({ data: { from: range.from, to: range.to, markets: requestedMarkets } }),
     staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
+  const handleRefresh = async () => {
+    if (manualRefreshing) return;
+    setManualRefreshing(true);
+    setRefreshError(null);
+    try {
+      const updated = await fn({
+        data: { from: range.from, to: range.to, markets: requestedMarkets, force: true },
+      });
+      // Force only this request: normal subsequent navigation stays cache-first.
+      queryClient.setQueryData(queryKey, updated);
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : "DA price refresh failed");
+    } finally {
+      setManualRefreshing(false);
+    }
+  };
 
   const rows = useMemo(() => q.data?.rows ?? [], [q.data]);
   const selectedSet = useMemo(() => new Set(selectedMarkets), [selectedMarkets]);
@@ -154,12 +185,22 @@ function PricesPage() {
           `Market summary, hourly profiles and regional spreads for ${rangeLabel} in Europe/Belgrade local time`,
           `Pregled tržišta, satni profili i regionalni spreadovi za ${rangeLabel} u vremenu Europe/Belgrade`,
         )}
-        onRefresh={() => setRefreshNonce((value) => value + 1)}
-        isRefreshing={q.isFetching}
+        onRefresh={handleRefresh}
+        isRefreshing={q.isFetching || manualRefreshing}
         lastRefresh={rows[0]?.fetched_at}
         hideRange
       />
       <div className="space-y-5 p-6">
+        {(q.error || refreshError) && (
+          <div role="alert" className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {refreshError ?? (q.error instanceof Error ? q.error.message : String(q.error))}
+          </div>
+        )}
+        {q.data && !q.data.cacheConfigured && (
+          <div role="status" className="rounded border border-warning/40 bg-warning/10 p-3 text-sm">
+            {t("Database caching is not configured. Live prices may load, but updates will not be stored.", "Keširanje u bazi nije konfigurisano. Cene mogu da se učitaju, ali ažuriranja neće biti sačuvana.")}
+          </div>
+        )}
         <Panel
           title={t("Market summary", "Pregled tržišta")}
           actions={<ExportMenu chartData={chartData} stats={stats} spreadRows={spreadRows} t={t} />}
