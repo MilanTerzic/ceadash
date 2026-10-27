@@ -41,7 +41,9 @@ test("normal winter/summer delivery windows are exactly 24 hours", () => {
     const next = new Date(day + "T12:00:00Z");
     next.setUTCDate(next.getUTCDate() + 1);
     assert.equal(
-      (belgradeDeliveryStartUtc(next.toISOString().slice(0, 10)) - belgradeDeliveryStartUtc(day)) / 3600000,
+      (belgradeDeliveryStartUtc(next.toISOString().slice(0, 10)) -
+        belgradeDeliveryStartUtc(day)) /
+        3600000,
       24,
     );
   }
