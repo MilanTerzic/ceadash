@@ -111,11 +111,15 @@ type CacheEntry<T> = {
 
 async function cacheGetEntry<T>(key: string, ttl: number): Promise<CacheEntry<T> | null> {
   try {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("api_cache")
       .select("payload, fetched_at, ttl_seconds")
       .eq("key", key)
       .maybeSingle();
+    if (error) {
+      console.warn("[ENTSO-E cache] Read failed:", error.message);
+      return null;
+    }
     if (!data) return null;
     const fetchedAt = String(data.fetched_at);
     const ttlSeconds = Number(data.ttl_seconds ?? ttl);
@@ -168,14 +172,16 @@ async function staleCacheOrEmpty<T>(
 
 async function cacheSet(key: string, payload: unknown, ttl = DEFAULT_TTL) {
   try {
-    await supabaseAdmin.from("api_cache").upsert({
+    const { error } = await supabaseAdmin.from("api_cache").upsert({
       key,
       payload: payload as never,
       fetched_at: new Date().toISOString(),
       ttl_seconds: ttl,
     });
-  } catch {
-    // Cache writes are best-effort and never invalidate a successful live response.
+    if (error) console.warn("[ENTSO-E cache] Write failed:", error.message);
+  } catch (error) {
+    // A live response remains usable even when persistence is degraded.
+    console.warn("[ENTSO-E cache] Write failed:", error);
   }
 }
 
@@ -465,8 +471,15 @@ export async function fetchDayAheadPrices(
   const key = `da_prices:${zone}:${dayISO}`;
   const emptyData: PriceSeries = { zone, points: [] };
   if (!force) {
-    const cached = await cacheGet<PriceSeries>(key, DEFAULT_TTL);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
+    const cached = await cacheGetEntry<PriceSeries>(key, DEFAULT_TTL);
+    if (cached?.fresh) {
+      return {
+        data: cached.payload,
+        source: "cache",
+        fetched_at: cached.fetched_at,
+        last_success_at: cached.fetched_at,
+      };
+    }
   }
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
   if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
@@ -511,8 +524,15 @@ export async function fetchDayAheadPricesRange(
   const emptyData: IntervalPriceSeries = { zone, points: [] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.da_past : TTL.da_today;
   if (!force) {
-    const cached = await cacheGet<IntervalPriceSeries>(key, ttl);
-    if (cached) return { data: cached, source: "cache", fetched_at: new Date().toISOString() };
+    const cached = await cacheGetEntry<IntervalPriceSeries>(key, ttl);
+    if (cached?.fresh) {
+      return {
+        data: cached.payload,
+        source: "cache",
+        fetched_at: cached.fetched_at,
+        last_success_at: cached.fetched_at,
+      };
+    }
   }
   if (demo) return staleCacheOrEmpty(key, emptyData, "demo_disabled");
   if (!token()) return staleCacheOrEmpty(key, emptyData, "no_token");
