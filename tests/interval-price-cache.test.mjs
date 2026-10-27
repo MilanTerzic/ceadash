@@ -81,3 +81,31 @@ test("Serbia can keep using known-hourly legacy cache after the SDAC cutover", (
     true,
   );
 });
+
+test("null, blank and malformed database prices are excluded rather than converted to zero", () => {
+  const rows = [
+    { datetime: "2026-10-25T01:00:00.000Z", price_eur_mwh: null },
+    { datetime: "2026-10-25T02:00:00.000Z", price_eur_mwh: "" },
+    { datetime: "not-a-date", price_eur_mwh: "33" },
+    { datetime: "2026-10-25T03:00:00.000Z", price_eur_mwh: "0" },
+    { datetime: "2026-10-25T04:00:00.000Z", price_eur_mwh: "-12.5" },
+  ];
+  assert.deepEqual(
+    mod.fromLegacyHourlyRows(rows).map(({ price }) => price),
+    [0, -12.5],
+  );
+});
+
+test("interval cache rejects missing values and preserves genuine zero prices", () => {
+  const rows = [
+    { datetime: "2026-08-20T10:00:00.000Z", price_eur_mwh: null, duration_minutes: 15 },
+    { datetime: "2026-08-20T10:15:00.000Z", price_eur_mwh: " ", duration_minutes: 15 },
+    { datetime: "bad", price_eur_mwh: 50, duration_minutes: 15 },
+    { datetime: "2026-08-20T10:30:00.000Z", price_eur_mwh: "0", duration_minutes: 15 },
+    { datetime: "2026-08-20T10:45:00.000Z", price_eur_mwh: -15, duration_minutes: 15 },
+  ];
+  assert.deepEqual(
+    mod.fromIntervalRows(rows).map(({ price }) => price),
+    [0, -15],
+  );
+});
