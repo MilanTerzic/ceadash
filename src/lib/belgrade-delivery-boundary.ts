@@ -8,13 +8,18 @@
 export function belgradeDeliveryStartUtc(dayISO: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) throw new Error("invalid_delivery_date");
   const utcMidnight = new Date(`${dayISO}T00:00:00Z`);
-  if (!Number.isFinite(utcMidnight.getTime()) || utcMidnight.toISOString().slice(0, 10) !== dayISO) {
+  if (
+    !Number.isFinite(utcMidnight.getTime()) ||
+    utcMidnight.toISOString().slice(0, 10) !== dayISO
+  ) {
     throw new Error("invalid_delivery_date");
   }
   const zonePart = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Belgrade",
     timeZoneName: "shortOffset",
-  }).formatToParts(utcMidnight).find((part) => part.type === "timeZoneName")?.value;
+  })
+    .formatToParts(utcMidnight)
+    .find((part) => part.type === "timeZoneName")?.value;
   const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(zonePart ?? "");
   if (!match) throw new Error("unrecognised_belgrade_utc_offset");
   const sign = match[1] === "+" ? 1 : -1;
