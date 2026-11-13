@@ -90,6 +90,11 @@ function flowWidth(mw: number): number {
   return 1.25 + 4.75 * Math.sqrt(Math.min(1, Math.abs(mw) / 1500));
 }
 
+/** Sequential colour for a line: starts a third up the ramp so weak links stay visible. */
+function linkRamp(share: number): string {
+  return sequentialColor(0.3 + 0.7 * Math.min(1, Math.max(0, share)));
+}
+
 function strength(value: number | null, reference: number | null, span: number): number {
   if (value === null || reference === null || !(span > 0)) return 0;
   return Math.min(1, Math.abs(value - reference) / span);
@@ -242,7 +247,7 @@ export function buildLayer(
         }
         links[border.id] = {
           width: 3.5,
-          color: sequentialColor(Math.min(1, Math.abs(s) / 25)),
+          color: linkRamp(Math.abs(s) / 25),
           direction: Math.abs(s) < 0.05 ? 0 : s > 0 ? 1 : -1,
           label: fmt(Math.abs(s), 1),
         };
@@ -269,7 +274,7 @@ export function buildLayer(
         const net = view.flow.meanNet ?? 0;
         links[border.id] = {
           width: 4,
-          color: sequentialColor(Math.min(1, view.meanUtilisation)),
+          color: linkRamp(view.meanUtilisation),
           direction: net > 0 ? 1 : net < 0 ? -1 : 0,
           label: `${fmt(view.meanUtilisation * 100, 0)}%`,
         };
@@ -302,7 +307,7 @@ export function buildLayer(
         const price = forward ? ab! : ba!;
         links[border.id] = {
           width: 3.5,
-          color: sequentialColor(Math.min(1, price / 20)),
+          color: linkRamp(price / 20),
           direction: forward ? 1 : -1,
           label: fmt(price, 2),
         };

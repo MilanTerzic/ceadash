@@ -187,7 +187,7 @@ export function TimeChart({
       )}
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={rows} margin={{ top: 6, right: 18, bottom: 0, left: 0 }}>
+          <ComposedChart data={rows} margin={{ top: 6, right: 24, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="0" />
             <XAxis
               dataKey="t"
@@ -355,7 +355,7 @@ export function XYChart({
       )}
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={rows} margin={{ top: 6, right: 18, bottom: 0, left: 0 }}>
+          <ComposedChart data={rows} margin={{ top: 6, right: 24, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="0" />
             <XAxis
               dataKey="t"
@@ -491,9 +491,9 @@ export function HeatGrid({
     <div className="min-w-0">
       <div className="overflow-x-auto">
         <div
-          className={cn("grid items-center gap-px", compact ? "min-w-[360px]" : "min-w-[560px]")}
+          className={cn("grid items-center gap-px", compact ? "min-w-[320px]" : "min-w-[560px]")}
           style={{
-            gridTemplateColumns: `${compact ? 40 : 64}px repeat(${columns.length}, minmax(0, 1fr)) ${compact ? 46 : 60}px`,
+            gridTemplateColumns: `${compact ? 36 : 64}px repeat(${columns.length}, minmax(0, 1fr)) ${compact ? 44 : 60}px`,
           }}
           onMouseLeave={() => setHover(null)}
         >

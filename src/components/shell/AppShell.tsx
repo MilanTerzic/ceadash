@@ -269,20 +269,22 @@ function StatusBar({ entries, isLoading }: { entries: TapeEntry[]; isLoading: bo
         </span>
       </span>
       {!isLoading && headline && (
-        <span className="num hidden sm:inline">
+        <span className="num hidden whitespace-nowrap md:inline">
           {covered}/{entries.length} {t("markets priced", "tržišta sa cenom")}
           {latest
             ? ` · ${t("latest delivery day", "poslednji dan isporuke")} ${fmtDay(latest)}`
             : ""}
         </span>
       )}
-      <span className="ml-auto hidden truncate lg:inline">
+      <span className="ml-auto hidden truncate xl:inline">
         {t(
           "Indicative analysis, not trading or investment advice.",
           "Indikativna analiza, nije trgovački ni investicioni savet.",
         )}
       </span>
-      <MarketClock />
+      <span className="ml-auto shrink-0 whitespace-nowrap xl:ml-0">
+        <MarketClock />
+      </span>
     </footer>
   );
 }
@@ -302,7 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {synthetic && (
         <div
           role="status"
-          className="flex h-6 shrink-0 items-center justify-center gap-2 bg-serious px-3 text-[11px] font-semibold tracking-wide text-black"
+          className="flex min-h-6 shrink-0 items-center justify-center gap-2 bg-serious px-3 py-0.5 text-center text-[11px] font-semibold leading-tight tracking-wide text-black"
         >
           <FlaskConical className="h-3 w-3" aria-hidden />
           {t(

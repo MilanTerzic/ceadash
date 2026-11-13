@@ -12,7 +12,11 @@ interface SitemapEntry {
 const ENTRIES: SitemapEntry[] = [
   { path: "/dashboard", changefreq: "daily", priority: "1.0" },
   { path: "/dashboard/prices", changefreq: "daily", priority: "0.9" },
-  { path: "/dashboard/flows", changefreq: "daily", priority: "0.9" },
+  { path: "/dashboard/borders", changefreq: "daily", priority: "0.9" },
+  { path: "/dashboard/fundamentals", changefreq: "daily", priority: "0.9" },
+  { path: "/dashboard/bess", changefreq: "daily", priority: "0.8" },
+  { path: "/dashboard/ppa", changefreq: "daily", priority: "0.8" },
+  { path: "/dashboard/flows", changefreq: "daily", priority: "0.7" },
   { path: "/dashboard/balance", changefreq: "daily", priority: "0.9" },
   { path: "/dashboard/futures", changefreq: "daily", priority: "0.8" },
   { path: "/dashboard/outages", changefreq: "daily", priority: "0.8" },

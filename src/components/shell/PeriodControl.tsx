@@ -104,7 +104,10 @@ export function PeriodControl() {
             )}
           >
             <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
-            {label}
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">
+              {PRESETS.find((item) => item.key === preset)?.[lang === "sr" ? "sr" : "en"] ?? "···"}
+            </span>
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-3 p-3">

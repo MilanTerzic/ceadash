@@ -58,6 +58,17 @@ function clampView(view: View): View {
   };
 }
 
+/** A 2x view centred on the core markets, used as the opening view on narrow screens. */
+const CORE_VIEW: View = (() => {
+  const core = Object.values(SEE_MARKETS)
+    .filter((market) => market.tier === "core")
+    .map((market) => ANCHORS[market.code])
+    .filter(Boolean);
+  const cx = core.reduce((sum, point) => sum + point.x, 0) / core.length;
+  const cy = core.reduce((sum, point) => sum + point.y, 0) / core.length;
+  return clampView({ k: 2, x: cx - geo.width / 4, y: cy - geo.height / 4 });
+})();
+
 /** Segment between two node anchors, trimmed so it starts and ends at the node edges. */
 function segment(a: { x: number; y: number }, b: { x: number; y: number }, scale: number) {
   const dx = b.x - a.x;
@@ -200,11 +211,13 @@ export function SeeMap({
     const measure = () =>
       setFit(Math.min(element.clientWidth / geo.width, element.clientHeight / geo.height) || 1);
     measure();
+    // On a narrow screen the whole window is too small to read: open on the core region.
+    if (element.clientWidth < 560) setView(CORE_VIEW);
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const inv = Math.min(1.4, 1 / fit) / view.k;
+  const inv = Math.min(1 / (fit * view.k), 2.2 / Math.sqrt(view.k));
 
   return (
     <div

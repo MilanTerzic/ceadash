@@ -9,7 +9,7 @@ import { LAYERS, buildLayer, type LayerId } from "@/components/see/layers";
 import { SeeMap } from "@/components/see/SeeMap";
 import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
-import { hourProfile } from "@/lib/see/analytics";
+import { hourProfile, marketTime } from "@/lib/see/analytics";
 import { divergingColor } from "@/lib/see/colors";
 import { fmt, fmtMW, fmtPrice, fmtShare, fmtSigned } from "@/lib/see/format";
 import { daysBetween, type Focus } from "@/lib/see/region";
@@ -57,20 +57,24 @@ function CommandCenter() {
     ntc: layer === "utilisation" || border !== null,
   });
 
-  // The latest delivery day is often tomorrow's, which may not be published yet:
-  // fall back once to the newest day that has prices.
+  // The period can end on a day whose prices are not published yet (D+1 before the
+  // auction). Once prices arrive, move the focus to the newest day that has any; if no
+  // day has prices the focus stays on the last day.
   const [autoFocused, setAutoFocused] = useState(false);
   useEffect(() => {
-    if (autoFocused || prices.isLoading || focus.mode !== "day") return;
-    const hasPrices = PRICED_CODES.some((code) => region.markets[code].stats.hours > 0);
-    if (hasPrices) {
-      setAutoFocused(true);
-      return;
+    if (autoFocused || prices.isLoading) return;
+    let newest: string | null = null;
+    for (const code of PRICED_CODES) {
+      const series = prices.data[code]?.series;
+      if (!series?.t.length) continue;
+      const day = marketTime(series.t[series.t.length - 1]).day;
+      if (!newest || day > newest) newest = day;
     }
-    const index = days.indexOf(focus.day);
-    if (index > 0) setFocus({ mode: "day", day: days[index - 1] });
-    else setAutoFocused(true);
-  }, [autoFocused, prices.isLoading, focus, region, days]);
+    setAutoFocused(true);
+    if (newest && days.includes(newest)) {
+      setFocus((current) => (current.mode === "day" ? { mode: "day", day: newest } : current));
+    }
+  }, [autoFocused, prices.isLoading, prices.data, days]);
   useEffect(() => setAutoFocused(false), [range.from, range.to]);
 
   const selectedExplicit = border !== null && EXPLICIT_IDS.includes(border);
@@ -203,7 +207,7 @@ function CommandCenter() {
     <div className="grid gap-2 p-2 xl:h-full xl:grid-cols-[minmax(0,1fr)_440px] xl:grid-rows-[minmax(0,1fr)_auto]">
       <Panel
         flush
-        className="min-h-[520px] xl:row-span-2 xl:min-h-0"
+        className="min-h-[420px] md:min-h-[520px] xl:row-span-2 xl:min-h-0"
         title={
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-foreground">
@@ -316,6 +320,7 @@ function CommandCenter() {
           <DataState
             loading={prices.isLoading}
             state={layerState ?? "empty"}
+            reason={PRICED_CODES.map((code) => region.markets[code].status?.reason).find(Boolean)}
             height={120}
             compact
           />

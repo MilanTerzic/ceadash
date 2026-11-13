@@ -432,7 +432,7 @@ export function MarketInspector({ code, region }: { code: SeeCode; region: Regio
                 value={`${fmt(view.stats.min, 0)} / ${fmt(view.stats.max, 0)}`}
               />
               <Stat
-                label={t("Hourly σ", "Satna σ")}
+                label={t("Hourly std dev", "Satna std. dev.")}
                 value={fmt(view.stats.volatility, 1)}
                 hint={t("std. dev. of hourly prices", "std. dev. satnih cena")}
               />
@@ -627,7 +627,7 @@ export function BorderInspector({
           <Stat
             label={t("Flow vs spread", "Tok vs spread")}
             value={fmtShare(view.alignment.againstSpread)}
-            hint={t("hours flowing to the cheaper zone", "sati toka ka jeftinijoj zoni")}
+            hint={t("hours towards cheaper zone", "sati ka jeftinijoj zoni")}
           />
         </div>
 

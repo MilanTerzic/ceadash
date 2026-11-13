@@ -186,7 +186,7 @@ export function Stat({
   return (
     <div className={cn("min-w-0", className)}>
       <div className="eyebrow truncate">{label}</div>
-      <div className="mt-0.5 flex items-baseline gap-1.5">
+      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
         <span className="num text-xl font-medium leading-none text-foreground">{value}</span>
         {unit && <span className="text-[11px] text-muted-foreground">{unit}</span>}
         {delta}
