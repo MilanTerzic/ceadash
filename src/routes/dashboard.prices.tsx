@@ -152,6 +152,9 @@ function PriceAnalytics() {
     [rows, grain, mode, reference, refSeries, colors],
   );
 
+  // Markets with no price or fewer hours than the period expects, stated above the table.
+  const incomplete = prices.isLoading ? [] : rows.filter((row) => row.stats.hours < expectedHours);
+
   const unit = mode === "index" ? "index" : "€/MWh";
   const loading = prices.isLoading;
   const anyData = rows.some((row) => row.stats.hours > 0);
@@ -410,97 +413,121 @@ function PriceAnalytics() {
         {!anyData ? (
           <DataState loading={loading} status={rows[0]?.status} height={120} />
         ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>{t("Market", "Tržište")}</th>
-                <th className="!text-right">Base</th>
-                <th className="!text-right">Peak</th>
-                <th className="!text-right">Off-peak</th>
-                <th className="!text-right">Min</th>
-                <th className="!text-right">Max</th>
-                <th
-                  className="!text-right"
-                  title={t(
-                    "Standard deviation of hourly prices",
-                    "Standardna devijacija satnih cena",
-                  )}
-                >
-                  {t("Std dev", "Std dev")}
-                </th>
-                <th
-                  className="!text-right"
-                  title={t("Mean daily max − min", "Prosečan dnevni maks − min")}
-                >
-                  {t("Daily range", "Dnevni raspon")}
-                </th>
-                <th className="!text-right">&lt;0 h</th>
-                <th className="!text-right">Δ {SEE_MARKETS[reference].short}</th>
-                <th
-                  className="!text-right"
-                  title={t(
-                    "Hourly correlation with the reference",
-                    "Satna korelacija sa referencom",
-                  )}
-                >
-                  {t("Corr", "Kor")} {SEE_MARKETS[reference].short}
-                </th>
-                <th
-                  className="!text-right"
-                  title={t("Hours with a price ÷ hours expected", "Sati sa cenom ÷ očekivani sati")}
-                >
-                  {t("Coverage", "Pokrivenost")}
-                </th>
-                <th>MTU</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.code}>
-                  <td>
-                    <span
-                      className="mr-1.5 inline-block h-2 w-2 rounded-[2px]"
-                      style={{ background: colors[row.code] }}
-                    />
-                    <span className="font-condensed text-xs font-semibold tracking-wide">
-                      {SEE_MARKETS[row.code].short}
-                    </span>
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">
-                      {lang === "sr" ? SEE_MARKETS[row.code].nameSr : SEE_MARKETS[row.code].name}
-                    </span>
-                  </td>
-                  <td className="num text-right">{fmtPrice(row.stats.base)}</td>
-                  <td className="num text-right">{fmtPrice(row.stats.peak)}</td>
-                  <td className="num text-right">{fmtPrice(row.stats.offPeak)}</td>
-                  <td className="num text-right">{fmt(row.stats.min, 1)}</td>
-                  <td className="num text-right">{fmt(row.stats.max, 1)}</td>
-                  <td className="num text-right">{fmt(row.stats.volatility, 1)}</td>
-                  <td className="num text-right">{fmt(row.stats.dailySpread, 1)}</td>
-                  <td className="num text-right">
-                    {row.stats.hours ? row.stats.negativeHours : "—"}
-                  </td>
-                  <td className="text-right">
-                    {row.vsRef === null ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      <Delta value={row.vsRef} className="text-xs" />
+          <>
+            {incomplete.length > 0 && (
+              <p
+                role="status"
+                className="border-b border-border px-3 py-1.5 text-[11.5px] text-warning"
+              >
+                {t("Incomplete day-ahead coverage", "Nepotpuna day-ahead pokrivenost")}:{" "}
+                <span className="num text-ink-2">
+                  {incomplete
+                    .map((row) =>
+                      row.stats.hours === 0
+                        ? `${SEE_MARKETS[row.code].short} ${t("unavailable", "nedostupno")}`
+                        : `${SEE_MARKETS[row.code].short} ${row.stats.hours}/${expectedHours} h`,
+                    )
+                    .join(" · ")}
+                </span>
+              </p>
+            )}
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>{t("Market", "Tržište")}</th>
+                  <th className="!text-right">Base</th>
+                  <th className="!text-right">Peak</th>
+                  <th className="!text-right">Off-peak</th>
+                  <th className="!text-right">Min</th>
+                  <th className="!text-right">Max</th>
+                  <th
+                    className="!text-right"
+                    title={t(
+                      "Standard deviation of hourly prices",
+                      "Standardna devijacija satnih cena",
                     )}
-                  </td>
-                  <td className="num text-right">{fmt(row.corr, 2)}</td>
-                  <td className="num text-right">
-                    {fmtShare(expectedHours ? Math.min(1, row.stats.hours / expectedHours) : null)}
-                  </td>
-                  <td className="num text-muted-foreground">
-                    {row.native ? `${row.native}′` : "—"}
-                  </td>
-                  <td className="text-right">
-                    {row.status && <ProvenanceBadge status={row.status} />}
-                  </td>
+                  >
+                    {t("Std dev", "Std dev")}
+                  </th>
+                  <th
+                    className="!text-right"
+                    title={t("Mean daily max − min", "Prosečan dnevni maks − min")}
+                  >
+                    {t("Daily range", "Dnevni raspon")}
+                  </th>
+                  <th className="!text-right">&lt;0 h</th>
+                  <th className="!text-right">Δ {SEE_MARKETS[reference].short}</th>
+                  <th
+                    className="!text-right"
+                    title={t(
+                      "Hourly correlation with the reference",
+                      "Satna korelacija sa referencom",
+                    )}
+                  >
+                    {t("Corr", "Kor")} {SEE_MARKETS[reference].short}
+                  </th>
+                  <th
+                    className="!text-right"
+                    title={t(
+                      "Hours with a price ÷ hours expected",
+                      "Sati sa cenom ÷ očekivani sati",
+                    )}
+                  >
+                    {t("Coverage", "Pokrivenost")}
+                  </th>
+                  <th>MTU</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </DataTable>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.code}>
+                    <td>
+                      <span
+                        className="mr-1.5 inline-block h-2 w-2 rounded-[2px]"
+                        style={{ background: colors[row.code] }}
+                      />
+                      <span className="font-condensed text-xs font-semibold tracking-wide">
+                        {SEE_MARKETS[row.code].short}
+                      </span>
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">
+                        {lang === "sr" ? SEE_MARKETS[row.code].nameSr : SEE_MARKETS[row.code].name}
+                      </span>
+                    </td>
+                    <td className="num text-right">{fmtPrice(row.stats.base)}</td>
+                    <td className="num text-right">{fmtPrice(row.stats.peak)}</td>
+                    <td className="num text-right">{fmtPrice(row.stats.offPeak)}</td>
+                    <td className="num text-right">{fmt(row.stats.min, 1)}</td>
+                    <td className="num text-right">{fmt(row.stats.max, 1)}</td>
+                    <td className="num text-right">{fmt(row.stats.volatility, 1)}</td>
+                    <td className="num text-right">{fmt(row.stats.dailySpread, 1)}</td>
+                    <td className="num text-right">
+                      {row.stats.hours ? row.stats.negativeHours : "—"}
+                    </td>
+                    <td className="text-right">
+                      {row.vsRef === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <Delta value={row.vsRef} className="text-xs" />
+                      )}
+                    </td>
+                    <td className="num text-right">{fmt(row.corr, 2)}</td>
+                    <td className="num text-right">
+                      {fmtShare(
+                        expectedHours ? Math.min(1, row.stats.hours / expectedHours) : null,
+                      )}
+                    </td>
+                    <td className="num text-muted-foreground">
+                      {row.native ? `${row.native}′` : "—"}
+                    </td>
+                    <td className="text-right">
+                      {row.status && <ProvenanceBadge status={row.status} />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </>
         )}
       </Panel>
 
