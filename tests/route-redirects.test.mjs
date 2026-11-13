@@ -43,7 +43,8 @@ test("dashboard search validation never throws on malformed params", async () =>
   );
   const fields = schema
     .split("\n")
-    .filter((line) => /^\s+(from|to|preset|compare|asset):/.test(line));
-  assert.equal(fields.length, 5);
-  assert.equal((schema.match(/\.catch\(undefined\)/g) ?? []).length, 5);
+    .filter((line) => /^\s+(from|to|preset|compare|asset|m|b|ref):/.test(line));
+  // Every search field, including the selection params, falls back instead of throwing.
+  assert.equal(fields.length, 8);
+  assert.equal((schema.match(/\.catch\(undefined\)/g) ?? []).length, 8);
 });

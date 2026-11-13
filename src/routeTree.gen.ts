@@ -16,12 +16,14 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardWeeklyRouteImport } from './routes/dashboard.weekly'
 import { Route as DashboardWeatherRouteImport } from './routes/dashboard.weather'
 import { Route as DashboardWb6RouteImport } from './routes/dashboard.wb6'
+import { Route as DashboardWatchRouteImport } from './routes/dashboard.watch'
 import { Route as DashboardUtilizationRouteImport } from './routes/dashboard.utilization'
 import { Route as DashboardSpreadsRouteImport } from './routes/dashboard.spreads'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardReportRouteImport } from './routes/dashboard.report'
 import { Route as DashboardRegionalRouteImport } from './routes/dashboard.regional'
 import { Route as DashboardPricesRouteImport } from './routes/dashboard.prices'
+import { Route as DashboardPpaRouteImport } from './routes/dashboard.ppa'
 import { Route as DashboardPowerOverviewRouteImport } from './routes/dashboard.power-overview'
 import { Route as DashboardOutagesRouteImport } from './routes/dashboard.outages'
 import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
@@ -31,6 +33,7 @@ import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
 import { Route as DashboardMapRouteImport } from './routes/dashboard.map'
 import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
 import { Route as DashboardFuturesRouteImport } from './routes/dashboard.futures'
+import { Route as DashboardFundamentalsRouteImport } from './routes/dashboard.fundamentals'
 import { Route as DashboardForecastRouteImport } from './routes/dashboard.forecast'
 import { Route as DashboardFlowsRouteImport } from './routes/dashboard.flows'
 import { Route as DashboardFlexibilityRouteImport } from './routes/dashboard.flexibility'
@@ -40,6 +43,8 @@ import { Route as DashboardCbamRouteImport } from './routes/dashboard.cbam'
 import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
 import { Route as DashboardCapacityRouteImport } from './routes/dashboard.capacity'
 import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
+import { Route as DashboardBordersRouteImport } from './routes/dashboard.borders'
+import { Route as DashboardBessRouteImport } from './routes/dashboard.bess'
 import { Route as DashboardBalanceRouteImport } from './routes/dashboard.balance'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -77,6 +82,11 @@ const DashboardWb6Route = DashboardWb6RouteImport.update({
   path: '/wb6',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardWatchRoute = DashboardWatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardUtilizationRoute = DashboardUtilizationRouteImport.update({
   id: '/utilization',
   path: '/utilization',
@@ -105,6 +115,11 @@ const DashboardRegionalRoute = DashboardRegionalRouteImport.update({
 const DashboardPricesRoute = DashboardPricesRouteImport.update({
   id: '/prices',
   path: '/prices',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPpaRoute = DashboardPpaRouteImport.update({
+  id: '/ppa',
+  path: '/ppa',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardPowerOverviewRoute = DashboardPowerOverviewRouteImport.update({
@@ -152,6 +167,11 @@ const DashboardFuturesRoute = DashboardFuturesRouteImport.update({
   path: '/futures',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardFundamentalsRoute = DashboardFundamentalsRouteImport.update({
+  id: '/fundamentals',
+  path: '/fundamentals',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardForecastRoute = DashboardForecastRouteImport.update({
   id: '/forecast',
   path: '/forecast',
@@ -197,6 +217,16 @@ const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
   path: '/calculator',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardBordersRoute = DashboardBordersRouteImport.update({
+  id: '/borders',
+  path: '/borders',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBessRoute = DashboardBessRouteImport.update({
+  id: '/bess',
+  path: '/bess',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardBalanceRoute = DashboardBalanceRouteImport.update({
   id: '/balance',
   path: '/balance',
@@ -208,6 +238,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/balance': typeof DashboardBalanceRoute
+  '/dashboard/bess': typeof DashboardBessRoute
+  '/dashboard/borders': typeof DashboardBordersRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
@@ -217,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/flexibility': typeof DashboardFlexibilityRoute
   '/dashboard/flows': typeof DashboardFlowsRoute
   '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/fundamentals': typeof DashboardFundamentalsRoute
   '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/map': typeof DashboardMapRoute
@@ -226,12 +259,14 @@ export interface FileRoutesByFullPath {
   '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard/outages': typeof DashboardOutagesRoute
   '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/ppa': typeof DashboardPpaRoute
   '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/watch': typeof DashboardWatchRoute
   '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
@@ -241,6 +276,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/balance': typeof DashboardBalanceRoute
+  '/dashboard/bess': typeof DashboardBessRoute
+  '/dashboard/borders': typeof DashboardBordersRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
@@ -250,6 +287,7 @@ export interface FileRoutesByTo {
   '/dashboard/flexibility': typeof DashboardFlexibilityRoute
   '/dashboard/flows': typeof DashboardFlowsRoute
   '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/fundamentals': typeof DashboardFundamentalsRoute
   '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/map': typeof DashboardMapRoute
@@ -259,12 +297,14 @@ export interface FileRoutesByTo {
   '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard/outages': typeof DashboardOutagesRoute
   '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/ppa': typeof DashboardPpaRoute
   '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/watch': typeof DashboardWatchRoute
   '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
@@ -276,6 +316,8 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/balance': typeof DashboardBalanceRoute
+  '/dashboard/bess': typeof DashboardBessRoute
+  '/dashboard/borders': typeof DashboardBordersRoute
   '/dashboard/calculator': typeof DashboardCalculatorRoute
   '/dashboard/capacity': typeof DashboardCapacityRoute
   '/dashboard/capture': typeof DashboardCaptureRoute
@@ -285,6 +327,7 @@ export interface FileRoutesById {
   '/dashboard/flexibility': typeof DashboardFlexibilityRoute
   '/dashboard/flows': typeof DashboardFlowsRoute
   '/dashboard/forecast': typeof DashboardForecastRoute
+  '/dashboard/fundamentals': typeof DashboardFundamentalsRoute
   '/dashboard/futures': typeof DashboardFuturesRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
   '/dashboard/map': typeof DashboardMapRoute
@@ -294,12 +337,14 @@ export interface FileRoutesById {
   '/dashboard/news': typeof DashboardNewsRoute
   '/dashboard/outages': typeof DashboardOutagesRoute
   '/dashboard/power-overview': typeof DashboardPowerOverviewRoute
+  '/dashboard/ppa': typeof DashboardPpaRoute
   '/dashboard/prices': typeof DashboardPricesRoute
   '/dashboard/regional': typeof DashboardRegionalRoute
   '/dashboard/report': typeof DashboardReportRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/spreads': typeof DashboardSpreadsRoute
   '/dashboard/utilization': typeof DashboardUtilizationRoute
+  '/dashboard/watch': typeof DashboardWatchRoute
   '/dashboard/wb6': typeof DashboardWb6Route
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
@@ -312,6 +357,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/sitemap.xml'
     | '/dashboard/balance'
+    | '/dashboard/bess'
+    | '/dashboard/borders'
     | '/dashboard/calculator'
     | '/dashboard/capacity'
     | '/dashboard/capture'
@@ -321,6 +368,7 @@ export interface FileRouteTypes {
     | '/dashboard/flexibility'
     | '/dashboard/flows'
     | '/dashboard/forecast'
+    | '/dashboard/fundamentals'
     | '/dashboard/futures'
     | '/dashboard/insights'
     | '/dashboard/map'
@@ -330,12 +378,14 @@ export interface FileRouteTypes {
     | '/dashboard/news'
     | '/dashboard/outages'
     | '/dashboard/power-overview'
+    | '/dashboard/ppa'
     | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/watch'
     | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
@@ -345,6 +395,8 @@ export interface FileRouteTypes {
     | '/'
     | '/sitemap.xml'
     | '/dashboard/balance'
+    | '/dashboard/bess'
+    | '/dashboard/borders'
     | '/dashboard/calculator'
     | '/dashboard/capacity'
     | '/dashboard/capture'
@@ -354,6 +406,7 @@ export interface FileRouteTypes {
     | '/dashboard/flexibility'
     | '/dashboard/flows'
     | '/dashboard/forecast'
+    | '/dashboard/fundamentals'
     | '/dashboard/futures'
     | '/dashboard/insights'
     | '/dashboard/map'
@@ -363,12 +416,14 @@ export interface FileRouteTypes {
     | '/dashboard/news'
     | '/dashboard/outages'
     | '/dashboard/power-overview'
+    | '/dashboard/ppa'
     | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/watch'
     | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
@@ -379,6 +434,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/sitemap.xml'
     | '/dashboard/balance'
+    | '/dashboard/bess'
+    | '/dashboard/borders'
     | '/dashboard/calculator'
     | '/dashboard/capacity'
     | '/dashboard/capture'
@@ -388,6 +445,7 @@ export interface FileRouteTypes {
     | '/dashboard/flexibility'
     | '/dashboard/flows'
     | '/dashboard/forecast'
+    | '/dashboard/fundamentals'
     | '/dashboard/futures'
     | '/dashboard/insights'
     | '/dashboard/map'
@@ -397,12 +455,14 @@ export interface FileRouteTypes {
     | '/dashboard/news'
     | '/dashboard/outages'
     | '/dashboard/power-overview'
+    | '/dashboard/ppa'
     | '/dashboard/prices'
     | '/dashboard/regional'
     | '/dashboard/report'
     | '/dashboard/settings'
     | '/dashboard/spreads'
     | '/dashboard/utilization'
+    | '/dashboard/watch'
     | '/dashboard/wb6'
     | '/dashboard/weather'
     | '/dashboard/weekly'
@@ -466,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardWb6RouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/watch': {
+      id: '/dashboard/watch'
+      path: '/watch'
+      fullPath: '/dashboard/watch'
+      preLoaderRoute: typeof DashboardWatchRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/utilization': {
       id: '/dashboard/utilization'
       path: '/utilization'
@@ -506,6 +573,13 @@ declare module '@tanstack/react-router' {
       path: '/prices'
       fullPath: '/dashboard/prices'
       preLoaderRoute: typeof DashboardPricesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/ppa': {
+      id: '/dashboard/ppa'
+      path: '/ppa'
+      fullPath: '/dashboard/ppa'
+      preLoaderRoute: typeof DashboardPpaRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/power-overview': {
@@ -571,6 +645,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFuturesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/fundamentals': {
+      id: '/dashboard/fundamentals'
+      path: '/fundamentals'
+      fullPath: '/dashboard/fundamentals'
+      preLoaderRoute: typeof DashboardFundamentalsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/forecast': {
       id: '/dashboard/forecast'
       path: '/forecast'
@@ -634,6 +715,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCalculatorRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/borders': {
+      id: '/dashboard/borders'
+      path: '/borders'
+      fullPath: '/dashboard/borders'
+      preLoaderRoute: typeof DashboardBordersRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/bess': {
+      id: '/dashboard/bess'
+      path: '/bess'
+      fullPath: '/dashboard/bess'
+      preLoaderRoute: typeof DashboardBessRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/balance': {
       id: '/dashboard/balance'
       path: '/balance'
@@ -646,6 +741,8 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardBalanceRoute: typeof DashboardBalanceRoute
+  DashboardBessRoute: typeof DashboardBessRoute
+  DashboardBordersRoute: typeof DashboardBordersRoute
   DashboardCalculatorRoute: typeof DashboardCalculatorRoute
   DashboardCapacityRoute: typeof DashboardCapacityRoute
   DashboardCaptureRoute: typeof DashboardCaptureRoute
@@ -655,6 +752,7 @@ interface DashboardRouteChildren {
   DashboardFlexibilityRoute: typeof DashboardFlexibilityRoute
   DashboardFlowsRoute: typeof DashboardFlowsRoute
   DashboardForecastRoute: typeof DashboardForecastRoute
+  DashboardFundamentalsRoute: typeof DashboardFundamentalsRoute
   DashboardFuturesRoute: typeof DashboardFuturesRoute
   DashboardInsightsRoute: typeof DashboardInsightsRoute
   DashboardMapRoute: typeof DashboardMapRoute
@@ -664,12 +762,14 @@ interface DashboardRouteChildren {
   DashboardNewsRoute: typeof DashboardNewsRoute
   DashboardOutagesRoute: typeof DashboardOutagesRoute
   DashboardPowerOverviewRoute: typeof DashboardPowerOverviewRoute
+  DashboardPpaRoute: typeof DashboardPpaRoute
   DashboardPricesRoute: typeof DashboardPricesRoute
   DashboardRegionalRoute: typeof DashboardRegionalRoute
   DashboardReportRoute: typeof DashboardReportRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSpreadsRoute: typeof DashboardSpreadsRoute
   DashboardUtilizationRoute: typeof DashboardUtilizationRoute
+  DashboardWatchRoute: typeof DashboardWatchRoute
   DashboardWb6Route: typeof DashboardWb6Route
   DashboardWeatherRoute: typeof DashboardWeatherRoute
   DashboardWeeklyRoute: typeof DashboardWeeklyRoute
@@ -678,6 +778,8 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardBalanceRoute: DashboardBalanceRoute,
+  DashboardBessRoute: DashboardBessRoute,
+  DashboardBordersRoute: DashboardBordersRoute,
   DashboardCalculatorRoute: DashboardCalculatorRoute,
   DashboardCapacityRoute: DashboardCapacityRoute,
   DashboardCaptureRoute: DashboardCaptureRoute,
@@ -687,6 +789,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardFlexibilityRoute: DashboardFlexibilityRoute,
   DashboardFlowsRoute: DashboardFlowsRoute,
   DashboardForecastRoute: DashboardForecastRoute,
+  DashboardFundamentalsRoute: DashboardFundamentalsRoute,
   DashboardFuturesRoute: DashboardFuturesRoute,
   DashboardInsightsRoute: DashboardInsightsRoute,
   DashboardMapRoute: DashboardMapRoute,
@@ -696,12 +799,14 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardNewsRoute: DashboardNewsRoute,
   DashboardOutagesRoute: DashboardOutagesRoute,
   DashboardPowerOverviewRoute: DashboardPowerOverviewRoute,
+  DashboardPpaRoute: DashboardPpaRoute,
   DashboardPricesRoute: DashboardPricesRoute,
   DashboardRegionalRoute: DashboardRegionalRoute,
   DashboardReportRoute: DashboardReportRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSpreadsRoute: DashboardSpreadsRoute,
   DashboardUtilizationRoute: DashboardUtilizationRoute,
+  DashboardWatchRoute: DashboardWatchRoute,
   DashboardWb6Route: DashboardWb6Route,
   DashboardWeatherRoute: DashboardWeatherRoute,
   DashboardWeeklyRoute: DashboardWeeklyRoute,

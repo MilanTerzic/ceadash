@@ -1,6 +1,25 @@
 // Central market/zone/border config, ported from market_config.py + cbc_capacity_resale_dashboard.py
 export type ZoneCode =
-  "RS" | "HU" | "RO" | "BG" | "HR" | "SI" | "BA" | "ME" | "MK" | "AL" | "UA" | "XK";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "HR"
+  | "SI"
+  | "BA"
+  | "ME"
+  | "MK"
+  | "AL"
+  | "UA"
+  | "XK"
+  | "GR"
+  | "AT"
+  | "IT_NORD"
+  | "IT_CSUD"
+  | "IT_SUD"
+  | "TR"
+  | "SK"
+  | "MD";
 
 export interface Zone {
   code: ZoneCode;
@@ -108,6 +127,30 @@ export const ZONES: Record<ZoneCode, Zone> = {
     y: 365,
     capital: { lat: 42.66, lon: 21.16 },
   },
+  // Zones below are used by the regional SEE workspace. x/y are only read by the
+  // legacy Serbia route map, which never draws them.
+  GR: {
+    code: "GR",
+    name: "Greece",
+    eic: "10YGR-HTSO-----Y",
+    x: 500,
+    y: 480,
+    capital: { lat: 37.98, lon: 23.73 },
+  },
+  AT: {
+    code: "AT",
+    name: "Austria",
+    eic: "10YAT-APG------L",
+    x: 200,
+    y: 110,
+    capital: { lat: 48.21, lon: 16.37 },
+  },
+  IT_NORD: { code: "IT_NORD", name: "Italy North", eic: "10Y1001A1001A73I", x: 40, y: 210 },
+  IT_CSUD: { code: "IT_CSUD", name: "Italy Centre-South", eic: "10Y1001A1001A71M", x: 90, y: 380 },
+  IT_SUD: { code: "IT_SUD", name: "Italy South", eic: "10Y1001A1001A788", x: 160, y: 460 },
+  TR: { code: "TR", name: "Türkiye", eic: "10YTR-TEIAS----W", x: 680, y: 400 },
+  SK: { code: "SK", name: "Slovakia", eic: "10YSK-SEPS-----K", x: 380, y: 90 },
+  MD: { code: "MD", name: "Moldova", eic: "10Y1001A1001A990", x: 690, y: 170 },
 };
 
 export const ENTSOE_DOCUMENT_TYPES = {

@@ -12,8 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { LanguageProvider, LanguageToggle, useLang } from "@/lib/i18n";
-import ceaLogo from "@/assets/cea-logo.png.asset.json";
+import { LanguageProvider, useLang } from "@/lib/i18n";
+import { THEME_BOOT_SCRIPT, ThemeProvider } from "@/components/shell/theme";
 
 function NotFoundComponent() {
   const { t } = useLang();
@@ -76,14 +76,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CEA Power Dashboard" },
+      { title: "CEA Power Intelligence" },
       {
         name: "description",
         content:
-          "Analytical tool by Centar za energetske analize (CEA) tracking renewable energy market signals, capture prices and project economics in Serbia.",
+          "CEA Power Intelligence: the Southeast European electricity market intelligence and analytics terminal by Centar za energetske analize.",
       },
       { name: "author", content: "Centar za energetske analize — CEA" },
-      { property: "og:site_name", content: "CEA Power Dashboard" },
+      { property: "og:site_name", content: "CEA Power Intelligence" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -93,7 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Fira+Sans:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500&family=Fira+Sans+Condensed:wght@500;600&family=Fira+Sans:wght@400;500;600;700&display=swap",
       },
     ],
     scripts: [
@@ -112,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             {
               "@type": "WebSite",
               "@id": "https://dashboard.cea.org.rs/#website",
-              name: "CEA Power Dashboard",
+              name: "CEA Power Intelligence",
               url: "https://dashboard.cea.org.rs/",
               publisher: { "@id": "https://dashboard.cea.org.rs/#organization" },
             },
@@ -129,8 +129,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -141,103 +142,16 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-function SiteHeader() {
-  const { t } = useLang();
-  return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-header text-header-foreground">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-        <Link to="/" className="flex items-center gap-3">
-          <img
-            src={ceaLogo.url}
-            alt="CEA — Center for Energy Analysis"
-            className="h-9 w-9 object-contain"
-          />
-
-          <div className="leading-tight">
-            <div className="font-display text-lg font-semibold text-header-foreground">CEA</div>
-            <div className="text-[10px] uppercase tracking-widest text-header-foreground/60">
-              {t("Centar za energetske analize", "Centar za energetske analize")}
-            </div>
-          </div>
-        </Link>
-        <nav className="hidden md:flex items-center gap-7 text-sm text-header-foreground/70">
-          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
-            {t("About CEA", "O CEA")}
-          </a>
-          <Link to="/" className="hover:text-header-foreground">
-            {t("Dashboard", "Kontrolna tabla")}
-          </Link>
-          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
-            {t("Projects", "Projekti")}
-          </a>
-          <a href="https://www.cea.org.rs/" className="hover:text-header-foreground">
-            {t("News", "Vesti")}
-          </a>
-        </nav>
-        <LanguageToggle />
-      </div>
-    </header>
-  );
-}
-
-function SiteFooter() {
-  const { t } = useLang();
-  return (
-    <footer className="mt-20 border-t border-border/60 bg-surface">
-      <div className="mx-auto max-w-7xl px-6 py-10 grid gap-6 md:grid-cols-3 text-sm">
-        <div>
-          <div className="font-display text-lg text-foreground">CEA Power Dashboard</div>
-          <p className="mt-2 text-muted-foreground max-w-sm">
-            {t(
-              "An analytical tool by Centar za energetske analize tracking renewable energy market signals, capture prices and project economics in Serbia.",
-              "Analitički alat Centra za energetske analize za praćenje signala tržišta obnovljivih izvora energije, capture cena i ekonomike projekata u Srbiji.",
-            )}
-          </p>
-        </div>
-        <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">
-            {t("Data sources", "Izvori podataka")}
-          </div>
-          <ul className="mt-2 space-y-1 text-foreground/80">
-            <li>ENTSO-E Transparency Platform</li>
-            <li>{t("SEEPEX day-ahead market", "SEEPEX day-ahead tržište")}</li>
-            <li>PVGIS (JRC, European Commission)</li>
-            <li>AERS, EMS, Energy Community</li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">
-            {t("Disclaimer", "Napomena")}
-          </div>
-          <p className="mt-2 text-muted-foreground">
-            {t(
-              "This tool provides indicative analysis only and should not be interpreted as financial or investment advice.",
-              "Ovaj alat pruža samo indikativnu analizu i ne treba ga tumačiti kao finansijski ili investicioni savet.",
-            )}
-          </p>
-        </div>
-      </div>
-      <div className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Centar za energetske analize — CEA
-      </div>
-    </footer>
-  );
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <div className="min-h-screen flex flex-col">
-          <SiteHeader />
-          <main className="flex-1">
-            <Outlet />
-          </main>
-          <SiteFooter />
-        </div>
-        <Toaster position="top-right" richColors />
+        <ThemeProvider>
+          <Outlet />
+          <Toaster position="top-right" richColors />
+        </ThemeProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );

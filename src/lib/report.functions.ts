@@ -185,10 +185,12 @@ async function fetchSerbiaFlowPeriodAverage(from: string, to: string): Promise<F
   for (const row of rows) {
     const fromZone = row.from_zone as ZoneCode;
     const toZone = row.to_zone as ZoneCode;
-    if (!(
-      (fromZone === "RS" && RS_NEIGHBOURS.includes(toZone)) ||
-      (toZone === "RS" && RS_NEIGHBOURS.includes(fromZone))
-    )) {
+    if (
+      !(
+        (fromZone === "RS" && RS_NEIGHBOURS.includes(toZone)) ||
+        (toZone === "RS" && RS_NEIGHBOURS.includes(fromZone))
+      )
+    ) {
       continue;
     }
     const value = Number(row.flow_mw);

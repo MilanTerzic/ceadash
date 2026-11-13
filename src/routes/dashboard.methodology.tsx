@@ -5,15 +5,15 @@ import { useLang } from "@/lib/i18n";
 export const Route = createFileRoute("/dashboard/methodology")({
   head: () => ({
     meta: [
-      { title: "Methodology — CEA Power Dashboard" },
+      { title: "Data & Methodology — CEA Power Intelligence" },
       {
         name: "description",
-        content: "Data sources, formulas and assumptions used in the CEA Power Dashboard.",
+        content: "Data sources, formulas and assumptions used in CEA Power Intelligence.",
       },
-      { property: "og:title", content: "Methodology — CEA Power Dashboard" },
+      { property: "og:title", content: "Data & Methodology — CEA Power Intelligence" },
       {
         property: "og:description",
-        content: "Data sources, formulas and assumptions used in the CEA Power Dashboard.",
+        content: "Data sources, formulas and assumptions used in CEA Power Intelligence.",
       },
       { property: "og:url", content: "https://dashboard.cea.org.rs/dashboard/methodology" },
     ],
@@ -36,6 +36,96 @@ function MethPage() {
   const { t } = useLang();
   return (
     <div className="space-y-6">
+      <ChartCard
+        title={t(
+          "Regional platform: provenance and coverage",
+          "Regionalna platforma: poreklo i pokrivenost",
+        )}
+      >
+        <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
+          <li>
+            {t(
+              "Every figure in the regional workspaces carries one of seven states: LIVE (fetched from the provider now), OBSERVED (provider data from cache), STALE (last good provider data, provider unreachable), SYNTHETIC (generated development data, never a market observation), NO DATA (the provider published nothing), NOT CONNECTED (credentials or integration missing) and ERROR.",
+              "Svaka vrednost u regionalnim radnim prostorima nosi jedno od sedam stanja: UŽIVO, IZMERENO (podatak provajdera iz keša), ZASTARELO (poslednji ispravan podatak, provajder nedostupan), SINTETIČKO (generisani razvojni podaci, nikad tržišno merenje), NEMA PODATAKA, NIJE POVEZANO i GREŠKA.",
+            )}
+          </li>
+          <li>
+            {t(
+              "A missing value is shown as a dash. It is never replaced with zero, a typical value or an interpolation. A net cross-border flow is shown for an hour only when both directions were reported; a market's net position only when all of its borders reported.",
+              "Nedostajuća vrednost se prikazuje kao crta. Nikada se ne zamenjuje nulom, tipičnom vrednošću ili interpolacijom. Neto prekogranični tok se prikazuje za sat samo kada su oba smera prijavljena; neto pozicija tržišta samo kada su sve njegove granice prijavile.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Coverage: Serbia, Bosnia and Herzegovina, Montenegro, North Macedonia, Albania, Kosovo*, Croatia, Slovenia, Bulgaria, Romania, Greece and Hungary, with Austria, three Italian zones, Türkiye, Slovakia, Ukraine and Moldova as connected markets. Bosnia and Herzegovina has no organised day-ahead market, so it has flows and fundamentals but no price.",
+              "Pokrivenost: Srbija, Bosna i Hercegovina, Crna Gora, Severna Makedonija, Albanija, Kosovo*, Hrvatska, Slovenija, Bugarska, Rumunija, Grčka i Mađarska, uz Austriju, tri italijanske zone, Tursku, Slovačku, Ukrajinu i Moldaviju kao povezana tržišta. Bosna i Hercegovina nema organizovano day-ahead tržište, pa ima tokove i fundamente, ali ne i cenu.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Physical flows (measured) and scheduled commercial exchanges are different quantities and are never mixed or substituted for each other. Utilisation is |physical flow| ÷ day-ahead forecast NTC and is shown only where NTC is published.",
+              "Fizički tokovi (izmereni) i planirane komercijalne razmene su različite veličine i nikada se ne mešaju niti zamenjuju. Iskorišćenost je |fizički tok| ÷ day-ahead prognoziran NTC i prikazuje se samo gde je NTC objavljen.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Not connected: intraday prices and indices, balancing and ancillary-service prices (FCR, aFRR, mFRR), JAO and SEE CAO auction feeds beyond what ENTSO-E republishes, and licensed forward prices. These appear as unavailable, not as estimates.",
+              "Nije povezano: unutardnevne cene i indeksi, cene balansnih i pomoćnih usluga (FCR, aFRR, mFRR), JAO i SEE CAO aukcije izvan onoga što ENTSO-E objavljuje i licencirane terminske cene. Prikazuju se kao nedostupne, ne kao procene.",
+            )}
+          </li>
+        </ul>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Formula
+            name={t("Indicative spread", "Indikativni spread")}
+            expr="spread_h = price_destination_h − price_source_h"
+            note={t(
+              "Matched hours only. Indicative, not an executable margin.",
+              "Samo upareni sati. Indikativno, nije ostvariva marža.",
+            )}
+          />
+          <Formula
+            name={t("Illustrative net spread", "Ilustrativni neto spread")}
+            expr="net = mean(max(spread_h, 0)) − capacity_price − other_costs"
+            note={t(
+              "Excludes losses, balancing exposure, nomination deadlines, curtailment and the timing gap between capacity auctions and day-ahead gate closure.",
+              "Ne uključuje gubitke, balansnu izloženost, rokove nominacije, redukcije i vremenski razmak između aukcija kapaciteta i zatvaranja day-ahead tržišta.",
+            )}
+          />
+          <Formula
+            name={t("Price split on a coupled border", "Razdvajanje cena na spojenoj granici")}
+            expr="split_share = hours(|spread_h| > 0.5 €/MWh) / matched_hours"
+            note={t(
+              "Under market coupling a price difference means the border was binding.",
+              "Kod spajanja tržišta razlika u ceni znači da je granica bila ograničavajuća.",
+            )}
+          />
+          <Formula
+            name={t("Battery dispatch", "Dispečing baterije")}
+            expr="max Σ_h price_h × (discharge_h − charge_h) − wear × discharge_h"
+            note={t(
+              "Solved exactly per delivery day by dynamic programming over state of charge, with power, SoC window, efficiency on both legs and a daily cycle limit. Perfect foresight of that day's prices: an upper bound.",
+              "Rešava se tačno po danu isporuke dinamičkim programiranjem po stanju napunjenosti, uz snagu, SoC opseg, efikasnost na oba kraka i dnevni limit ciklusa. Savršeno predviđanje cena tog dana: gornja granica.",
+            )}
+          />
+          <Formula
+            name={t("PPA fair strike (pay-as-produced)", "Fer cena PPA (po proizvodnji)")}
+            expr="K* = Σ_y DF_y × Σ_h gen_h × price_{y,h} / Σ_y DF_y × Σ_h gen_h"
+            note={t(
+              "The strike at which the contract and merchant sale have equal present value. price_{y,h} is the observed hourly shape rescaled to the forward baseload you enter for year y.",
+              "Cena pri kojoj ugovor i merchant prodaja imaju jednaku sadašnju vrednost. price_{y,h} je izmereni satni oblik skaliran na terminski baseload koji unesete za godinu y.",
+            )}
+          />
+          <Formula
+            name={t("Cannibalisation stress", "Stres kanibalizacije")}
+            expr="stressed_h = price_h × (1 − s × gen_h / max(gen)), rescaled to the same baseload"
+            note={t(
+              "A scenario input, not a forecast of capture rates.",
+              "Ulaz scenarija, nije prognoza capture stopa.",
+            )}
+          />
+        </div>
+      </ChartCard>
+
       <ChartCard title={t("Data sources & status policy", "Izvori podataka i status podataka")}>
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
           <li>

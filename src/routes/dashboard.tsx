@@ -1,13 +1,10 @@
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
-import { DateRangeControl, useDashboardRange } from "@/components/dashboard/DateRangeControl";
-import { LoadingBar } from "@/components/dashboard/LoadingBar";
-import { MorningMarketSnapshot } from "@/components/dashboard/MorningMarketSnapshot";
+import { useDashboardRange } from "@/components/dashboard/DateRangeControl";
+import { AppShell } from "@/components/shell/AppShell";
 
 import { DateRangeProvider } from "@/lib/date-range";
-import { useLang } from "@/lib/i18n";
 
 const searchSchema = z.object({
   from: z.string().optional().catch(undefined),
@@ -21,60 +18,54 @@ const searchSchema = z.object({
     .optional()
     .catch(undefined),
   asset: z.enum(["solar", "wind", "bess", "hybrid"]).optional().catch(undefined),
+  // Cross-workspace selection: market, border and reference market.
+  m: z.string().optional().catch(undefined),
+  b: z.string().optional().catch(undefined),
+  ref: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (s) => searchSchema.parse(s),
   head: () => ({
     meta: [
-      { title: "Dashboard - CEA Power Dashboard" },
+      { title: "CEA Power Intelligence — Southeast Europe electricity markets" },
       {
         name: "description",
         content:
-          "Live analytical dashboard of renewable energy market signals, capture prices and project economics in Serbia.",
+          "Southeast European electricity market intelligence: day-ahead prices, cross-border flows and spreads, fundamentals, forwards, PPA and battery analytics.",
       },
     ],
   }),
   component: DashboardLayout,
 });
 
+// Workspaces built on the regional design system lay themselves out edge to edge.
+// Earlier pages keep their centred column until they are rebuilt.
+const FULL_BLEED = new Set([
+  "/dashboard",
+  "/dashboard/prices",
+  "/dashboard/borders",
+  "/dashboard/fundamentals",
+  "/dashboard/ppa",
+  "/dashboard/bess",
+  "/dashboard/watch",
+]);
+
 function DashboardLayout() {
-  const { t } = useLang();
   const dashboardRange = useDashboardRange({});
   const pathname = useLocation({ select: (location) => location.pathname });
-  const isOverview = pathname === "/dashboard" || pathname === "/dashboard/";
+  const fullBleed = FULL_BLEED.has(pathname.replace(/\/$/, "") || "/dashboard");
   return (
     <DateRangeProvider range={dashboardRange.rangeKeys} setRange={dashboardRange.setRangeKeys}>
-      <div>
-        <section className="border-b border-border/60 bg-surface/70">
-          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                {t("CEA Power Dashboard", "CEA Power Dashboard")}
-              </div>
-              <h1 className="mt-0.5 font-display text-xl font-semibold text-foreground md:text-2xl">
-                {t(
-                  "Serbia Electricity Market Intelligence",
-                  "Analitika tržišta električne energije Srbije",
-                )}
-              </h1>
-              <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
-                {t(
-                  "Prices, renewable capture, cross-border signals, project economics and CEA market intelligence in one workspace.",
-                  "Cene, capture OIE, prekogranični signali, ekonomika projekata i CEA tržišna analitika u jednom radnom prostoru.",
-                )}
-              </p>
-            </div>
-          </div>
-        </section>
-        <DashboardTabs />
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6">
-          <LoadingBar />
-          <DateRangeControl maxFutureDays={1} />
-          {isOverview && <MorningMarketSnapshot />}
+      <AppShell>
+        {fullBleed ? (
           <Outlet />
-        </div>
-      </div>
+        ) : (
+          <div className="mx-auto max-w-[1400px] space-y-4 px-3 py-4 sm:px-5">
+            <Outlet />
+          </div>
+        )}
+      </AppShell>
     </DateRangeProvider>
   );
 }

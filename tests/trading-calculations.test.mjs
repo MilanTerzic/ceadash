@@ -194,6 +194,8 @@ test("all configured price markets have unique ENTSO-E EIC values", () => {
     "AT",
     "DE_LU",
     "AL",
+    "XK",
+    "IT_NORD",
   ]);
 });
 
@@ -275,6 +277,7 @@ test("market presets include benchmarks without adding them to direct neighbours
     "AT",
     "DE_LU",
     "IT_CSUD",
+    "IT_NORD",
   ]);
   assert.equal(priceAnalysis.resolveMarketPreset("directNeighbours").includes("AT"), false);
   assert.equal(priceAnalysis.resolveMarketPreset("directNeighbours").includes("IT_CSUD"), false);

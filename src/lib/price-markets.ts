@@ -1,5 +1,19 @@
 export type PriceMarketCode =
-  "RS" | "HU" | "RO" | "BG" | "HR" | "ME" | "MK" | "SI" | "GR" | "IT_CSUD" | "AT" | "DE_LU" | "AL";
+  | "RS"
+  | "HU"
+  | "RO"
+  | "BG"
+  | "HR"
+  | "ME"
+  | "MK"
+  | "SI"
+  | "GR"
+  | "IT_CSUD"
+  | "AT"
+  | "DE_LU"
+  | "AL"
+  | "XK"
+  | "IT_NORD";
 
 export type PriceMarketGroup = "serbia" | "direct-neighbour" | "regional" | "european-benchmark";
 
@@ -201,6 +215,34 @@ export const PRICE_MARKETS: Record<PriceMarketCode, PriceMarket> = {
     group: "regional",
     directSerbianNeighbour: false,
   },
+  XK: {
+    code: "XK",
+    country: "Kosovo",
+    marketName: "Kosovo",
+    exchange: "ALPEX",
+    eic: "10Y1001C--00100H",
+    flag: "🇽🇰",
+    label: "Kosovo",
+    displayLabel: "🇽🇰 Kosovo · ALPEX",
+    chartColor: "#c084fc",
+    analysisPriority: 14,
+    group: "regional",
+    directSerbianNeighbour: false,
+  },
+  IT_NORD: {
+    code: "IT_NORD",
+    country: "Italy North",
+    marketName: "Italy North",
+    exchange: "GME",
+    eic: "10Y1001A1001A73I",
+    flag: "🇮🇹",
+    label: "Italy North",
+    displayLabel: "🇮🇹 Italy North · GME",
+    chartColor: "#fb923c",
+    analysisPriority: 15,
+    group: "european-benchmark",
+    directSerbianNeighbour: false,
+  },
 };
 
 export const PRICE_MARKET_LIST = Object.values(PRICE_MARKETS).sort(
@@ -212,8 +254,8 @@ export const PRICE_MARKET_CODES = PRICE_MARKET_LIST.map((market) => market.code)
 export const MARKET_PRESETS: Record<string, PriceMarketCode[]> = {
   core: ["RS", "HU", "RO", "BG", "HR"],
   directNeighbours: ["RS", "HU", "RO", "BG", "HR", "ME", "MK"],
-  regional: ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "SI", "GR", "AL"],
-  europeanBenchmarks: ["RS", "AT", "DE_LU", "IT_CSUD"],
+  regional: ["RS", "HU", "RO", "BG", "HR", "ME", "MK", "SI", "GR", "AL", "XK"],
+  europeanBenchmarks: ["RS", "AT", "DE_LU", "IT_CSUD", "IT_NORD"],
   all: PRICE_MARKET_CODES,
   serbiaOnly: ["RS"],
 };

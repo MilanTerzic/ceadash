@@ -12,9 +12,13 @@ const outfile = path.join(outdir, "belgrade-delivery-boundary.mjs");
 
 await mkdir(outdir, { recursive: true });
 const source = await readFile(path.join(root, "src/lib/belgrade-delivery-boundary.ts"), "utf8");
-await writeFile(outfile, ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
-}).outputText, "utf8");
+await writeFile(
+  outfile,
+  ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
+  }).outputText,
+  "utf8",
+);
 const { belgradeDeliveryStartUtc } = await import(pathToFileURL(outfile).href);
 test.after(async () => rm(outdir, { recursive: true, force: true }));
 
@@ -41,8 +45,7 @@ test("normal winter/summer delivery windows are exactly 24 hours", () => {
     const next = new Date(day + "T12:00:00Z");
     next.setUTCDate(next.getUTCDate() + 1);
     assert.equal(
-      (belgradeDeliveryStartUtc(next.toISOString().slice(0, 10)) -
-        belgradeDeliveryStartUtc(day)) /
+      (belgradeDeliveryStartUtc(next.toISOString().slice(0, 10)) - belgradeDeliveryStartUtc(day)) /
         3600000,
       24,
     );

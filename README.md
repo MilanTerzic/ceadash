@@ -1,34 +1,35 @@
-# CEA Power Dashboard
+# CEA Power Intelligence
 
-CEA Power Dashboard is a public Serbia and regional electricity-market analytics application.
+The Southeast European electricity market intelligence and analytics terminal by Centar za energetske analize (CEA).
 
-It combines the original CEA dashboard features with market-intelligence modules ported and adapted from Power Pulse Serbia:
+It covers twelve core markets (RS, BA, ME, MK, AL, XK, HR, SI, BG, RO, GR, HU) and their connected neighbours, and is organised as one shell with workspaces:
 
-- Serbia and regional day-ahead prices
-- futures snapshots and forward-curve analytics
-- spreads, route economics, capacity, flows, utilization and balance
-- outages, weather, Danube hydrology and forecast context
-- CEA Market Report with CSV, print and JPEG export
-- RES capture prices, flexibility/storage signals, CBAM and solar-project calculators
-- bilingual English/Serbian UI through `useLang()` / `t()`
+| Workspace           | Route                     | Answers                                            |
+| ------------------- | ------------------------- | -------------------------------------------------- |
+| Command Center      | `/dashboard`              | What is happening across SEE right now?            |
+| Price Analytics     | `/dashboard/prices`       | Which markets are dear or cheap, and when?         |
+| Cross-Border        | `/dashboard/borders`      | Where is power moving and which borders are tight? |
+| Fundamentals        | `/dashboard/fundamentals` | What is driving price?                             |
+| Forwards & Forecast | `/dashboard/futures`      | How is the forward curve priced?                   |
+| PPA Studio          | `/dashboard/ppa`          | What is a solar, wind or baseload PPA worth?       |
+| BESS Lab            | `/dashboard/bess`         | What can a battery earn on these prices?           |
+| Watchlist & Alerts  | `/dashboard/watch`        | What needs my attention?                           |
+
+Earlier pages (RES capture, project economics, Serbia border detail, balance, outages, market report, news, methodology) remain under "More".
+
+See [`docs/CEA_POWER_INTELLIGENCE.md`](docs/CEA_POWER_INTELLIGENCE.md) for architecture, the design system, the data-source matrix and the completion matrix.
 
 ## Setup
 
-1. Install dependencies.
+```bash
+bun install
+cp .env.example .env   # then fill in the server variables
+bun run dev
+```
 
-   ```bash
-   bun install
-   ```
-
-2. Copy `.env.example` to `.env` and configure the required server variables.
-
-3. Apply Supabase migrations if database-backed caching, futures snapshots or report persistence are needed.
-
-4. Run locally.
-
-   ```bash
-   bun run dev
-   ```
+- `ENTSOE_SECURITY_TOKEN` is required for any market data. Without it every panel says the source is not connected; nothing is estimated in its place.
+- Supabase variables are optional and enable the server-side cache.
+- `CEA_SYNTHETIC_DATA=1` serves generated data for UI development. Every screen then shows a "SYNTHETIC DATA" banner. Never set it in production.
 
 ## Verification
 
@@ -36,24 +37,14 @@ It combines the original CEA dashboard features with market-intelligence modules
 bun run check   # typecheck + lint + tests + build (same gate as CI)
 ```
 
-Routes that are pure redirects (for example `/dashboard/cbc`) are covered by `tests/route-redirects.test.mjs`.
-
 ## Repository layout
 
-- `src/` — TanStack Start application (routes, components, server functions)
+- `src/lib/see/` — regional registry, analytics, BESS and PPA engines, server functions, client hooks
+- `src/components/shell/` — application shell: rail, price tape, period control, command palette, themes
+- `src/components/cea/` — design-system primitives and chart components
+- `src/components/see/` — map, map layers, inspectors
+- `src/routes/` — one file per workspace
+- `scripts/build-see-map.mjs` — regenerates the map geometry from Natural Earth
 - `supabase/` — database migrations
-- `tests/` — Node test runner suites for calculations, security guards and routing
-- `legacy/` — the original Python/Flask dashboard, kept for reference only and not part of the build
-
-## Documentation
-
-See `docs/POWER_PULSE_PARITY.md` for:
-
-- repository audit summary
-- feature-parity matrix
-- source-to-target file mapping
-- new routes
-- Supabase migrations
-- environment variables
-- external-data limitations
-- deployment and post-deployment checklist
+- `tests/` — Node test runner suites
+- `legacy/` — the original Python dashboard, reference only

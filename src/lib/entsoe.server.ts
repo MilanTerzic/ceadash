@@ -28,6 +28,18 @@ import {
   type LoadGenerationPoint,
 } from "./fundamentals";
 import { logSourceDiagnostic } from "./source-diagnostics.server";
+import { parseTimeSeriesIntervals, stripNs, tagAll, tagOne } from "./entsoe-xml";
+import {
+  syntheticAllocation,
+  syntheticEnabled,
+  syntheticFlows,
+  syntheticGeneration,
+  syntheticLoad,
+  syntheticNtc,
+  syntheticPrices,
+  syntheticResForecast,
+  syntheticSchedules,
+} from "./see/synthetic.server";
 
 export type { OutageRow } from "./entsoe-outages";
 
@@ -335,101 +347,18 @@ async function entsoeRaw(
   return payload.documents[0];
 }
 
-// --- Tiny XML utilities -----------------------------------------------------
-function stripNs(xml: string) {
-  return xml.replace(/<\/?[\w:-]+:/g, (m) => m.replace(/[\w-]+:/, ""));
-}
-function tagAll(xml: string, tag: string): string[] {
-  const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, "g");
-  const out: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(xml))) out.push(m[1]);
-  return out;
-}
-function tagOne(xml: string, tag: string): string | null {
-  const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`);
-  const m = re.exec(xml);
-  return m ? m[1].trim() : null;
-}
-
+// --- Tiny XML utilities: see ./entsoe-xml ---------------------------------
 function avg(values: number[]): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
 function parseTimeSeriesHourly(xml: string): Array<{ ts: string; value: number }> {
-  const clean = stripNs(xml);
-  const out: Array<{ ts: string; value: number }> = [];
-  for (const ts of tagAll(clean, "TimeSeries")) {
-    for (const period of tagAll(ts, "Period")) {
-      const start = tagOne(period, "start");
-      if (!start) continue;
-      const startMs = Date.parse(start);
-      const resolution = tagOne(period, "resolution") ?? "PT60M";
-      const stepMin = /PT(\d+)M/.exec(resolution)?.[1]
-        ? parseInt(/PT(\d+)M/.exec(resolution)![1], 10)
-        : 60;
-      for (const pt of tagAll(period, "Point")) {
-        const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
-        const valS = tagOne(pt, "price.amount") ?? tagOne(pt, "quantity") ?? tagOne(pt, "value");
-        if (valS == null) continue;
-        const value = parseFloat(valS);
-        if (!Number.isFinite(value)) continue;
-        const ts2 = new Date(startMs + (pos - 1) * stepMin * 60_000).toISOString();
-        out.push({ ts: ts2, value });
-      }
-    }
-  }
   // dedupe by ts (keep last)
   const byTs = new Map<string, number>();
-  for (const r of out) byTs.set(r.ts, r.value);
+  for (const r of parseTimeSeriesIntervals(xml)) byTs.set(r.ts, r.value);
   return [...byTs.entries()]
     .map(([ts, value]) => ({ ts, value }))
     .sort((a, b) => a.ts.localeCompare(b.ts));
-}
-
-function parseResolutionMinutes(resolution: string | null): number {
-  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?$/.exec(resolution ?? "");
-  if (!m) return 60;
-  const h = m[1] ? parseInt(m[1], 10) : 0;
-  const min = m[2] ? parseInt(m[2], 10) : 0;
-  return h * 60 + min || 60;
-}
-
-function parseTimeSeriesIntervals(xml: string): Array<{
-  ts: string;
-  value: number;
-  durationMinutes: number;
-  productionType?: string;
-  mRID?: string;
-}> {
-  const clean = stripNs(xml);
-  const out: Array<{
-    ts: string;
-    value: number;
-    durationMinutes: number;
-    productionType?: string;
-    mRID?: string;
-  }> = [];
-  for (const ts of tagAll(clean, "TimeSeries")) {
-    const productionType = tagOne(ts, "psrType") ?? undefined;
-    const mRID = tagOne(ts, "mRID") ?? undefined;
-    for (const period of tagAll(ts, "Period")) {
-      const start = tagOne(period, "start");
-      if (!start) continue;
-      const startMs = Date.parse(start);
-      const durationMinutes = parseResolutionMinutes(tagOne(period, "resolution"));
-      for (const pt of tagAll(period, "Point")) {
-        const pos = parseInt(tagOne(pt, "position") ?? "1", 10);
-        const valS = tagOne(pt, "price.amount") ?? tagOne(pt, "quantity") ?? tagOne(pt, "value");
-        if (valS == null) continue;
-        const value = parseFloat(valS);
-        if (!Number.isFinite(value)) continue;
-        const ts2 = new Date(startMs + (pos - 1) * durationMinutes * 60_000).toISOString();
-        out.push({ ts: ts2, value, durationMinutes, productionType, mRID });
-      }
-    }
-  }
-  return out.sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 function parseAllocationSummary(xml: string): {
@@ -468,6 +397,18 @@ export async function fetchDayAheadPrices(
   demo = false,
   force = false,
 ): Promise<FetchResult<PriceSeries>> {
+  if (syntheticEnabled()) {
+    return {
+      data: {
+        zone,
+        points: syntheticPrices(zone, dayISO, dayISO)
+          .filter((p) => p.durationMinutes === 60 || p.ts.slice(14, 16) === "00")
+          .map((p) => ({ ts: p.ts, price: p.price })),
+      },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `da_prices:${zone}:${dayISO}`;
   const emptyData: PriceSeries = { zone, points: [] };
   if (!force) {
@@ -520,6 +461,13 @@ export async function fetchDayAheadPricesRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<IntervalPriceSeries>> {
+  if (syntheticEnabled()) {
+    return {
+      data: { zone, points: syntheticPrices(zone, fromISO, toISO) },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `da_prices_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData: IntervalPriceSeries = { zone, points: [] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.da_past : TTL.da_today;
@@ -704,6 +652,17 @@ export async function fetchPhysicalFlows(
   demo = false,
   force = false,
 ): Promise<FetchResult<FlowSeries>> {
+  if (syntheticEnabled()) {
+    return {
+      data: {
+        from,
+        to,
+        points: syntheticFlows(from, to, dayISO, dayISO).map((p) => ({ ts: p.ts, mw: p.mw })),
+      },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `flow:${from}:${to}:${dayISO}`;
   const emptyData: FlowSeries = { from, to, points: [] };
   if (!force) {
@@ -747,6 +706,13 @@ export async function fetchPhysicalFlowsRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<IntervalFlowSeries>> {
+  if (syntheticEnabled()) {
+    return {
+      data: { from, to, points: syntheticFlows(from, to, fromISO, toISO) },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `flow_range:v1:${from}:${to}:${fromISO}:${toISO}`;
   const emptyData: IntervalFlowSeries = { from, to, points: [] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.flow_past : TTL.flow_today;
@@ -806,6 +772,13 @@ export async function fetchExplicitAllocation(
   demo = false,
   force = false,
 ): Promise<FetchResult<CapacityRow>> {
+  if (syntheticEnabled()) {
+    return {
+      data: { from, to, product, ...syntheticAllocation(from, to, dayISO) },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `cap:${from}:${to}:${product}:${dayISO}`;
   const emptyData: CapacityRow = {
     from,
@@ -1119,6 +1092,20 @@ export async function fetchActualLoadRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<{ zone: ZoneCode; points: ActualLoadPoint[] }>> {
+  if (syntheticEnabled()) {
+    return {
+      data: {
+        zone,
+        points: syntheticLoad(zone, fromISO, toISO).map((p) => ({
+          ts: p.ts,
+          load_mw: p.mw,
+          durationMinutes: p.durationMinutes,
+        })),
+      },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `actual_load_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData = { zone, points: [] as ActualLoadPoint[] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.loadgen_past : TTL.loadgen_today;
@@ -1208,6 +1195,13 @@ export async function fetchActualGenerationRange(
   demo = false,
   force = false,
 ): Promise<FetchResult<{ zone: ZoneCode; points: ActualGenerationPoint[] }>> {
+  if (syntheticEnabled()) {
+    return {
+      data: { zone, points: syntheticGeneration(zone, fromISO, toISO) },
+      source: "demo",
+      fetched_at: new Date().toISOString(),
+    };
+  }
   const key = `actual_generation_range:v2:${zone}:${fromISO}:${toISO}`;
   const emptyData = { zone, points: [] as ActualGenerationPoint[] };
   const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.loadgen_past : TTL.loadgen_today;
@@ -1457,4 +1451,166 @@ export async function fetchLoadGen(
   force = false,
 ): Promise<LoadGenerationResult> {
   return fetchLoadGenRange(zone, dayISO, dayISO, demo, force);
+}
+
+// --- Regional series used by the SEE workspaces -----------------------------
+// Scheduled commercial exchanges, forecast transfer capacity and day-ahead forecasts.
+// All four share one request/parse/cache path and never substitute a value for a gap.
+
+export interface MwPoint {
+  ts: string;
+  mw: number;
+  durationMinutes: number;
+  productionType?: string;
+}
+
+function rangeWindow(fromISO: string, toISO: string) {
+  const start = new Date(Date.parse(fromISO + "T00:00:00Z") - cetOffsetHours(fromISO) * 3600_000);
+  const afterTo = new Date(Date.parse(toISO + "T00:00:00Z") + 24 * 3600_000)
+    .toISOString()
+    .slice(0, 10);
+  const end = new Date(Date.parse(afterTo + "T00:00:00Z") - cetOffsetHours(afterTo) * 3600_000);
+  return { start, end };
+}
+
+async function fetchMwSeries(args: {
+  cacheKey: string;
+  label: string;
+  params: Record<string, string>;
+  fromISO: string;
+  toISO: string;
+  /** Sum points that share a timestamp (several TimeSeries for one quantity). */
+  sumDuplicates?: boolean;
+  keepProductionType?: boolean;
+  synthetic: () => MwPoint[];
+}): Promise<FetchResult<MwPoint[]>> {
+  const { cacheKey: key, fromISO, toISO } = args;
+  const empty: MwPoint[] = [];
+  if (syntheticEnabled()) {
+    return { data: args.synthetic(), source: "demo", fetched_at: new Date().toISOString() };
+  }
+  try {
+    assertValidDateRange(fromISO, toISO);
+  } catch (error) {
+    return {
+      data: empty,
+      source: "empty",
+      status: "error",
+      reason: error instanceof Error ? error.message : "invalid_date_range",
+      fetched_at: new Date().toISOString(),
+    };
+  }
+  const ttl = toISO < new Date().toISOString().slice(0, 10) ? TTL.flow_past : TTL.flow_today;
+  const cached = await cacheGetEntry<MwPoint[]>(key, ttl);
+  if (cached?.fresh) {
+    return {
+      data: cached.payload,
+      source: "cache",
+      status: "cache",
+      fetched_at: cached.fetched_at,
+      last_success_at: cached.fetched_at,
+    };
+  }
+  if (!token()) return staleCacheOrEmpty(key, empty, "entsoe_token_missing");
+  try {
+    const { start, end } = rangeWindow(fromISO, toISO);
+    const xml = await entsoeRaw(
+      { ...args.params, periodStart: ymdh(start), periodEnd: ymdh(end) },
+      { source: args.label, from: fromISO, to: toISO },
+    );
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const byKey = new Map<string, MwPoint>();
+    for (const p of parseTimeSeriesIntervals(xml)) {
+      const t = Date.parse(p.ts);
+      if (t < startMs || t >= endMs || !Number.isFinite(p.value)) continue;
+      const type = args.keepProductionType ? p.productionType : undefined;
+      const mapKey = `${p.ts}|${type ?? ""}`;
+      const existing = byKey.get(mapKey);
+      byKey.set(mapKey, {
+        ts: p.ts,
+        mw: existing && args.sumDuplicates ? existing.mw + p.value : p.value,
+        durationMinutes: p.durationMinutes,
+        ...(type ? { productionType: type } : {}),
+      });
+    }
+    const points = [...byKey.values()].sort((a, b) => a.ts.localeCompare(b.ts));
+    if (!points.length) return staleCacheOrEmpty(key, empty, "entsoe_no_data");
+    await cacheSet(key, points, ttl);
+    const fetchedAt = new Date().toISOString();
+    return {
+      data: points,
+      source: "live",
+      status: "live",
+      fetched_at: fetchedAt,
+      last_success_at: fetchedAt,
+    };
+  } catch (e) {
+    return staleCacheOrEmpty(key, empty, e instanceof Error ? e.message : "error");
+  }
+}
+
+/** Scheduled commercial exchanges from -> to (A09). Not physical flow. */
+export function fetchScheduledExchangesRange(
+  from: ZoneCode,
+  to: ZoneCode,
+  fromISO: string,
+  toISO: string,
+) {
+  return fetchMwSeries({
+    cacheKey: `sched_range:v1:${from}:${to}:${fromISO}:${toISO}`,
+    label: `ENTSO-E A09 ${from}>${to}`,
+    params: { documentType: "A09", in_Domain: ZONES[to].eic, out_Domain: ZONES[from].eic },
+    fromISO,
+    toISO,
+    sumDuplicates: true,
+    synthetic: () => syntheticSchedules(from, to, fromISO, toISO),
+  });
+}
+
+/** Day-ahead forecast net transfer capacity from -> to (A61, day-ahead contract). */
+export function fetchForecastNtcRange(
+  from: ZoneCode,
+  to: ZoneCode,
+  fromISO: string,
+  toISO: string,
+) {
+  return fetchMwSeries({
+    cacheKey: `ntc_da_range:v1:${from}:${to}:${fromISO}:${toISO}`,
+    label: `ENTSO-E A61 ${from}>${to}`,
+    params: {
+      documentType: "A61",
+      "contract_MarketAgreement.Type": "A01",
+      in_Domain: ZONES[to].eic,
+      out_Domain: ZONES[from].eic,
+    },
+    fromISO,
+    toISO,
+    synthetic: () => syntheticNtc(from, to, fromISO, toISO),
+  });
+}
+
+/** Day-ahead total load forecast (A65, process A01). */
+export function fetchLoadForecastRange(zone: ZoneCode, fromISO: string, toISO: string) {
+  return fetchMwSeries({
+    cacheKey: `load_fc_range:v1:${zone}:${fromISO}:${toISO}`,
+    label: `ENTSO-E A65 forecast ${zone}`,
+    params: { documentType: "A65", processType: "A01", outBiddingZone_Domain: ZONES[zone].eic },
+    fromISO,
+    toISO,
+    synthetic: () => syntheticLoad(zone, fromISO, toISO, true),
+  });
+}
+
+/** Day-ahead wind and solar generation forecast by production type (A69, process A01). */
+export function fetchWindSolarForecastRange(zone: ZoneCode, fromISO: string, toISO: string) {
+  return fetchMwSeries({
+    cacheKey: `res_fc_range:v1:${zone}:${fromISO}:${toISO}`,
+    label: `ENTSO-E A69 forecast ${zone}`,
+    params: { documentType: "A69", processType: "A01", in_Domain: ZONES[zone].eic },
+    fromISO,
+    toISO,
+    keepProductionType: true,
+    synthetic: () => syntheticResForecast(zone, fromISO, toISO),
+  });
 }
