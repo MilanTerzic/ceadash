@@ -17,7 +17,9 @@ import {
   type MarketPrices,
 } from "./see.functions";
 
-const BATCH = 5;
+// Small batches keep each server call short: a cold (uncached) provider fetch for
+// many markets at once can exceed the edge request timeout and surface as a 500.
+const BATCH = 3;
 const STALE = 10 * 60 * 1000;
 
 function chunk<T>(items: T[], size: number): T[][] {
