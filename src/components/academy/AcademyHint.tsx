@@ -31,7 +31,7 @@ export function AcademyHint({ topics, className }: { topics: string[]; className
       <span className="flex items-center gap-2">
         <GraduationCap className="h-4 w-4 text-brand" aria-hidden />
         <span className="eyebrow !text-[10px]">
-          {fallback
+          {fallback && shown.length > 0
             ? t("Power Academy · Start here", "Power Academy · Počnite ovde")
             : "Power Academy"}
         </span>

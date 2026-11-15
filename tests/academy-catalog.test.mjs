@@ -36,7 +36,6 @@ test("the shipped catalogue is valid and every entry parses", async () => {
   const catalog = lib.parseCatalog(raw);
   assert.deepEqual(catalog.rejected, []);
   assert.ok(catalog.episodes.length >= 1);
-  assert.equal(catalog.episodes[0].slug, "how-european-power-markets-work");
 });
 
 test("a bad episode is rejected without losing the rest", () => {
@@ -211,15 +210,25 @@ test("key points and sources are parsed; non-http sources are dropped", () => {
   );
 });
 
-test("the shipped series lists episodes 1 to 7 in order", async () => {
+test("the shipped series is six episodes, numbered from the day-ahead episode", async () => {
   const raw = JSON.parse(await readFile(path.join(root, "public/academy/catalog.json"), "utf8"));
   const catalog = lib.parseCatalog(raw);
-  assert.equal(catalog.episodes.length, 7);
-  assert.equal(catalog.episodes[0].slug, "how-european-power-markets-work");
   assert.deepEqual(
-    catalog.episodes.slice(1).map((item) => item.status),
-    Array(6).fill("coming-soon"),
+    catalog.episodes.map((item) => item.slug),
+    [
+      "day-ahead-how-seepex-forms-the-price",
+      "intraday-trading-when-forecasts-change",
+      "balancing-what-ems-does-in-real-time",
+      "ancillary-services-fcr-afrr-mfrr",
+      "futures-and-forwards-hedging-the-serbian-price",
+      "cross-border-trading-why-balkan-prices-diverge",
+    ],
   );
+  assert.equal(lib.libraryNumber(catalog, "day-ahead-how-seepex-forms-the-price"), 1);
+  assert.equal(lib.libraryNumber(catalog, "cross-border-trading-why-balkan-prices-diverge"), 6);
+  // The intro episode is parked as a draft until its video exists.
+  assert.equal(lib.findEpisode(catalog, "how-european-power-markets-work"), undefined);
+  assert.ok(catalog.episodes.every((item) => item.status === "coming-soon"));
   // No fabricated durations for videos that do not exist yet.
   assert.ok(catalog.episodes.every((item) => item.durationSeconds === undefined));
 });

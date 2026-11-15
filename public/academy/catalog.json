@@ -107,22 +107,15 @@
           "default": true
         }
       ],
-      "topics": [
-        "markets-overview"
-      ],
+      "topics": ["markets-overview"],
       "foundational": true,
-      "related": [
-        "prices",
-        "borders",
-        "forwards",
-        "ppa",
-        "bess"
-      ],
+      "related": ["prices", "borders", "forwards", "ppa", "bess"],
       "source": {
         "type": "heygen",
         "reference": "https://app.heygen.com/videos/024ee4f565ac4bdf894c5609ead9dfb4"
       },
-      "status": "published"
+      "status": "published",
+      "draft": true
     },
     {
       "slug": "day-ahead-how-seepex-forms-the-price",
@@ -160,13 +153,8 @@
           "sr": "Po čemu se povezivanje tržišta u EU i njegovi 15-minutni proizvodi razlikuju od SEEPEX-ovih časovnih proizvoda"
         }
       ],
-      "topics": [
-        "day-ahead"
-      ],
-      "related": [
-        "prices",
-        "borders"
-      ],
+      "topics": ["day-ahead"],
+      "related": ["prices", "borders"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/spot-markets"
@@ -218,13 +206,8 @@
           "sr": "Časovni ugovori koji se zatvaraju 60 minuta pre isporuke; ono što ostane postaje debalans"
         }
       ],
-      "topics": [
-        "intraday"
-      ],
-      "related": [
-        "prices",
-        "bess"
-      ],
+      "topics": ["intraday"],
+      "related": ["prices", "bess"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/spot-markets"
@@ -276,13 +259,8 @@
           "sr": "Tri različite cene: day-ahead, aktivirana balansna energija, obračun debalansa"
         }
       ],
-      "topics": [
-        "balancing"
-      ],
-      "related": [
-        "bess",
-        "ppa"
-      ],
+      "topics": ["balancing"],
+      "related": ["bess", "ppa"],
       "sources": [
         {
           "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
@@ -334,14 +312,8 @@
           "sr": "PICASSO i MARI kao evropske platforme, odvojene od sopstvenih aranžmana Srbije"
         }
       ],
-      "topics": [
-        "balancing",
-        "ancillary",
-        "battery"
-      ],
-      "related": [
-        "bess"
-      ],
+      "topics": ["balancing", "ancillary", "battery"],
+      "related": ["bess"],
       "sources": [
         {
           "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
@@ -390,13 +362,8 @@
           "sr": "Šta hedž ostavlja otvorenim: rizik likvidnosti, količinski, bazni i kreditni rizik"
         }
       ],
-      "topics": [
-        "futures"
-      ],
-      "related": [
-        "forwards",
-        "ppa"
-      ],
+      "topics": ["futures"],
+      "related": ["forwards", "ppa"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/2019/06/06/may-29th-2019-workshop-introduction-financial-derivatives-serbia"
@@ -445,13 +412,8 @@
           "sr": "Implicitna alokacija na povezanim tržištima naspram eksplicitne tamo gde tržišta nisu povezana"
         }
       ],
-      "topics": [
-        "cross-border"
-      ],
-      "related": [
-        "borders",
-        "prices"
-      ],
+      "topics": ["cross-border"],
+      "related": ["borders", "prices"],
       "sources": [
         {
           "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"

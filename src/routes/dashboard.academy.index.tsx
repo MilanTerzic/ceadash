@@ -124,13 +124,11 @@ function AcademyLibrary() {
           </div>
         </div>
         <p className="num text-xs text-muted-foreground">
-          {available} {available === 1 ? t("episode", "epizoda") : t("episodes", "epizoda")}
-          {upcoming > 0 && (
-            <>
-              {" "}
-              · {upcoming} {t("coming soon", "uskoro")}
-            </>
-          )}
+          {available === 0
+            ? `${upcoming} ${t("episodes coming soon", "epizoda uskoro")}`
+            : `${available} ${available === 1 ? t("episode", "epizoda") : t("episodes", "epizoda")}${
+                upcoming > 0 ? ` · ${upcoming} ${t("coming soon", "uskoro")}` : ""
+              }`}
         </p>
       </header>
 
