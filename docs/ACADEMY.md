@@ -12,8 +12,9 @@ means editing `public/academy/catalog.json` and uploading files. No code changes
 | Subtitles (`.vtt`)               | `public/academy/subtitles/`                | Small; same-origin avoids CORS on `<track>` |
 | **Videos**                       | Supabase Storage bucket `academy` (public) | Large, permanent, served from the CDN       |
 
-Videos are not kept in the repository. Static assets on the deploy target are limited to
-25 MiB per file and a lesson video is usually larger, so they go in Storage. The bucket is created
+Episode 1 was uploaded through Lovable's asset storage; its URL (`/__l5e/assets-v1/...`) is stored in
+the catalogue. Videos under 25 MiB can also live in the repository under `public/academy/videos/`
+and be referenced as `/academy/videos/<file>.mp4`. Larger videos go in Storage. The bucket is created
 by `supabase/migrations/20261115090000_create_academy_bucket.sql`; apply it once.
 A video URL is `<mediaBase>/<video path>`, with `mediaBase` set at the top of the catalogue.
 

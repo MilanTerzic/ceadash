@@ -90,33 +90,38 @@
         "sr": "Kako funkcionišu evropska tržišta električne energije"
       },
       "summary": {
-        "en": "A plain-language introduction to how electricity is traded and delivered across Europe.",
-        "sr": "Jednostavan uvod u to kako se električna energija trguje i isporučuje širom Evrope."
+        "en": "A first look at how electricity is traded and balanced, from the day-ahead auction to real-time reserves.",
+        "sr": "Prvi pogled na to kako se električna energija trguje i balansira, od day-ahead aukcije do rezervi u realnom vremenu."
       },
       "description": {
-        "en": "A plain-language introduction to how electricity is bought, sold and delivered across Europe: how forward, day-ahead, intraday and balancing markets fit together, and how national markets are linked across borders. This is the starting point for the rest of the Power Academy and for the price, spread and flow analytics in this dashboard.",
-        "sr": "Jednostavan uvod u to kako se električna energija kupuje, prodaje i isporučuje širom Evrope: kako se terminsko, day-ahead, intraday i balansno tržište uklapaju i kako su nacionalna tržišta povezana preko granica. Ovo je polazna tačka za ostatak Power Academy i za analitiku cena, spredova i tokova u ovom dashboardu."
+        "en": "A one-minute introduction to how electricity is traded and kept in balance. It follows one position through the day-ahead market, where bids and asks meet for 15-minute delivery blocks, then through intraday trading, where a forecast change is corrected with a buy-back, and finally to the system operator, which uses reserves to keep the grid in balance. All prices and volumes in the examples are illustrative, not market quotes. Captions are built into the video.",
+        "sr": "Jednominutni uvod u to kako se električna energija trguje i održava u ravnoteži. Prati jednu poziciju kroz day-ahead tržište, gde se ponude za kupovinu i prodaju sučeljavaju za 15-minutne blokove isporuke, zatim kroz intraday trgovinu, gde se promena prognoze ispravlja otkupom, i na kraju do operatora sistema, koji rezervama održava mrežu u ravnoteži. Sve cene i količine u primerima su ilustrativne, nisu tržišne kotacije. Titlovi su ugrađeni u video."
       },
       "video": "/__l5e/assets-v1/763d459e-271c-4a83-89b5-c0c290185274/ep01-how-european-power-markets-work.mp4",
-      "poster": "/academy/posters/ep01-how-european-power-markets-work.svg",
+      "poster": "/academy/posters/ep01-how-european-power-markets-work.jpg",
       "durationSeconds": 56,
-      "subtitles": [],
-      "topics": [
-        "markets-overview"
-      ],
+      "topics": ["markets-overview"],
       "foundational": true,
-      "related": [
-        "prices",
-        "borders",
-        "forwards",
-        "ppa",
-        "bess"
-      ],
+      "related": ["prices", "borders", "forwards", "ppa", "bess"],
       "source": {
         "type": "heygen",
         "reference": "https://app.heygen.com/videos/024ee4f565ac4bdf894c5609ead9dfb4"
       },
-      "status": "published"
+      "status": "published",
+      "learn": [
+        {
+          "en": "The day-ahead market: bids and asks matched for 15-minute delivery blocks",
+          "sr": "Day-ahead tržište: ponude za kupovinu i prodaju sparene za 15-minutne blokove isporuke"
+        },
+        {
+          "en": "Intraday: correcting a position when a forecast changes (40 MW sold, 10 MW bought back, 30 MW net)",
+          "sr": "Intraday: ispravljanje pozicije kada se prognoza promeni (prodato 40 MW, otkupljeno 10 MW, neto 30 MW)"
+        },
+        {
+          "en": "Balancing: how the system operator uses reserves to keep the grid in balance",
+          "sr": "Balansiranje: kako operator sistema koristi rezerve da održi mrežu u ravnoteži"
+        }
+      ]
     },
     {
       "slug": "day-ahead-how-seepex-forms-the-price",
@@ -154,13 +159,8 @@
           "sr": "Po čemu se povezivanje tržišta u EU i njegovi 15-minutni proizvodi razlikuju od SEEPEX-ovih časovnih proizvoda"
         }
       ],
-      "topics": [
-        "day-ahead"
-      ],
-      "related": [
-        "prices",
-        "borders"
-      ],
+      "topics": ["day-ahead"],
+      "related": ["prices", "borders"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/spot-markets"
@@ -212,13 +212,8 @@
           "sr": "Časovni ugovori koji se zatvaraju 60 minuta pre isporuke; ono što ostane postaje debalans"
         }
       ],
-      "topics": [
-        "intraday"
-      ],
-      "related": [
-        "prices",
-        "bess"
-      ],
+      "topics": ["intraday"],
+      "related": ["prices", "bess"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/spot-markets"
@@ -270,13 +265,8 @@
           "sr": "Tri različite cene: day-ahead, aktivirana balansna energija, obračun debalansa"
         }
       ],
-      "topics": [
-        "balancing"
-      ],
-      "related": [
-        "bess",
-        "ppa"
-      ],
+      "topics": ["balancing"],
+      "related": ["bess", "ppa"],
       "sources": [
         {
           "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
@@ -328,14 +318,8 @@
           "sr": "PICASSO i MARI kao evropske platforme, odvojene od sopstvenih aranžmana Srbije"
         }
       ],
-      "topics": [
-        "balancing",
-        "ancillary",
-        "battery"
-      ],
-      "related": [
-        "bess"
-      ],
+      "topics": ["balancing", "ancillary", "battery"],
+      "related": ["bess"],
       "sources": [
         {
           "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
@@ -384,13 +368,8 @@
           "sr": "Šta hedž ostavlja otvorenim: rizik likvidnosti, količinski, bazni i kreditni rizik"
         }
       ],
-      "topics": [
-        "futures"
-      ],
-      "related": [
-        "forwards",
-        "ppa"
-      ],
+      "topics": ["futures"],
+      "related": ["forwards", "ppa"],
       "sources": [
         {
           "url": "https://seepex-spot.rs/2019/06/06/may-29th-2019-workshop-introduction-financial-derivatives-serbia"
@@ -439,13 +418,8 @@
           "sr": "Implicitna alokacija na povezanim tržištima naspram eksplicitne tamo gde tržišta nisu povezana"
         }
       ],
-      "topics": [
-        "cross-border"
-      ],
-      "related": [
-        "borders",
-        "prices"
-      ],
+      "topics": ["cross-border"],
+      "related": ["borders", "prices"],
       "sources": [
         {
           "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"

@@ -220,6 +220,10 @@ test("the shipped series lists episodes 1 to 7 in order", async () => {
     catalog.episodes.slice(1).map((item) => item.status),
     Array(6).fill("coming-soon"),
   );
-  // No fabricated durations for videos that do not exist yet.
-  assert.ok(catalog.episodes.every((item) => item.durationSeconds === undefined));
+  // Durations exist only for videos that exist; none are guessed for announced episodes.
+  assert.ok(
+    catalog.episodes
+      .filter((item) => item.status === "coming-soon")
+      .every((item) => item.durationSeconds === undefined),
+  );
 });

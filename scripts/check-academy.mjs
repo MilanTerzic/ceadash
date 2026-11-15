@@ -38,6 +38,8 @@ for (const item of catalog.rejected) fail(`entry ${item.slug ?? `#${item.index}`
 if (!catalog.categories.length) fail("no categories defined");
 
 async function exists(url) {
+  // Lovable-hosted assets exist only on the platform; they cannot be checked from the repository.
+  if (url.startsWith("/__l5e/")) return null;
   if (url.startsWith("/")) {
     try {
       await access(path.join(root, "public", url));
