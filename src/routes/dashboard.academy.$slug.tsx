@@ -17,7 +17,6 @@ import {
 import { useAcademyProgress } from "@/lib/academy/progress";
 import { useAcademyCatalog, useAvailableSubtitles } from "@/lib/academy/use-academy";
 import { useLang } from "@/lib/i18n";
-import { WORKSPACES } from "@/components/shell/workspaces";
 
 export const Route = createFileRoute("/dashboard/academy/$slug")({
   head: () => ({ meta: [{ title: "Power Academy — CEA Power Intelligence" }] }),
@@ -81,9 +80,6 @@ function AcademyEpisodePage() {
   const previous = previousEpisode(catalog, episode.slug);
   const category = catalog.categories.find((item) => item.id === episode.category);
   const sameCategory = catalog.episodes.filter((item) => item.category === episode.category);
-  const related = episode.related
-    .map((id) => WORKSPACES.find((workspace) => workspace.id === id))
-    .filter((workspace): workspace is (typeof WORKSPACES)[number] => Boolean(workspace));
   const duration = formatDuration(episode.durationSeconds);
   const number = libraryNumber(catalog, episode.slug);
 
@@ -259,38 +255,6 @@ function AcademyEpisodePage() {
         </div>
 
         <aside className="min-w-0 space-y-4">
-          {related.length > 0 && (
-            <Panel title={t("Apply it in the dashboard", "Primenite u dashboardu")}>
-              <ul className="grid gap-1">
-                {related.map((workspace) => (
-                  <li key={workspace.id}>
-                    <Link
-                      to={workspace.to}
-                      className="group flex items-center gap-2.5 rounded-sm px-1.5 py-1.5 transition-colors hover:bg-surface-2"
-                    >
-                      <workspace.icon
-                        className="h-4 w-4 shrink-0 text-muted-foreground"
-                        strokeWidth={1.75}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-medium">
-                          {lang === "sr" ? workspace.sr : workspace.en}
-                        </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {lang === "sr" ? workspace.questionSr : workspace.questionEn}
-                        </span>
-                      </span>
-                      <ArrowRight
-                        className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                        aria-hidden
-                      />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
-
           {sameCategory.length > 1 && (
             <Panel
               title={
