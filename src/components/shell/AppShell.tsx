@@ -15,7 +15,7 @@ import { CommandPalette } from "./CommandPalette";
 import { PeriodControl } from "./PeriodControl";
 import { PriceTape, useTape, type TapeEntry } from "./PriceTape";
 import { ThemeToggle } from "./theme";
-import { WORKSPACES, workspaceFor, type Workspace } from "./workspaces";
+import { WORKSPACES, tabFor, workspaceFor, type Workspace } from "./workspaces";
 
 const keepSearch = ((prev: Record<string, unknown>) => prev) as never;
 
@@ -65,6 +65,7 @@ function RailItem({ workspace, active }: { workspace: Workspace; active: boolean
     <Link
       to={workspace.to}
       search={keepSearch}
+      activeOptions={{ exact: true }}
       title={`${lang === "sr" ? workspace.sr : workspace.en} — ${
         lang === "sr" ? workspace.questionSr : workspace.questionEn
       }`}
@@ -88,35 +89,114 @@ function RailItem({ workspace, active }: { workspace: Workspace; active: boolean
   );
 }
 
-function WorkspaceList({ current, onNavigate }: { current: Workspace; onNavigate?: () => void }) {
+function WorkspaceLink({
+  workspace,
+  active,
+  onNavigate,
+}: {
+  workspace: Workspace;
+  active: boolean;
+  onNavigate?: () => void;
+}) {
   const { lang } = useLang();
   return (
+    <Link
+      to={workspace.to}
+      search={keepSearch}
+      activeOptions={{ exact: true }}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-start gap-2.5 rounded-sm px-2 py-1.5 transition-colors hover:bg-surface-2",
+        active && "bg-surface-2",
+      )}
+    >
+      <workspace.icon
+        className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+        strokeWidth={1.75}
+      />
+      <span className="min-w-0">
+        <span className="block text-[13px] font-medium text-foreground">
+          {lang === "sr" ? workspace.sr : workspace.en}
+        </span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {lang === "sr" ? workspace.questionSr : workspace.questionEn}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * The menu. "all" is the mobile sheet: the daily workspaces, then a short reference section.
+ * "reference" is the rail's More popover, which only holds the reference links.
+ */
+function WorkspaceList({
+  current,
+  onNavigate,
+  scope = "all",
+}: {
+  current: Workspace;
+  onNavigate?: () => void;
+  scope?: "all" | "reference";
+}) {
+  const { t } = useLang();
+  const reference = WORKSPACES.filter((workspace) => !workspace.primary);
+  return (
     <nav className="grid gap-0.5">
-      {WORKSPACES.map((workspace) => (
-        <Link
-          key={workspace.id}
-          to={workspace.to}
-          search={keepSearch}
-          onClick={onNavigate}
-          className={cn(
-            "flex items-start gap-2.5 rounded-sm px-2 py-1.5 transition-colors hover:bg-surface-2",
-            current.id === workspace.id && "bg-surface-2",
-          )}
-        >
-          <workspace.icon
-            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-            strokeWidth={1.75}
+      {scope === "all" &&
+        WORKSPACES.filter((workspace) => workspace.primary).map((workspace) => (
+          <WorkspaceLink
+            key={workspace.id}
+            workspace={workspace}
+            active={current.id === workspace.id}
+            onNavigate={onNavigate}
           />
-          <span className="min-w-0">
-            <span className="block text-[13px] font-medium text-foreground">
-              {lang === "sr" ? workspace.sr : workspace.en}
-            </span>
-            <span className="block truncate text-[11px] text-muted-foreground">
-              {lang === "sr" ? workspace.questionSr : workspace.questionEn}
-            </span>
-          </span>
-        </Link>
+        ))}
+      {scope === "all" && (
+        <div className="eyebrow mt-2 px-2 pt-1.5 !text-[10px]">{t("Reference", "Referenca")}</div>
+      )}
+      {reference.map((workspace) => (
+        <WorkspaceLink
+          key={workspace.id}
+          workspace={workspace}
+          active={current.id === workspace.id}
+          onNavigate={onNavigate}
+        />
       ))}
+    </nav>
+  );
+}
+
+/** Pages of the current workspace. Hidden for single-page workspaces. */
+function WorkspaceTabs({ workspace, pathname }: { workspace: Workspace; pathname: string }) {
+  const { lang } = useLang();
+  if (workspace.tabs.length < 2) return null;
+  const active = tabFor(workspace, pathname);
+  return (
+    <nav
+      aria-label={lang === "sr" ? workspace.sr : workspace.en}
+      className="flex shrink-0 gap-1 overflow-x-auto border-t border-border bg-surface px-3 py-1.5 [scrollbar-width:none] print:hidden"
+    >
+      {workspace.tabs.map((tab) => {
+        const isActive = active?.to === tab.to;
+        return (
+          <Link
+            key={tab.to}
+            to={tab.to}
+            search={keepSearch}
+            aria-current={isActive ? "page" : undefined}
+            title={lang === "sr" ? tab.questionSr : tab.questionEn}
+            className={cn(
+              "h-7 shrink-0 rounded-sm border px-3 font-condensed text-[13px] font-medium leading-7 tracking-wide transition-colors",
+              isActive
+                ? "border-brand bg-brand/10 text-foreground"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+            )}
+          >
+            {lang === "sr" ? tab.sr : tab.en}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
@@ -159,7 +239,11 @@ function Rail({ current, onSearch }: { current: Workspace; onSearch: () => void 
             </button>
           </PopoverTrigger>
           <PopoverContent side="right" align="start" className="w-80 p-1.5">
-            <WorkspaceList current={current} onNavigate={() => setMoreOpen(false)} />
+            <WorkspaceList
+              current={current}
+              scope="reference"
+              onNavigate={() => setMoreOpen(false)}
+            />
           </PopoverContent>
         </Popover>
       </nav>
@@ -294,6 +378,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t, lang } = useLang();
   const pathname = useLocation({ select: (location) => location.pathname });
   const current = workspaceFor(pathname);
+  const currentTab = tabFor(current, pathname);
   const tape = useTape();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -342,7 +427,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {lang === "sr" ? current.sr : current.en}
               </h1>
               <p className="hidden truncate text-[11.5px] leading-tight text-muted-foreground sm:block">
-                {lang === "sr" ? current.questionSr : current.questionEn}
+                {lang === "sr"
+                  ? (currentTab?.questionSr ?? current.questionSr)
+                  : (currentTab?.questionEn ?? current.questionEn)}
               </p>
             </div>
             <PeriodControl />
@@ -356,7 +443,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-current={current.id === "academy" ? "page" : undefined}
               className={cn(
                 "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm bg-brand px-2.5 font-condensed text-[13px] font-semibold tracking-wide text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:px-3.5",
-                current.id === "academy" && "opacity-90 ring-1 ring-inset ring-primary-foreground/40",
+                current.id === "academy" &&
+                  "opacity-90 ring-1 ring-inset ring-primary-foreground/40",
               )}
             >
               <GraduationCap className="h-4 w-4" strokeWidth={1.75} aria-hidden />
@@ -381,6 +469,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ThemeToggle />
             <LanguageToggle className="h-7 !rounded-sm !border-border" />
           </div>
+          <WorkspaceTabs workspace={current} pathname={pathname} />
           <FetchBar />
           <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
           <StatusBar entries={tape.entries} isLoading={tape.isLoading} />

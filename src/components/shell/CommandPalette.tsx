@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLang } from "@/lib/i18n";
 import { SEE_BORDERS, SEE_CODES, SEE_MARKETS } from "@/lib/see/registry";
 import { useTheme } from "./theme";
-import { WORKSPACES } from "./workspaces";
+import { DESTINATIONS } from "./workspaces";
 
 const PERIODS: Array<{ key: PresetKey; en: string; sr: string }> = [
   { key: "d1", en: "Tomorrow (D+1)", sr: "Sutra (D+1)" },
@@ -104,9 +104,9 @@ export function CommandPalette({
           <CommandList className="max-h-[60vh]">
             <CommandEmpty>{t("Nothing matches.", "Nema rezultata.")}</CommandEmpty>
             <CommandGroup heading={t("Workspaces", "Radni prostori")}>
-              {WORKSPACES.map((workspace) => (
+              {DESTINATIONS.map((workspace) => (
                 <CommandItem
-                  key={workspace.id}
+                  key={workspace.to}
                   value={`${workspace.en} ${workspace.sr} ${workspace.questionEn}`}
                   onSelect={() =>
                     run(() => void navigate({ to: workspace.to, search: keep as never }))
