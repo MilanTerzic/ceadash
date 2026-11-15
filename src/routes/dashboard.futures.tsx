@@ -34,6 +34,7 @@ import {
   dailyPctChange,
   type FuturesPrice,
 } from "@/lib/futures";
+import { AcademyHint } from "@/components/academy/AcademyHint";
 import { downloadCSV, fmtNum, fmtPrice } from "@/lib/format";
 
 export const Route = createFileRoute("/dashboard/futures")({
@@ -169,6 +170,7 @@ function FuturesPage() {
         hideRange
       />
       <div className="space-y-5 p-4 md:p-6">
+        <AcademyHint topics={["futures"]} />
         <Panel title="EEX public snapshot">
           <div className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-start md:justify-between">
             <div className="flex gap-2">

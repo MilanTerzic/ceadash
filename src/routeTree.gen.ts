@@ -46,6 +46,8 @@ import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calc
 import { Route as DashboardBordersRouteImport } from './routes/dashboard.borders'
 import { Route as DashboardBessRouteImport } from './routes/dashboard.bess'
 import { Route as DashboardBalanceRouteImport } from './routes/dashboard.balance'
+import { Route as DashboardAcademyIndexRouteImport } from './routes/dashboard.academy.index'
+import { Route as DashboardAcademySlugRouteImport } from './routes/dashboard.academy.$slug'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -232,6 +234,16 @@ const DashboardBalanceRoute = DashboardBalanceRouteImport.update({
   path: '/balance',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardAcademyIndexRoute = DashboardAcademyIndexRouteImport.update({
+  id: '/academy/',
+  path: '/academy/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAcademySlugRoute = DashboardAcademySlugRouteImport.update({
+  id: '/academy/$slug',
+  path: '/academy/$slug',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -271,6 +283,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/academy/$slug': typeof DashboardAcademySlugRoute
+  '/dashboard/academy/': typeof DashboardAcademyIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -309,6 +323,8 @@ export interface FileRoutesByTo {
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/academy/$slug': typeof DashboardAcademySlugRoute
+  '/dashboard/academy': typeof DashboardAcademyIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -349,6 +365,8 @@ export interface FileRoutesById {
   '/dashboard/weather': typeof DashboardWeatherRoute
   '/dashboard/weekly': typeof DashboardWeeklyRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/academy/$slug': typeof DashboardAcademySlugRoute
+  '/dashboard/academy/': typeof DashboardAcademyIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -390,6 +408,8 @@ export interface FileRouteTypes {
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
+    | '/dashboard/academy/$slug'
+    | '/dashboard/academy/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -428,6 +448,8 @@ export interface FileRouteTypes {
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard'
+    | '/dashboard/academy/$slug'
+    | '/dashboard/academy'
   id:
     | '__root__'
     | '/'
@@ -467,6 +489,8 @@ export interface FileRouteTypes {
     | '/dashboard/weather'
     | '/dashboard/weekly'
     | '/dashboard/'
+    | '/dashboard/academy/$slug'
+    | '/dashboard/academy/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -736,6 +760,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardBalanceRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/academy/': {
+      id: '/dashboard/academy/'
+      path: '/academy'
+      fullPath: '/dashboard/academy/'
+      preLoaderRoute: typeof DashboardAcademyIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/academy/$slug': {
+      id: '/dashboard/academy/$slug'
+      path: '/academy/$slug'
+      fullPath: '/dashboard/academy/$slug'
+      preLoaderRoute: typeof DashboardAcademySlugRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -774,6 +812,8 @@ interface DashboardRouteChildren {
   DashboardWeatherRoute: typeof DashboardWeatherRoute
   DashboardWeeklyRoute: typeof DashboardWeeklyRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardAcademySlugRoute: typeof DashboardAcademySlugRoute
+  DashboardAcademyIndexRoute: typeof DashboardAcademyIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
@@ -811,6 +851,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardWeatherRoute: DashboardWeatherRoute,
   DashboardWeeklyRoute: DashboardWeeklyRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardAcademySlugRoute: DashboardAcademySlugRoute,
+  DashboardAcademyIndexRoute: DashboardAcademyIndexRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(

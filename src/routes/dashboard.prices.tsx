@@ -36,6 +36,7 @@ import { daysBetween } from "@/lib/see/region";
 import { PRICED_CODES, SEE_MARKETS, isSeeCode, type SeeCode } from "@/lib/see/registry";
 import { useSelection } from "@/lib/see/selection";
 import { worstState } from "@/lib/see/status";
+import { AcademyHint } from "@/components/academy/AcademyHint";
 import { usePersistent } from "@/lib/see/store";
 import { useSeePrices } from "@/lib/see/use-see-data";
 
@@ -256,6 +257,7 @@ function PriceAnalytics() {
 
   return (
     <div className="grid gap-2 p-2">
+      <AcademyHint topics={["day-ahead", "intraday"]} />
       <Panel flush>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2">
           <MarketPicker

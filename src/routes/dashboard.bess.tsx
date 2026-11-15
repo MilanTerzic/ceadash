@@ -14,6 +14,7 @@ import {
 } from "@/components/cea/primitives";
 import { FocusControl } from "@/components/see/FocusControl";
 import { useDateRange } from "@/lib/date-range";
+import { AcademyHint } from "@/components/academy/AcademyHint";
 import { useLang } from "@/lib/i18n";
 import { EMPTY_SERIES } from "@/lib/see/analytics";
 import {
@@ -248,6 +249,7 @@ function BessLab() {
 
   return (
     <div className="grid gap-2 p-2 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <AcademyHint topics={["battery", "intraday", "balancing"]} className="xl:col-span-2" />
       <div className="grid content-start gap-2">
         <Panel title={t("Battery", "Baterija")}>
           <div className="grid gap-2.5">

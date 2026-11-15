@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "mediaBase": "https://ialzzzzyqsnylbkeufsu.supabase.co/storage/v1/object/public/academy",
+  "categories": [
+    {
+      "id": "foundations",
+      "order": 1,
+      "title": { "en": "Foundations", "sr": "Osnove" },
+      "description": {
+        "en": "The structure of European power markets, from first principles.",
+        "sr": "Struktura evropskih tržišta električne energije, od osnova."
+      }
+    },
+    {
+      "id": "short-term-markets",
+      "order": 2,
+      "title": {
+        "en": "Day-ahead, intraday & balancing",
+        "sr": "Day-ahead, intraday i balansiranje"
+      }
+    },
+    {
+      "id": "forwards-and-hedging",
+      "order": 3,
+      "title": { "en": "Futures & hedging", "sr": "Fjučersi i hedžing" }
+    },
+    {
+      "id": "ppa-and-renewables",
+      "order": 4,
+      "title": { "en": "PPAs & renewables", "sr": "PPA ugovori i OIE" }
+    },
+    {
+      "id": "batteries-and-flexibility",
+      "order": 5,
+      "title": { "en": "Batteries & flexibility", "sr": "Baterije i fleksibilnost" }
+    }
+  ],
+  "episodes": [
+    {
+      "slug": "how-european-power-markets-work",
+      "number": 1,
+      "category": "foundations",
+      "level": "beginner",
+      "title": {
+        "en": "How European Power Markets Work",
+        "sr": "Kako funkcionišu evropska tržišta električne energije"
+      },
+      "summary": {
+        "en": "A plain-language introduction to how electricity is traded and delivered across Europe.",
+        "sr": "Jednostavan uvod u to kako se električna energija trguje i isporučuje širom Evrope."
+      },
+      "description": {
+        "en": "A plain-language introduction to how electricity is bought, sold and delivered across Europe: how forward, day-ahead, intraday and balancing markets fit together, and how national markets are linked across borders. This is the starting point for the rest of the Power Academy and for the price, spread and flow analytics in this dashboard.",
+        "sr": "Jednostavan uvod u to kako se električna energija kupuje, prodaje i isporučuje širom Evrope: kako se terminsko, day-ahead, intraday i balansno tržište uklapaju i kako su nacionalna tržišta povezana preko granica. Ovo je polazna tačka za ostatak Power Academy i za analitiku cena, spredova i tokova u ovom dashboardu."
+      },
+      "video": "videos/ep01-how-european-power-markets-work.mp4",
+      "poster": "/academy/posters/ep01-how-european-power-markets-work.svg",
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep01-how-european-power-markets-work.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": ["markets-overview"],
+      "foundational": true,
+      "related": ["prices", "borders", "forwards", "ppa", "bess"],
+      "source": {
+        "type": "heygen",
+        "reference": "https://app.heygen.com/videos/024ee4f565ac4bdf894c5609ead9dfb4"
+      }
+    }
+  ]
+}

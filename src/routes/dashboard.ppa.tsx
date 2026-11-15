@@ -12,6 +12,7 @@ import {
   Segmented,
   Stat,
 } from "@/components/cea/primitives";
+import { AcademyHint } from "@/components/academy/AcademyHint";
 import { useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
 import { hourProfile, toHourlySeries, type Series, EMPTY_SERIES } from "@/lib/see/analytics";
@@ -395,6 +396,7 @@ function PpaStudio() {
 
   return (
     <div className="grid gap-2 p-2 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <AcademyHint topics={["ppa", "balancing"]} className="xl:col-span-2" />
       <div className="grid content-start gap-2">
         <Panel title={t("Project", "Projekat")}>
           <div className="grid gap-2.5">
