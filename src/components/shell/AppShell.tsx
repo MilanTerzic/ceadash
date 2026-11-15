@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useIsFetching } from "@tanstack/react-query";
-import { FlaskConical, Menu, MoreHorizontal, Search } from "lucide-react";
+import { FlaskConical, GraduationCap, Menu, MoreHorizontal, Search } from "lucide-react";
 
 import { IconButton } from "@/components/cea/primitives";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -346,6 +346,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               </p>
             </div>
             <PeriodControl />
+            <Link
+              to="/dashboard/academy"
+              search={keepSearch}
+              title={t(
+                "Power Academy — video lessons on how power markets work",
+                "Power Academy — video lekcije o tome kako rade tržišta električne energije",
+              )}
+              aria-current={current.id === "academy" ? "page" : undefined}
+              className={cn(
+                "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm bg-brand px-2.5 font-condensed text-[13px] font-semibold tracking-wide text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:px-3.5",
+                current.id === "academy" && "opacity-90 ring-1 ring-inset ring-primary-foreground/40",
+              )}
+            >
+              <GraduationCap className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+              <span className="hidden sm:inline">{t("Power Academy", "Power Academy")}</span>
+            </Link>
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
