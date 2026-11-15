@@ -8,6 +8,7 @@ import {
   findEpisode,
   resolveMedia,
   formatDuration,
+  isPlayable,
   libraryNumber,
   localize,
   nextEpisode,
@@ -104,7 +105,24 @@ function AcademyEpisodePage() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-5">
-          <EpisodePlayer episode={episode} mediaBase={catalog.mediaBase} next={next} />
+          {isPlayable(episode) ? (
+            <EpisodePlayer episode={episode} mediaBase={catalog.mediaBase} next={next} />
+          ) : (
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-gradient-to-br from-surface-2 to-background">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                <p className="eyebrow !text-brand">{t("Coming soon", "Uskoro")}</p>
+                <p className="max-w-md font-display text-lg font-semibold text-white">
+                  {t("This episode is in production", "Ova epizoda je u produkciji")}
+                </p>
+                <p className="max-w-md text-xs leading-relaxed text-white/70">
+                  {t(
+                    "The video has not been published yet. The summary below says what it will cover.",
+                    "Video još nije objavljen. Rezime ispod kaže šta će epizoda pokriti.",
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
 
           <header className="space-y-3">
             <p className="eyebrow !text-brand">
@@ -141,6 +159,55 @@ function AcademyEpisodePage() {
               {localize(episode.description, lang)}
             </p>
           </header>
+
+          {episode.learn.length > 0 && (
+            <section aria-labelledby="learn-heading" className="space-y-2.5">
+              <h2 id="learn-heading" className="eyebrow">
+                {isPlayable(episode)
+                  ? t("What you will learn", "Šta ćete naučiti")
+                  : t("What it will cover", "Šta će pokriti")}
+              </h2>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {episode.learn.map((point, index) => (
+                  <li
+                    key={index}
+                    className="flex gap-2.5 rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] leading-snug text-ink-2"
+                  >
+                    <span className="num mt-px shrink-0 text-brand">{index + 1}</span>
+                    {localize(point, lang)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {episode.sources.length > 0 && (
+            <section aria-labelledby="sources-heading" className="space-y-2">
+              <h2 id="sources-heading" className="eyebrow">
+                {t("Sources", "Izvori")}
+              </h2>
+              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                {episode.sources.map((source) => (
+                  <li key={source.url}>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      {source.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground">
+                {t(
+                  "All figures in the examples are illustrative, not market quotations.",
+                  "Sve vrednosti u primerima su ilustrativne, nisu tržišni kotiranja.",
+                )}
+              </p>
+            </section>
+          )}
 
           <div className="flex flex-wrap items-stretch gap-3">
             {previous && (
@@ -244,6 +311,8 @@ function AcademyEpisodePage() {
                       <Poster
                         episode={item}
                         mediaBase={catalog.mediaBase}
+                        soon={!isPlayable(item)}
+                        showTitle={false}
                         className="w-24 shrink-0 rounded-sm"
                       />
                       <span className="min-w-0 text-[13px] font-medium leading-snug">

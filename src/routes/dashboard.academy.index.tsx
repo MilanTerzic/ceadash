@@ -4,7 +4,7 @@ import { ArrowRight, Play, Search } from "lucide-react";
 
 import { AcademyMark, EpisodeCard, Poster } from "@/components/academy/EpisodeCard";
 import { DataState } from "@/components/cea/primitives";
-import { formatDuration, libraryNumber, localize } from "@/lib/academy/catalog";
+import { formatDuration, isPlayable, libraryNumber, localize } from "@/lib/academy/catalog";
 import { useAcademyProgress, watchedFraction } from "@/lib/academy/progress";
 import { useAcademyCatalog } from "@/lib/academy/use-academy";
 import { useLang } from "@/lib/i18n";
@@ -57,15 +57,12 @@ function AcademyLibrary() {
 
   // Featured: the episode being watched, else the first one not yet finished, else the first.
   const featured = useMemo(() => {
-    if (!catalog?.episodes.length) return null;
-    const started = catalog.episodes
+    const playable = catalog?.episodes.filter(isPlayable) ?? [];
+    if (!playable.length) return null;
+    const started = playable
       .filter((episode) => (progress[episode.slug]?.t ?? 0) > 5 && !progress[episode.slug]?.done)
       .sort((a, b) => (progress[b.slug]?.at ?? 0) - (progress[a.slug]?.at ?? 0))[0];
-    return (
-      started ??
-      catalog.episodes.find((episode) => !progress[episode.slug]?.done) ??
-      catalog.episodes[0]
-    );
+    return started ?? playable.find((episode) => !progress[episode.slug]?.done) ?? playable[0];
   }, [catalog, progress]);
 
   const usedCategories = useMemo(() => {
@@ -102,6 +99,8 @@ function AcademyLibrary() {
     );
   }
 
+  const available = catalog.episodes.filter(isPlayable).length;
+  const upcoming = catalog.episodes.length - available;
   const featuredProgress = featured ? progress[featured.slug] : undefined;
   const featuredFraction = watchedFraction(featuredProgress);
   const resuming = featured && (featuredProgress?.t ?? 0) > 5 && !featuredProgress?.done;
@@ -125,12 +124,13 @@ function AcademyLibrary() {
           </div>
         </div>
         <p className="num text-xs text-muted-foreground">
-          {catalog.episodes.length}{" "}
-          {catalog.episodes.length === 1 ? t("episode", "epizoda") : t("episodes", "epizoda")} ·{" "}
-          {usedCategories.length}{" "}
-          {usedCategories.length === 1
-            ? t("category", "kategorija")
-            : t("categories", "kategorije")}
+          {available} {available === 1 ? t("episode", "epizoda") : t("episodes", "epizoda")}
+          {upcoming > 0 && (
+            <>
+              {" "}
+              · {upcoming} {t("coming soon", "uskoro")}
+            </>
+          )}
         </p>
       </header>
 

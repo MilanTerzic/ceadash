@@ -7,6 +7,7 @@ import { DataState, DataTable, Panel, ProvenanceBadge, Stat } from "@/components
 import { WatchToggle } from "@/components/see/Inspector";
 import { useDateRange } from "@/lib/date-range";
 import { downloadCSV } from "@/lib/format";
+import { AcademyHint } from "@/components/academy/AcademyHint";
 import { useLang } from "@/lib/i18n";
 import {
   histogram,
@@ -202,6 +203,7 @@ function CrossBorder() {
 
   return (
     <div className="grid gap-2 p-2">
+      <AcademyHint topics={["cross-border"]} />
       <Panel
         title={t("Border scanner", "Skener granica")}
         subtitle={t(

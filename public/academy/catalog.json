@@ -5,7 +5,10 @@
     {
       "id": "foundations",
       "order": 1,
-      "title": { "en": "Foundations", "sr": "Osnove" },
+      "title": {
+        "en": "Foundations",
+        "sr": "Osnove"
+      },
       "description": {
         "en": "The structure of European power markets, from first principles.",
         "sr": "Struktura evropskih tržišta električne energije, od osnova."
@@ -15,24 +18,65 @@
       "id": "short-term-markets",
       "order": 2,
       "title": {
-        "en": "Day-ahead, intraday & balancing",
-        "sr": "Day-ahead, intraday i balansiranje"
+        "en": "Day-ahead & intraday",
+        "sr": "Day-ahead i intraday"
+      },
+      "description": {
+        "en": "How prices form for tomorrow and how positions are corrected before delivery.",
+        "sr": "Kako se formira cena za sutra i kako se pozicije ispravljaju pre isporuke."
+      }
+    },
+    {
+      "id": "balancing-and-reserves",
+      "order": 3,
+      "title": {
+        "en": "Balancing & ancillary services",
+        "sr": "Balansiranje i pomoćne usluge"
+      },
+      "description": {
+        "en": "What the system operator does when real life departs from the plan.",
+        "sr": "Šta operator sistema radi kada se stvarnost razlikuje od plana."
       }
     },
     {
       "id": "forwards-and-hedging",
-      "order": 3,
-      "title": { "en": "Futures & hedging", "sr": "Fjučersi i hedžing" }
+      "order": 4,
+      "title": {
+        "en": "Futures & hedging",
+        "sr": "Fjučersi i hedžing"
+      },
+      "description": {
+        "en": "Managing the price of electricity months ahead.",
+        "sr": "Upravljanje cenom električne energije unapred, za mesece koji dolaze."
+      }
+    },
+    {
+      "id": "cross-border",
+      "order": 5,
+      "title": {
+        "en": "Cross-border trading",
+        "sr": "Prekogranična trgovina"
+      },
+      "description": {
+        "en": "Why prices differ between countries and what limits trade.",
+        "sr": "Zašto se cene razlikuju između zemalja i šta ograničava trgovinu."
+      }
     },
     {
       "id": "ppa-and-renewables",
-      "order": 4,
-      "title": { "en": "PPAs & renewables", "sr": "PPA ugovori i OIE" }
+      "order": 6,
+      "title": {
+        "en": "PPAs & renewables",
+        "sr": "PPA ugovori i OIE"
+      }
     },
     {
       "id": "batteries-and-flexibility",
-      "order": 5,
-      "title": { "en": "Batteries & flexibility", "sr": "Baterije i fleksibilnost" }
+      "order": 7,
+      "title": {
+        "en": "Batteries & flexibility",
+        "sr": "Baterije i fleksibilnost"
+      }
     }
   ],
   "episodes": [
@@ -63,13 +107,362 @@
           "default": true
         }
       ],
-      "topics": ["markets-overview"],
+      "topics": [
+        "markets-overview"
+      ],
       "foundational": true,
-      "related": ["prices", "borders", "forwards", "ppa", "bess"],
+      "related": [
+        "prices",
+        "borders",
+        "forwards",
+        "ppa",
+        "bess"
+      ],
       "source": {
         "type": "heygen",
         "reference": "https://app.heygen.com/videos/024ee4f565ac4bdf894c5609ead9dfb4"
-      }
+      },
+      "status": "published"
+    },
+    {
+      "slug": "day-ahead-how-seepex-forms-the-price",
+      "number": 1,
+      "category": "short-term-markets",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Day-Ahead: How SEEPEX Forms the Price",
+        "sr": "Day-ahead: kako SEEPEX formira cenu"
+      },
+      "summary": {
+        "en": "How the next-day auction turns buy and sell orders into one clearing price.",
+        "sr": "Kako aukcija za sutrašnji dan pretvara ponude za kupovinu i prodaju u jednu cenu poravnanja."
+      },
+      "description": {
+        "en": "Why does Serbia's price differ from Hungary's or Croatia's? This episode follows the day-ahead auction on SEEPEX: orders for tomorrow, the close of the order book at 11:00, and a simplified worked example with illustrative figures showing how the last accepted offer sets a single marginal clearing price. It then sets the Serbian auction beside EU market coupling, where one algorithm weighs supply, demand and cross-border limits.",
+        "sr": "Zašto se cena u Srbiji razlikuje od cene u Mađarskoj ili Hrvatskoj? Ova epizoda prati day-ahead aukciju na SEEPEX-u: ponude za sutrašnji dan, zatvaranje knjige ponuda u 11:00 i pojednostavljen primer sa ilustrativnim vrednostima koji pokazuje kako poslednja prihvaćena ponuda određuje jednu marginalnu cenu poravnanja. Zatim poredi srpsku aukciju sa povezivanjem tržišta u EU, gde jedan algoritam istovremeno razmatra ponudu, potražnju i prekogranična ograničenja."
+      },
+      "learn": [
+        {
+          "en": "Why neighbouring markets can price the same hour differently",
+          "sr": "Zašto susedna tržišta isti sat mogu da cene različito"
+        },
+        {
+          "en": "How the day-ahead auction works: orders for tomorrow, closing at 11:00",
+          "sr": "Kako radi day-ahead aukcija: ponude za sutra, zatvaranje u 11:00"
+        },
+        {
+          "en": "Marginal pricing: the last accepted offer sets the price, not the average",
+          "sr": "Marginalno formiranje cene: poslednja prihvaćena ponuda određuje cenu, a ne prosek"
+        },
+        {
+          "en": "How EU market coupling and its 15-minute products differ from SEEPEX's hourly products",
+          "sr": "Po čemu se povezivanje tržišta u EU i njegovi 15-minutni proizvodi razlikuju od SEEPEX-ovih časovnih proizvoda"
+        }
+      ],
+      "topics": [
+        "day-ahead"
+      ],
+      "related": [
+        "prices",
+        "borders"
+      ],
+      "sources": [
+        {
+          "url": "https://seepex-spot.rs/spot-markets"
+        },
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"
+        },
+        {
+          "url": "https://energy.ec.europa.eu/news/eu-electricity-trading-day-ahead-markets-becomes-more-dynamic-2025-10-01_en"
+        },
+        {
+          "url": "https://balkangreenenergynews.com/seepex-launches-serbian-day-ahead-market/"
+        }
+      ]
+    },
+    {
+      "slug": "intraday-trading-when-forecasts-change",
+      "number": 2,
+      "category": "short-term-markets",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Intraday: Trading When Forecasts Change",
+        "sr": "Intraday: trgovina kada se prognoze menjaju"
+      },
+      "summary": {
+        "en": "How traders correct a position after the auction, and why there is no single intraday price.",
+        "sr": "Kako trgovci ispravljaju poziciju posle aukcije i zašto ne postoji jedna intraday cena."
+      },
+      "description": {
+        "en": "The day-ahead auction is over, but the weather keeps changing. This episode explains continuous intraday trading on SEEPEX through a worked example with illustrative figures: a solar producer that sold 40 MW for an hour, a forecast that drops to 30 MW, and a 10 MW buy-back. It shows an order book where bids and asks match at their own executed prices, how this differs from an auction, and why any deviation left at delivery still becomes an imbalance.",
+        "sr": "Day-ahead aukcija je završena, ali vreme se i dalje menja. Ova epizoda objašnjava kontinuiranu intraday trgovinu na SEEPEX-u kroz primer sa ilustrativnim vrednostima: solarni proizvođač je prodao 40 MW za jedan sat, prognoza pada na 30 MW, a on otkupljuje 10 MW. Prikazuje knjigu ponuda u kojoj se ponude za kupovinu i prodaju sparuju po sopstvenim izvršenim cenama, po čemu se to razlikuje od aukcije i zašto svako odstupanje koje ostane do isporuke i dalje postaje debalans."
+      },
+      "learn": [
+        {
+          "en": "Why intraday exists: forecasts change after the auction",
+          "sr": "Zašto postoji intraday: prognoze se menjaju posle aukcije"
+        },
+        {
+          "en": "A solar example: 40 MW sold, forecast falls to 30 MW, 10 MW bought back",
+          "sr": "Primer solarne elektrane: prodato 40 MW, prognoza pada na 30 MW, otkupljeno 10 MW"
+        },
+        {
+          "en": "Continuous order book: many executed prices, not one clearing price",
+          "sr": "Kontinuirana knjiga ponuda: mnogo izvršenih cena, a ne jedna cena poravnanja"
+        },
+        {
+          "en": "Hourly contracts that close 60 minutes before delivery; what remains becomes imbalance",
+          "sr": "Časovni ugovori koji se zatvaraju 60 minuta pre isporuke; ono što ostane postaje debalans"
+        }
+      ],
+      "topics": [
+        "intraday"
+      ],
+      "related": [
+        "prices",
+        "bess"
+      ],
+      "sources": [
+        {
+          "url": "https://seepex-spot.rs/spot-markets"
+        },
+        {
+          "url": "https://ems.rs/en/launching-serbian-continuous-intraday-market/"
+        },
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sidc/"
+        },
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/ida/"
+        }
+      ]
+    },
+    {
+      "slug": "balancing-what-ems-does-in-real-time",
+      "number": 1,
+      "category": "balancing-and-reserves",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Balancing: What EMS Does in Real Time",
+        "sr": "Balansiranje: šta EMS radi u realnom vremenu"
+      },
+      "summary": {
+        "en": "Who keeps the grid in balance after trading closes, and how imbalance is settled.",
+        "sr": "Ko održava mrežu u ravnoteži kada se trgovina zatvori i kako se debalans obračunava."
+      },
+      "description": {
+        "en": "Electricity has to balance every second, even after trading has closed. This episode shows the role of Elektromreža Srbije (EMS) as transmission system operator, using an illustrative example of a producer scheduled for 30 MW that delivers 28 MW for 15 minutes, a deviation of 0.5 MWh. It separates a market party's financial imbalance settlement from EMS activating balancing resources, and distinguishes the day-ahead price, the price of activated balancing energy and the imbalance settlement price.",
+        "sr": "Električna energija mora da bude u ravnoteži u svakoj sekundi, čak i kada se trgovina zatvori. Ova epizoda prikazuje ulogu Elektromreže Srbije (EMS) kao operatora prenosnog sistema, na ilustrativnom primeru proizvođača čiji je raspored 30 MW, a koji 15 minuta isporučuje 28 MW, odnosno odstupanje od 0,5 MWh. Razdvaja finansijski obračun debalansa tržišnog učesnika od aktiviranja balansnih resursa od strane EMS-a i razlikuje cenu na day-ahead tržištu, cenu aktivirane balansne energije i cenu obračuna debalansa."
+      },
+      "learn": [
+        {
+          "en": "EMS as the Serbian transmission system operator",
+          "sr": "EMS kao operator prenosnog sistema Srbije"
+        },
+        {
+          "en": "Scheduled 30 MW, actual 28 MW for 15 minutes: 2 MW × 0.25 h = 0.5 MWh",
+          "sr": "Planirano 30 MW, ostvareno 28 MW tokom 15 minuta: 2 MW × 0,25 h = 0,5 MWh"
+        },
+        {
+          "en": "Financial imbalance settlement and physical system balancing are separate things",
+          "sr": "Finansijski obračun debalansa i fizičko balansiranje sistema nisu isto"
+        },
+        {
+          "en": "Three different prices: day-ahead, activated balancing energy, imbalance settlement",
+          "sr": "Tri različite cene: day-ahead, aktivirana balansna energija, obračun debalansa"
+        }
+      ],
+      "topics": [
+        "balancing"
+      ],
+      "related": [
+        "bess",
+        "ppa"
+      ],
+      "sources": [
+        {
+          "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
+        },
+        {
+          "url": "https://ems.rs/en/engaged-balancing-energy-and-imbalance-settlement-price/"
+        },
+        {
+          "url": "https://www.entsoe.eu/network_codes/eb/picasso/"
+        },
+        {
+          "url": "https://www.entsoe.eu/network_codes/eb/mari/"
+        }
+      ]
+    },
+    {
+      "slug": "ancillary-services-fcr-afrr-mfrr",
+      "number": 2,
+      "category": "balancing-and-reserves",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Ancillary Services: FCR, aFRR and mFRR",
+        "sr": "Pomoćne usluge: FCR, aFRR i mFRR"
+      },
+      "summary": {
+        "en": "The three layers of frequency reserves and the two ways they are paid.",
+        "sr": "Tri sloja rezervi frekvencije i dva načina na koja se plaćaju."
+      },
+      "description": {
+        "en": "When a generator suddenly drops out, frequency starts to fall. This episode explains the three layers of reserves that respond: frequency containment reserve (FCR), automatic frequency restoration reserve (aFRR) and manually activated frequency restoration reserve (mFRR). It separates balancing capacity, the commitment to hold megawatts available, from activated balancing energy, the megawatt-hours actually delivered, and describes who can provide reserves, including storage and flexible demand where technically qualified.",
+        "sr": "Kada generator iznenada ispadne, frekvencija počinje da pada. Ova epizoda objašnjava tri sloja rezervi koji reaguju: rezervu za zadržavanje frekvencije (FCR), automatsku rezervu za povratak frekvencije (aFRR) i ručno aktiviranu rezervu za povratak frekvencije (mFRR). Razdvaja balansni kapacitet, obavezu da megavati budu na raspolaganju, od aktivirane balansne energije, megavat-časova koji su stvarno isporučeni, i opisuje ko može da pruža rezerve, uključujući skladišta i fleksibilnu potrošnju kada su tehnički kvalifikovani."
+      },
+      "learn": [
+        {
+          "en": "FCR contains, aFRR restores automatically, mFRR restores on instruction",
+          "sr": "FCR zadržava, aFRR automatski vraća frekvenciju, mFRR je vraća po nalogu"
+        },
+        {
+          "en": "EMS procures and activates reserves; who can qualify to provide them",
+          "sr": "EMS nabavlja i aktivira rezerve; ko može da se kvalifikuje da ih pruža"
+        },
+        {
+          "en": "Capacity (MW available) versus energy (MWh delivered): two separate payments",
+          "sr": "Kapacitet (raspoloživi MW) naspram energije (isporučeni MWh): dva odvojena plaćanja"
+        },
+        {
+          "en": "PICASSO and MARI as EU platforms, separate from Serbia's own arrangements",
+          "sr": "PICASSO i MARI kao evropske platforme, odvojene od sopstvenih aranžmana Srbije"
+        }
+      ],
+      "topics": [
+        "balancing",
+        "ancillary",
+        "battery"
+      ],
+      "related": [
+        "bess"
+      ],
+      "sources": [
+        {
+          "url": "https://ems.rs/wp-content/uploads/2026/01/Pravila-o-radu-trzista-elektricne-energije-eng.pdf"
+        },
+        {
+          "url": "https://www.entsoe.eu/news/2022/06/01/go-live-of-picasso-the-pan-european-platform-for-the-international-coordination-of-automatic-frequency-restoration-reserves-and-stable-system-operation/"
+        },
+        {
+          "url": "https://www.entsoe.eu/news/2022/10/06/go-live-of-mari-the-european-implementation-project-for-the-creation-of-the-european-manual-frequency-restoration-reserves-mfrr-platform/"
+        }
+      ]
+    },
+    {
+      "slug": "futures-and-forwards-hedging-the-serbian-price",
+      "number": 1,
+      "category": "forwards-and-hedging",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Futures & Forwards: Hedging the Serbian Price",
+        "sr": "Fjučersi i forvardi: zaštita od promene srpske cene"
+      },
+      "summary": {
+        "en": "How a financially settled future locks in a price, and what a hedge does not cover.",
+        "sr": "Kako finansijski poravnat fjučers fiksira cenu i šta hedž ne pokriva."
+      },
+      "description": {
+        "en": "What if you must buy electricity next winter but do not know the spot price? This episode explains Serbian power futures, which are financially settled against the SEEPEX day-ahead reference price, with an illustrative hedge: a buyer locks in €100/MWh, spot rises to €130 and the future gains €30; spot falls to €70 and the future loses €30 while the physical purchase gets cheaper. It stresses that a hedge reduces price risk but leaves basis, volume, liquidity and credit risk, and that a financial future neither delivers electricity nor reserves cross-border capacity.",
+        "sr": "Šta ako morate da kupite struju sledeće zime, a ne znate spot cenu? Ova epizoda objašnjava srpske fjučerse za električnu energiju, koji se finansijski poravnavaju prema referentnoj SEEPEX day-ahead ceni, na ilustrativnom primeru zaštite: kupac fiksira 100 €/MWh, spot raste na 130 €, a fjučers dobija 30 €; spot pada na 70 €, fjučers gubi 30 €, a fizička kupovina postaje jeftinija. Naglašava da hedž smanjuje cenovni rizik, ali ostavlja bazni, količinski, rizik likvidnosti i kreditni rizik, i da finansijski fjučers ne isporučuje struju niti rezerviše prekogranični kapacitet."
+      },
+      "learn": [
+        {
+          "en": "The problem: next winter's price is uncertain",
+          "sr": "Problem: cena sledeće zime je neizvesna"
+        },
+        {
+          "en": "A long financial hedge at €100/MWh, with spot at €130 and at €70",
+          "sr": "Duga finansijska zaštita na 100 €/MWh, sa spotom na 130 € i na 70 €"
+        },
+        {
+          "en": "Financial future, physical delivery and cross-border capacity are three separate things",
+          "sr": "Finansijski fjučers, fizička isporuka i prekogranični kapacitet su tri odvojene stvari"
+        },
+        {
+          "en": "What a hedge leaves open: liquidity, volume, basis and credit risk",
+          "sr": "Šta hedž ostavlja otvorenim: rizik likvidnosti, količinski, bazni i kreditni rizik"
+        }
+      ],
+      "topics": [
+        "futures"
+      ],
+      "related": [
+        "forwards",
+        "ppa"
+      ],
+      "sources": [
+        {
+          "url": "https://seepex-spot.rs/2019/06/06/may-29th-2019-workshop-introduction-financial-derivatives-serbia"
+        },
+        {
+          "url": "https://seepex-spot.rs/2019/06/18/first-trade-serbian-power-futures"
+        },
+        {
+          "url": "https://www.eex.com/en/market-data/power/futures"
+        }
+      ]
+    },
+    {
+      "slug": "cross-border-trading-why-balkan-prices-diverge",
+      "number": 1,
+      "category": "cross-border",
+      "level": "beginner",
+      "status": "coming-soon",
+      "title": {
+        "en": "Cross-Border Trading: Why Balkan Prices Diverge",
+        "sr": "Prekogranična trgovina: zašto se cene na Balkanu razilaze"
+      },
+      "summary": {
+        "en": "Why a price spread is not profit, and how limited capacity keeps prices apart.",
+        "sr": "Zašto cenovni raspon nije profit i kako ograničen kapacitet drži cene razdvojenim."
+      },
+      "description": {
+        "en": "Why can power cost more in Hungary than in Serbia at the same hour? This episode uses a hypothetical €60 against €120 spread to show that a spread alone is not profit: capacity rights, nominations, losses and trading costs all count. It shows how a congested line keeps prices apart, compares implicit allocation in coupled EU day-ahead markets with explicit allocation where markets are not coupled, and explains why the Balkans mix markets at different stages of integration.",
+        "sr": "Zašto struja može da bude skuplja u Mađarskoj nego u Srbiji u isti sat? Ova epizoda koristi hipotetički raspon od 60 € naspram 120 € da pokaže da sam cenovni raspon nije profit: računaju se prava na kapacitet, nominacije, gubici i troškovi trgovine. Prikazuje kako zagušen vod drži cene razdvojenim, poredi implicitnu alokaciju na povezanim day-ahead tržištima EU sa eksplicitnom alokacijom tamo gde tržišta nisu povezana i objašnjava zašto Balkan spaja tržišta u različitim fazama integracije."
+      },
+      "learn": [
+        {
+          "en": "Why the same hour can cost more in one country than another",
+          "sr": "Zašto isti sat može da košta više u jednoj zemlji nego u drugoj"
+        },
+        {
+          "en": "A spread is not profit: capacity, nomination, losses and costs",
+          "sr": "Raspon nije profit: kapacitet, nominacija, gubici i troškovi"
+        },
+        {
+          "en": "A congested line keeps prices apart",
+          "sr": "Zagušen vod drži cene razdvojenim"
+        },
+        {
+          "en": "Implicit allocation in coupled markets versus explicit allocation where markets are not coupled",
+          "sr": "Implicitna alokacija na povezanim tržištima naspram eksplicitne tamo gde tržišta nisu povezana"
+        }
+      ],
+      "topics": [
+        "cross-border"
+      ],
+      "related": [
+        "borders",
+        "prices"
+      ],
+      "sources": [
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"
+        },
+        {
+          "url": "https://seepex-spot.rs/spot-markets"
+        },
+        {
+          "url": "https://www.energy-community.org/topics/electricity/market/implementation.html"
+        }
+      ]
     }
   ]
 }

@@ -3,6 +3,7 @@ import { CheckCircle2, GraduationCap, Play } from "lucide-react";
 
 import {
   formatDuration,
+  isPlayable,
   localize,
   resolveMedia,
   type AcademyCategory,
@@ -17,10 +18,16 @@ export function Poster({
   episode,
   mediaBase,
   className,
+  soon = false,
+  showTitle = true,
 }: {
   episode: AcademyEpisode;
   mediaBase: string;
   className?: string;
+  /** Not playable yet: no play button. */
+  soon?: boolean;
+  /** Text on the fallback tile used when an episode has no poster. Off for small thumbnails. */
+  showTitle?: boolean;
 }) {
   const { lang } = useLang();
   const poster = resolveMedia(episode.poster, mediaBase);
@@ -35,16 +42,22 @@ export function Poster({
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-surface-2 to-surface p-4 text-center">
-          <span className="font-display text-sm font-semibold text-ink-2">
-            {localize(episode.title, lang)}
-          </span>
+          {showTitle ? (
+            <span className="font-display text-sm font-semibold text-ink-2">
+              {localize(episode.title, lang)}
+            </span>
+          ) : (
+            <GraduationCap className="h-5 w-5 text-brand/70" aria-hidden />
+          )}
         </div>
       )}
-      <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white opacity-90 ring-1 ring-white/30 backdrop-blur-sm transition-transform group-hover:scale-110">
-          <Play className="h-4 w-4 translate-x-px fill-current" aria-hidden />
+      {!soon && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white opacity-90 ring-1 ring-white/30 backdrop-blur-sm transition-transform group-hover:scale-110">
+            <Play className="h-4 w-4 translate-x-px fill-current" aria-hidden />
+          </span>
         </span>
-      </span>
+      )}
     </div>
   );
 }
@@ -65,6 +78,7 @@ export function EpisodeCard({
   const { t, lang } = useLang();
   const fraction = watchedFraction(progress);
   const duration = formatDuration(episode.durationSeconds);
+  const soon = !isPlayable(episode);
   return (
     <Link
       to="/dashboard/academy/$slug"
@@ -72,13 +86,18 @@ export function EpisodeCard({
       className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg"
     >
       <div className="relative">
-        <Poster episode={episode} mediaBase={mediaBase} />
+        <Poster episode={episode} mediaBase={mediaBase} soon={soon} />
         {fraction > 0 && (
           <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50" aria-hidden>
             <div className="h-full bg-brand" style={{ width: `${Math.round(fraction * 100)}%` }} />
           </div>
         )}
-        {duration && (
+        {soon && (
+          <span className="absolute left-2 top-2 rounded-sm border border-white/25 bg-black/65 px-2 py-0.5 font-condensed text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
+            {t("Coming soon", "Uskoro")}
+          </span>
+        )}
+        {duration && !soon && (
           <span className="num absolute bottom-2 right-2 rounded-sm bg-black/70 px-1.5 py-0.5 text-[11px] text-white">
             {duration}
           </span>

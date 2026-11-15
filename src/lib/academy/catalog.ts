@@ -21,6 +21,13 @@ export interface SubtitleTrack {
   default?: boolean;
 }
 
+export interface EpisodeSource {
+  label: string;
+  url: string;
+}
+
+export type EpisodeStatus = "published" | "coming-soon";
+
 export interface AcademyEpisode {
   slug: string;
   /** Order within the category. */
@@ -29,8 +36,14 @@ export interface AcademyEpisode {
   title: Localized;
   summary: Localized;
   description: Localized;
-  /** Absolute URL, root-relative path, or a path under `mediaBase`. */
+  /** "coming-soon" lists the episode without a player or a video file. */
+  status: EpisodeStatus;
+  /** Absolute URL, root-relative path, or a path under `mediaBase`. Empty while coming soon. */
   video: string;
+  /** Key points the episode covers, shown on its page. */
+  learn: Localized[];
+  /** Public references the episode is based on. */
+  sources: EpisodeSource[];
   poster?: string;
   durationSeconds?: number;
   subtitles: SubtitleTrack[];
@@ -88,6 +101,24 @@ export function resolveMedia(path: string | undefined, mediaBase: string): strin
   return base ? `${base}/${path.replace(/^\/+/, "")}` : `/${path}`;
 }
 
+function parseSources(value: unknown): EpisodeSource[] {
+  if (!Array.isArray(value)) return [];
+  const sources: EpisodeSource[] = [];
+  for (const item of value) {
+    const url = isRecord(item) ? item.url : item;
+    if (!nonEmpty(url) || !/^https?:\/\//i.test(url)) continue;
+    const label = isRecord(item) && nonEmpty(item.label) ? item.label.trim() : undefined;
+    let host = url;
+    try {
+      host = new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      // keep the raw URL as the label
+    }
+    sources.push({ label: label ?? host, url: url.trim() });
+  }
+  return sources;
+}
+
 function parseSubtitles(value: unknown): SubtitleTrack[] {
   if (!Array.isArray(value)) return [];
   const tracks: SubtitleTrack[] = [];
@@ -113,7 +144,8 @@ function parseEpisode(raw: unknown): { episode?: AcademyEpisode; reason?: string
   if (!title) return { reason: "title is required" };
   if (!description) return { reason: "description is required" };
   if (!nonEmpty(raw.category)) return { reason: "category is required" };
-  if (!nonEmpty(raw.video)) return { reason: "video is required" };
+  const status: EpisodeStatus = raw.status === "coming-soon" ? "coming-soon" : "published";
+  if (status === "published" && !nonEmpty(raw.video)) return { reason: "video is required" };
   const number = typeof raw.number === "number" && Number.isFinite(raw.number) ? raw.number : 0;
   const duration =
     typeof raw.durationSeconds === "number" && raw.durationSeconds > 0
@@ -135,7 +167,12 @@ function parseEpisode(raw: unknown): { episode?: AcademyEpisode; reason?: string
       title,
       summary: localized(raw.summary) ?? description,
       description,
-      video: raw.video.trim(),
+      status,
+      video: nonEmpty(raw.video) ? raw.video.trim() : "",
+      learn: (Array.isArray(raw.learn) ? raw.learn : [])
+        .map(localized)
+        .filter((item): item is Localized => item !== null),
+      sources: parseSources(raw.sources),
       poster: nonEmpty(raw.poster) ? raw.poster.trim() : undefined,
       durationSeconds: duration,
       subtitles: parseSubtitles(raw.subtitles),
@@ -220,15 +257,23 @@ export function findEpisode(catalog: AcademyCatalog, slug: string | undefined) {
   return catalog.episodes.find((episode) => episode.slug === slug);
 }
 
-/** The episode after this one in library order, or null at the end. */
-export function nextEpisode(catalog: AcademyCatalog, slug: string): AcademyEpisode | null {
-  const index = catalog.episodes.findIndex((episode) => episode.slug === slug);
-  return index >= 0 ? (catalog.episodes[index + 1] ?? null) : null;
+/** An episode with a video to play. Coming-soon episodes are listed but not playable. */
+export function isPlayable(episode: AcademyEpisode): boolean {
+  return episode.status === "published";
 }
 
+/** The next playable episode in library order, or null at the end. */
+export function nextEpisode(catalog: AcademyCatalog, slug: string): AcademyEpisode | null {
+  const index = catalog.episodes.findIndex((episode) => episode.slug === slug);
+  if (index < 0) return null;
+  return catalog.episodes.slice(index + 1).find(isPlayable) ?? null;
+}
+
+/** The previous playable episode in library order, or null at the start. */
 export function previousEpisode(catalog: AcademyCatalog, slug: string): AcademyEpisode | null {
   const index = catalog.episodes.findIndex((episode) => episode.slug === slug);
-  return index > 0 ? catalog.episodes[index - 1] : null;
+  if (index <= 0) return null;
+  return catalog.episodes.slice(0, index).reverse().find(isPlayable) ?? null;
 }
 
 /** Position of an episode in the whole library, 1-based, for "Episode 3". */
@@ -237,19 +282,31 @@ export function libraryNumber(catalog: AcademyCatalog, slug: string): number {
 }
 
 export interface TopicMatch {
+  /** Playable episodes to offer. */
   episodes: AcademyEpisode[];
-  /** True when nothing covers the topic yet and foundational episodes are offered instead. */
+  /** True when nothing playable covers the topic yet and foundational episodes are offered. */
   fallback: boolean;
+  /** Tagged episodes that are announced but not published yet. */
+  upcoming: AcademyEpisode[];
 }
 
-/** Episodes for an analytics page: those tagged with its topics, else the foundational ones. */
+/**
+ * Episodes for an analytics page: playable ones tagged with its topics, else the foundational
+ * ones, plus any announced episodes on the topic.
+ */
 export function episodesForTopics(catalog: AcademyCatalog, topics: string[]): TopicMatch {
   const wanted = new Set(topics);
-  const direct = catalog.episodes.filter((episode) =>
+  const tagged = catalog.episodes.filter((episode) =>
     episode.topics.some((topic) => wanted.has(topic)),
   );
-  if (direct.length) return { episodes: direct, fallback: false };
-  return { episodes: catalog.episodes.filter((episode) => episode.foundational), fallback: true };
+  const direct = tagged.filter(isPlayable);
+  const upcoming = tagged.filter((episode) => !isPlayable(episode));
+  if (direct.length) return { episodes: direct, fallback: false, upcoming };
+  return {
+    episodes: catalog.episodes.filter((episode) => episode.foundational && isPlayable(episode)),
+    fallback: true,
+    upcoming,
+  };
 }
 
 export function formatDuration(seconds: number | undefined): string | null {

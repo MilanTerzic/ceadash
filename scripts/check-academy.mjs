@@ -56,6 +56,10 @@ async function exists(url) {
 }
 
 for (const episode of catalog.episodes) {
+  if (episode.status === "coming-soon") {
+    console.log(`soon    ${episode.slug}: coming soon, files not checked`);
+    continue;
+  }
   const files = [
     ["video", episode.video],
     ["poster", episode.poster],

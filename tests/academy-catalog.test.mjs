@@ -139,3 +139,87 @@ test("video mime type comes from the extension", () => {
   assert.equal(lib.videoMimeType("a.webm"), "video/webm");
   assert.equal(lib.videoMimeType("a.m3u8"), undefined);
 });
+
+test("coming-soon episodes need no video, are listed, and are skipped by next/previous", () => {
+  const catalog = lib.parseCatalog({
+    categories,
+    episodes: [
+      episode("one"),
+      { ...episode("two", { number: 2 }), status: "coming-soon", video: undefined },
+      episode("three", { number: 3 }),
+    ],
+  });
+  assert.deepEqual(
+    catalog.episodes.map((item) => item.slug),
+    ["one", "two", "three"],
+  );
+  assert.equal(lib.isPlayable(catalog.episodes[1]), false);
+  assert.equal(lib.nextEpisode(catalog, "one").slug, "three");
+  assert.equal(lib.previousEpisode(catalog, "three").slug, "one");
+  assert.equal(lib.nextEpisode(catalog, "two").slug, "three");
+});
+
+test("a published episode still requires a video", () => {
+  const catalog = lib.parseCatalog({
+    categories,
+    episodes: [{ ...episode("x"), video: "" }],
+  });
+  assert.equal(catalog.episodes.length, 0);
+  assert.match(catalog.rejected[0].reason, /video/);
+});
+
+test("topic links offer playable episodes and report announced ones separately", () => {
+  const catalog = lib.parseCatalog({
+    categories,
+    episodes: [
+      episode("intro", { foundational: true }),
+      { ...episode("soon", { number: 2, topics: ["intraday"] }), status: "coming-soon" },
+    ],
+  });
+  const match = lib.episodesForTopics(catalog, ["intraday"]);
+  assert.deepEqual(
+    match.episodes.map((item) => item.slug),
+    ["intro"],
+  );
+  assert.equal(match.fallback, true);
+  assert.deepEqual(
+    match.upcoming.map((item) => item.slug),
+    ["soon"],
+  );
+});
+
+test("key points and sources are parsed; non-http sources are dropped", () => {
+  const catalog = lib.parseCatalog({
+    categories,
+    episodes: [
+      episode("a", {
+        learn: ["One", { en: "Two", sr: "Dva" }, "", 5],
+        sources: [
+          { url: "https://www.example.org/page" },
+          "https://ems.rs/x",
+          "javascript:alert(1)",
+          { url: "ftp://x" },
+        ],
+      }),
+    ],
+  });
+  const item = catalog.episodes[0];
+  assert.equal(item.learn.length, 2);
+  assert.deepEqual(
+    item.sources.map((source) => source.label),
+    ["example.org", "ems.rs"],
+  );
+});
+
+test("the shipped series lists episodes 1 to 7 in order", async () => {
+  const raw = JSON.parse(await readFile(path.join(root, "public/academy/catalog.json"), "utf8"));
+  const catalog = lib.parseCatalog(raw);
+  assert.equal(catalog.episodes.length, 7);
+  assert.equal(catalog.episodes[0].slug, "how-european-power-markets-work");
+  assert.deepEqual(
+    catalog.episodes.slice(1).map((item) => item.status),
+    Array(6).fill("coming-soon"),
+  );
+  // No fabricated durations for videos that do not exist yet.
+  assert.ok(catalog.episodes.every((item) => item.durationSeconds === undefined));
+});

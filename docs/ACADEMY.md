@@ -50,6 +50,14 @@ A video URL is `<mediaBase>/<video path>`, with `mediaBase` set at the top of th
    lists missing files. Add `--strict` to fail on missing files, `--remote` to also check the CDN.
 5. Deploy.
 
+## Announce an episode before the video exists
+
+Set `"status": "coming-soon"` and leave `video` out. The episode is listed with a "Coming soon"
+badge and its page shows the description, `learn` key points and `sources`, with no player.
+"Next episode" and the contextual links skip it, except for a small "Soon" pointer on the matching
+analytics page. When the video is ready, upload it, add `video` (and `poster`, `subtitles`) and
+remove the `status` line (or set `"published"`).
+
 ## Field reference
 
 - `slug` unique, lowercase, hyphens. It is the URL: `/dashboard/academy/<slug>`.
@@ -64,6 +72,9 @@ A video URL is `<mediaBase>/<video path>`, with `mediaBase` set at the top of th
   offers the episode as "Start here" on pages whose topic has no episode yet.
 - `related` lists workspace ids (`prices`, `borders`, `fundamentals`, `forwards`, `ppa`, `bess`, …
   see `src/components/shell/workspaces.ts`) shown as "Apply it in the dashboard".
+- `status` is `"published"` (default) or `"coming-soon"`; see above.
+- `learn` is a list of key points (string or `{ "en", "sr" }`) shown on the episode page.
+- `sources` is a list of `{ "url", "label"? }` public references; the label defaults to the host.
 - `draft: true` hides an episode while you prepare it.
 - `source` records where the file came from. It is never displayed.
 
