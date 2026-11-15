@@ -17,7 +17,6 @@ import {
 import { useAcademyProgress } from "@/lib/academy/progress";
 import { useAcademyCatalog, useAvailableSubtitles } from "@/lib/academy/use-academy";
 import { useLang } from "@/lib/i18n";
-import { WORKSPACES } from "@/components/shell/workspaces";
 
 export const Route = createFileRoute("/dashboard/academy/$slug")({
   head: () => ({ meta: [{ title: "Power Academy — CEA Power Intelligence" }] }),
