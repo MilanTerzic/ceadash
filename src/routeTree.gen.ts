@@ -9,49 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
-import { Route as DashboardWeeklyRouteImport } from './routes/dashboard.weekly'
-import { Route as DashboardWeatherRouteImport } from './routes/dashboard.weather'
-import { Route as DashboardWb6RouteImport } from './routes/dashboard.wb6'
-import { Route as DashboardWatchRouteImport } from './routes/dashboard.watch'
-import { Route as DashboardUtilizationRouteImport } from './routes/dashboard.utilization'
-import { Route as DashboardSpreadsRouteImport } from './routes/dashboard.spreads'
-import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
-import { Route as DashboardReportRouteImport } from './routes/dashboard.report'
-import { Route as DashboardRegionalRouteImport } from './routes/dashboard.regional'
-import { Route as DashboardPricesRouteImport } from './routes/dashboard.prices'
-import { Route as DashboardPpaRouteImport } from './routes/dashboard.ppa'
-import { Route as DashboardPowerOverviewRouteImport } from './routes/dashboard.power-overview'
-import { Route as DashboardOutagesRouteImport } from './routes/dashboard.outages'
-import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
-import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
-import { Route as DashboardMarketReportRouteImport } from './routes/dashboard.market-report'
-import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
-import { Route as DashboardMapRouteImport } from './routes/dashboard.map'
-import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
-import { Route as DashboardFuturesRouteImport } from './routes/dashboard.futures'
-import { Route as DashboardFundamentalsRouteImport } from './routes/dashboard.fundamentals'
-import { Route as DashboardForecastRouteImport } from './routes/dashboard.forecast'
-import { Route as DashboardFlowsRouteImport } from './routes/dashboard.flows'
-import { Route as DashboardFlexibilityRouteImport } from './routes/dashboard.flexibility'
-import { Route as DashboardDanubeRouteImport } from './routes/dashboard.danube'
-import { Route as DashboardCbcRouteImport } from './routes/dashboard.cbc'
-import { Route as DashboardCbamRouteImport } from './routes/dashboard.cbam'
-import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
-import { Route as DashboardCapacityRouteImport } from './routes/dashboard.capacity'
-import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
-import { Route as DashboardBordersRouteImport } from './routes/dashboard.borders'
-import { Route as DashboardBessRouteImport } from './routes/dashboard.bess'
 import { Route as DashboardBalanceRouteImport } from './routes/dashboard.balance'
+import { Route as DashboardBessRouteImport } from './routes/dashboard.bess'
+import { Route as DashboardBordersRouteImport } from './routes/dashboard.borders'
+import { Route as DashboardCalculatorRouteImport } from './routes/dashboard.calculator'
+import { Route as DashboardCapacityRouteImport } from './routes/dashboard.capacity'
+import { Route as DashboardCaptureRouteImport } from './routes/dashboard.capture'
+import { Route as DashboardCbamRouteImport } from './routes/dashboard.cbam'
+import { Route as DashboardCbcRouteImport } from './routes/dashboard.cbc'
+import { Route as DashboardDanubeRouteImport } from './routes/dashboard.danube'
+import { Route as DashboardFlexibilityRouteImport } from './routes/dashboard.flexibility'
+import { Route as DashboardFlowsRouteImport } from './routes/dashboard.flows'
+import { Route as DashboardForecastRouteImport } from './routes/dashboard.forecast'
+import { Route as DashboardFundamentalsRouteImport } from './routes/dashboard.fundamentals'
+import { Route as DashboardFuturesRouteImport } from './routes/dashboard.futures'
+import { Route as DashboardInsightsRouteImport } from './routes/dashboard.insights'
+import { Route as DashboardMapRouteImport } from './routes/dashboard.map'
+import { Route as DashboardMarketRouteImport } from './routes/dashboard.market'
+import { Route as DashboardMarketReportRouteImport } from './routes/dashboard.market-report'
+import { Route as DashboardMethodologyRouteImport } from './routes/dashboard.methodology'
+import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
+import { Route as DashboardOutagesRouteImport } from './routes/dashboard.outages'
+import { Route as DashboardPowerOverviewRouteImport } from './routes/dashboard.power-overview'
+import { Route as DashboardPpaRouteImport } from './routes/dashboard.ppa'
+import { Route as DashboardPricesRouteImport } from './routes/dashboard.prices'
+import { Route as DashboardRegionalRouteImport } from './routes/dashboard.regional'
+import { Route as DashboardReportRouteImport } from './routes/dashboard.report'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
+import { Route as DashboardSpreadsRouteImport } from './routes/dashboard.spreads'
+import { Route as DashboardUtilizationRouteImport } from './routes/dashboard.utilization'
+import { Route as DashboardWatchRouteImport } from './routes/dashboard.watch'
+import { Route as DashboardWb6RouteImport } from './routes/dashboard.wb6'
+import { Route as DashboardWeatherRouteImport } from './routes/dashboard.weather'
+import { Route as DashboardWeeklyRouteImport } from './routes/dashboard.weekly'
 import { Route as DashboardAcademyIndexRouteImport } from './routes/dashboard.academy.index'
 import { Route as DashboardAcademySlugRouteImport } from './routes/dashboard.academy.$slug'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -59,9 +59,9 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -69,159 +69,9 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardWeeklyRoute = DashboardWeeklyRouteImport.update({
-  id: '/weekly',
-  path: '/weekly',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardWeatherRoute = DashboardWeatherRouteImport.update({
-  id: '/weather',
-  path: '/weather',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardWb6Route = DashboardWb6RouteImport.update({
-  id: '/wb6',
-  path: '/wb6',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardWatchRoute = DashboardWatchRouteImport.update({
-  id: '/watch',
-  path: '/watch',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardUtilizationRoute = DashboardUtilizationRouteImport.update({
-  id: '/utilization',
-  path: '/utilization',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardSpreadsRoute = DashboardSpreadsRouteImport.update({
-  id: '/spreads',
-  path: '/spreads',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardReportRoute = DashboardReportRouteImport.update({
-  id: '/report',
-  path: '/report',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardRegionalRoute = DashboardRegionalRouteImport.update({
-  id: '/regional',
-  path: '/regional',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardPricesRoute = DashboardPricesRouteImport.update({
-  id: '/prices',
-  path: '/prices',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardPpaRoute = DashboardPpaRouteImport.update({
-  id: '/ppa',
-  path: '/ppa',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardPowerOverviewRoute = DashboardPowerOverviewRouteImport.update({
-  id: '/power-overview',
-  path: '/power-overview',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardOutagesRoute = DashboardOutagesRouteImport.update({
-  id: '/outages',
-  path: '/outages',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardNewsRoute = DashboardNewsRouteImport.update({
-  id: '/news',
-  path: '/news',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardMethodologyRoute = DashboardMethodologyRouteImport.update({
-  id: '/methodology',
-  path: '/methodology',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardMarketReportRoute = DashboardMarketReportRouteImport.update({
-  id: '/market-report',
-  path: '/market-report',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardMarketRoute = DashboardMarketRouteImport.update({
-  id: '/market',
-  path: '/market',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardMapRoute = DashboardMapRouteImport.update({
-  id: '/map',
-  path: '/map',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
-  id: '/insights',
-  path: '/insights',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFuturesRoute = DashboardFuturesRouteImport.update({
-  id: '/futures',
-  path: '/futures',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFundamentalsRoute = DashboardFundamentalsRouteImport.update({
-  id: '/fundamentals',
-  path: '/fundamentals',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardForecastRoute = DashboardForecastRouteImport.update({
-  id: '/forecast',
-  path: '/forecast',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFlowsRoute = DashboardFlowsRouteImport.update({
-  id: '/flows',
-  path: '/flows',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFlexibilityRoute = DashboardFlexibilityRouteImport.update({
-  id: '/flexibility',
-  path: '/flexibility',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardDanubeRoute = DashboardDanubeRouteImport.update({
-  id: '/danube',
-  path: '/danube',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardCbcRoute = DashboardCbcRouteImport.update({
-  id: '/cbc',
-  path: '/cbc',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardCbamRoute = DashboardCbamRouteImport.update({
-  id: '/cbam',
-  path: '/cbam',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
-  id: '/capture',
-  path: '/capture',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardCapacityRoute = DashboardCapacityRouteImport.update({
-  id: '/capacity',
-  path: '/capacity',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
-  id: '/calculator',
-  path: '/calculator',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardBordersRoute = DashboardBordersRouteImport.update({
-  id: '/borders',
-  path: '/borders',
+const DashboardBalanceRoute = DashboardBalanceRouteImport.update({
+  id: '/balance',
+  path: '/balance',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardBessRoute = DashboardBessRouteImport.update({
@@ -229,9 +79,159 @@ const DashboardBessRoute = DashboardBessRouteImport.update({
   path: '/bess',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardBalanceRoute = DashboardBalanceRouteImport.update({
-  id: '/balance',
-  path: '/balance',
+const DashboardBordersRoute = DashboardBordersRouteImport.update({
+  id: '/borders',
+  path: '/borders',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCalculatorRoute = DashboardCalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCapacityRoute = DashboardCapacityRouteImport.update({
+  id: '/capacity',
+  path: '/capacity',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCaptureRoute = DashboardCaptureRouteImport.update({
+  id: '/capture',
+  path: '/capture',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCbamRoute = DashboardCbamRouteImport.update({
+  id: '/cbam',
+  path: '/cbam',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCbcRoute = DashboardCbcRouteImport.update({
+  id: '/cbc',
+  path: '/cbc',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDanubeRoute = DashboardDanubeRouteImport.update({
+  id: '/danube',
+  path: '/danube',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFlexibilityRoute = DashboardFlexibilityRouteImport.update({
+  id: '/flexibility',
+  path: '/flexibility',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFlowsRoute = DashboardFlowsRouteImport.update({
+  id: '/flows',
+  path: '/flows',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardForecastRoute = DashboardForecastRouteImport.update({
+  id: '/forecast',
+  path: '/forecast',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFundamentalsRoute = DashboardFundamentalsRouteImport.update({
+  id: '/fundamentals',
+  path: '/fundamentals',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFuturesRoute = DashboardFuturesRouteImport.update({
+  id: '/futures',
+  path: '/futures',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInsightsRoute = DashboardInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMapRoute = DashboardMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMarketRoute = DashboardMarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMarketReportRoute = DashboardMarketReportRouteImport.update({
+  id: '/market-report',
+  path: '/market-report',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMethodologyRoute = DashboardMethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardNewsRoute = DashboardNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOutagesRoute = DashboardOutagesRouteImport.update({
+  id: '/outages',
+  path: '/outages',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPowerOverviewRoute = DashboardPowerOverviewRouteImport.update({
+  id: '/power-overview',
+  path: '/power-overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPpaRoute = DashboardPpaRouteImport.update({
+  id: '/ppa',
+  path: '/ppa',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPricesRoute = DashboardPricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRegionalRoute = DashboardRegionalRouteImport.update({
+  id: '/regional',
+  path: '/regional',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardReportRoute = DashboardReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSpreadsRoute = DashboardSpreadsRouteImport.update({
+  id: '/spreads',
+  path: '/spreads',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardUtilizationRoute = DashboardUtilizationRouteImport.update({
+  id: '/utilization',
+  path: '/utilization',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWatchRoute = DashboardWatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWb6Route = DashboardWb6RouteImport.update({
+  id: '/wb6',
+  path: '/wb6',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWeatherRoute = DashboardWeatherRouteImport.update({
+  id: '/weather',
+  path: '/weather',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWeeklyRoute = DashboardWeeklyRouteImport.update({
+  id: '/weekly',
+  path: '/weekly',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardAcademyIndexRoute = DashboardAcademyIndexRouteImport.update({
@@ -501,11 +501,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -515,11 +515,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -529,221 +529,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/weekly': {
-      id: '/dashboard/weekly'
-      path: '/weekly'
-      fullPath: '/dashboard/weekly'
-      preLoaderRoute: typeof DashboardWeeklyRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/weather': {
-      id: '/dashboard/weather'
-      path: '/weather'
-      fullPath: '/dashboard/weather'
-      preLoaderRoute: typeof DashboardWeatherRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/wb6': {
-      id: '/dashboard/wb6'
-      path: '/wb6'
-      fullPath: '/dashboard/wb6'
-      preLoaderRoute: typeof DashboardWb6RouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/watch': {
-      id: '/dashboard/watch'
-      path: '/watch'
-      fullPath: '/dashboard/watch'
-      preLoaderRoute: typeof DashboardWatchRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/utilization': {
-      id: '/dashboard/utilization'
-      path: '/utilization'
-      fullPath: '/dashboard/utilization'
-      preLoaderRoute: typeof DashboardUtilizationRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/spreads': {
-      id: '/dashboard/spreads'
-      path: '/spreads'
-      fullPath: '/dashboard/spreads'
-      preLoaderRoute: typeof DashboardSpreadsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/settings': {
-      id: '/dashboard/settings'
-      path: '/settings'
-      fullPath: '/dashboard/settings'
-      preLoaderRoute: typeof DashboardSettingsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/report': {
-      id: '/dashboard/report'
-      path: '/report'
-      fullPath: '/dashboard/report'
-      preLoaderRoute: typeof DashboardReportRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/regional': {
-      id: '/dashboard/regional'
-      path: '/regional'
-      fullPath: '/dashboard/regional'
-      preLoaderRoute: typeof DashboardRegionalRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/prices': {
-      id: '/dashboard/prices'
-      path: '/prices'
-      fullPath: '/dashboard/prices'
-      preLoaderRoute: typeof DashboardPricesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/ppa': {
-      id: '/dashboard/ppa'
-      path: '/ppa'
-      fullPath: '/dashboard/ppa'
-      preLoaderRoute: typeof DashboardPpaRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/power-overview': {
-      id: '/dashboard/power-overview'
-      path: '/power-overview'
-      fullPath: '/dashboard/power-overview'
-      preLoaderRoute: typeof DashboardPowerOverviewRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/outages': {
-      id: '/dashboard/outages'
-      path: '/outages'
-      fullPath: '/dashboard/outages'
-      preLoaderRoute: typeof DashboardOutagesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/news': {
-      id: '/dashboard/news'
-      path: '/news'
-      fullPath: '/dashboard/news'
-      preLoaderRoute: typeof DashboardNewsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/methodology': {
-      id: '/dashboard/methodology'
-      path: '/methodology'
-      fullPath: '/dashboard/methodology'
-      preLoaderRoute: typeof DashboardMethodologyRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/market-report': {
-      id: '/dashboard/market-report'
-      path: '/market-report'
-      fullPath: '/dashboard/market-report'
-      preLoaderRoute: typeof DashboardMarketReportRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/market': {
-      id: '/dashboard/market'
-      path: '/market'
-      fullPath: '/dashboard/market'
-      preLoaderRoute: typeof DashboardMarketRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/map': {
-      id: '/dashboard/map'
-      path: '/map'
-      fullPath: '/dashboard/map'
-      preLoaderRoute: typeof DashboardMapRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/insights': {
-      id: '/dashboard/insights'
-      path: '/insights'
-      fullPath: '/dashboard/insights'
-      preLoaderRoute: typeof DashboardInsightsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/futures': {
-      id: '/dashboard/futures'
-      path: '/futures'
-      fullPath: '/dashboard/futures'
-      preLoaderRoute: typeof DashboardFuturesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/fundamentals': {
-      id: '/dashboard/fundamentals'
-      path: '/fundamentals'
-      fullPath: '/dashboard/fundamentals'
-      preLoaderRoute: typeof DashboardFundamentalsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/forecast': {
-      id: '/dashboard/forecast'
-      path: '/forecast'
-      fullPath: '/dashboard/forecast'
-      preLoaderRoute: typeof DashboardForecastRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/flows': {
-      id: '/dashboard/flows'
-      path: '/flows'
-      fullPath: '/dashboard/flows'
-      preLoaderRoute: typeof DashboardFlowsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/flexibility': {
-      id: '/dashboard/flexibility'
-      path: '/flexibility'
-      fullPath: '/dashboard/flexibility'
-      preLoaderRoute: typeof DashboardFlexibilityRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/danube': {
-      id: '/dashboard/danube'
-      path: '/danube'
-      fullPath: '/dashboard/danube'
-      preLoaderRoute: typeof DashboardDanubeRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/cbc': {
-      id: '/dashboard/cbc'
-      path: '/cbc'
-      fullPath: '/dashboard/cbc'
-      preLoaderRoute: typeof DashboardCbcRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/cbam': {
-      id: '/dashboard/cbam'
-      path: '/cbam'
-      fullPath: '/dashboard/cbam'
-      preLoaderRoute: typeof DashboardCbamRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/capture': {
-      id: '/dashboard/capture'
-      path: '/capture'
-      fullPath: '/dashboard/capture'
-      preLoaderRoute: typeof DashboardCaptureRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/capacity': {
-      id: '/dashboard/capacity'
-      path: '/capacity'
-      fullPath: '/dashboard/capacity'
-      preLoaderRoute: typeof DashboardCapacityRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/calculator': {
-      id: '/dashboard/calculator'
-      path: '/calculator'
-      fullPath: '/dashboard/calculator'
-      preLoaderRoute: typeof DashboardCalculatorRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/borders': {
-      id: '/dashboard/borders'
-      path: '/borders'
-      fullPath: '/dashboard/borders'
-      preLoaderRoute: typeof DashboardBordersRouteImport
+    '/dashboard/balance': {
+      id: '/dashboard/balance'
+      path: '/balance'
+      fullPath: '/dashboard/balance'
+      preLoaderRoute: typeof DashboardBalanceRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/bess': {
@@ -753,11 +543,221 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardBessRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/balance': {
-      id: '/dashboard/balance'
-      path: '/balance'
-      fullPath: '/dashboard/balance'
-      preLoaderRoute: typeof DashboardBalanceRouteImport
+    '/dashboard/borders': {
+      id: '/dashboard/borders'
+      path: '/borders'
+      fullPath: '/dashboard/borders'
+      preLoaderRoute: typeof DashboardBordersRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/calculator': {
+      id: '/dashboard/calculator'
+      path: '/calculator'
+      fullPath: '/dashboard/calculator'
+      preLoaderRoute: typeof DashboardCalculatorRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/capacity': {
+      id: '/dashboard/capacity'
+      path: '/capacity'
+      fullPath: '/dashboard/capacity'
+      preLoaderRoute: typeof DashboardCapacityRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/capture': {
+      id: '/dashboard/capture'
+      path: '/capture'
+      fullPath: '/dashboard/capture'
+      preLoaderRoute: typeof DashboardCaptureRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/cbam': {
+      id: '/dashboard/cbam'
+      path: '/cbam'
+      fullPath: '/dashboard/cbam'
+      preLoaderRoute: typeof DashboardCbamRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/cbc': {
+      id: '/dashboard/cbc'
+      path: '/cbc'
+      fullPath: '/dashboard/cbc'
+      preLoaderRoute: typeof DashboardCbcRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/danube': {
+      id: '/dashboard/danube'
+      path: '/danube'
+      fullPath: '/dashboard/danube'
+      preLoaderRoute: typeof DashboardDanubeRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/flexibility': {
+      id: '/dashboard/flexibility'
+      path: '/flexibility'
+      fullPath: '/dashboard/flexibility'
+      preLoaderRoute: typeof DashboardFlexibilityRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/flows': {
+      id: '/dashboard/flows'
+      path: '/flows'
+      fullPath: '/dashboard/flows'
+      preLoaderRoute: typeof DashboardFlowsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/forecast': {
+      id: '/dashboard/forecast'
+      path: '/forecast'
+      fullPath: '/dashboard/forecast'
+      preLoaderRoute: typeof DashboardForecastRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/fundamentals': {
+      id: '/dashboard/fundamentals'
+      path: '/fundamentals'
+      fullPath: '/dashboard/fundamentals'
+      preLoaderRoute: typeof DashboardFundamentalsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/futures': {
+      id: '/dashboard/futures'
+      path: '/futures'
+      fullPath: '/dashboard/futures'
+      preLoaderRoute: typeof DashboardFuturesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/insights': {
+      id: '/dashboard/insights'
+      path: '/insights'
+      fullPath: '/dashboard/insights'
+      preLoaderRoute: typeof DashboardInsightsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/map': {
+      id: '/dashboard/map'
+      path: '/map'
+      fullPath: '/dashboard/map'
+      preLoaderRoute: typeof DashboardMapRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/market': {
+      id: '/dashboard/market'
+      path: '/market'
+      fullPath: '/dashboard/market'
+      preLoaderRoute: typeof DashboardMarketRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/market-report': {
+      id: '/dashboard/market-report'
+      path: '/market-report'
+      fullPath: '/dashboard/market-report'
+      preLoaderRoute: typeof DashboardMarketReportRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/methodology': {
+      id: '/dashboard/methodology'
+      path: '/methodology'
+      fullPath: '/dashboard/methodology'
+      preLoaderRoute: typeof DashboardMethodologyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/news': {
+      id: '/dashboard/news'
+      path: '/news'
+      fullPath: '/dashboard/news'
+      preLoaderRoute: typeof DashboardNewsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/outages': {
+      id: '/dashboard/outages'
+      path: '/outages'
+      fullPath: '/dashboard/outages'
+      preLoaderRoute: typeof DashboardOutagesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/power-overview': {
+      id: '/dashboard/power-overview'
+      path: '/power-overview'
+      fullPath: '/dashboard/power-overview'
+      preLoaderRoute: typeof DashboardPowerOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/ppa': {
+      id: '/dashboard/ppa'
+      path: '/ppa'
+      fullPath: '/dashboard/ppa'
+      preLoaderRoute: typeof DashboardPpaRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/prices': {
+      id: '/dashboard/prices'
+      path: '/prices'
+      fullPath: '/dashboard/prices'
+      preLoaderRoute: typeof DashboardPricesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/regional': {
+      id: '/dashboard/regional'
+      path: '/regional'
+      fullPath: '/dashboard/regional'
+      preLoaderRoute: typeof DashboardRegionalRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/report': {
+      id: '/dashboard/report'
+      path: '/report'
+      fullPath: '/dashboard/report'
+      preLoaderRoute: typeof DashboardReportRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/spreads': {
+      id: '/dashboard/spreads'
+      path: '/spreads'
+      fullPath: '/dashboard/spreads'
+      preLoaderRoute: typeof DashboardSpreadsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/utilization': {
+      id: '/dashboard/utilization'
+      path: '/utilization'
+      fullPath: '/dashboard/utilization'
+      preLoaderRoute: typeof DashboardUtilizationRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/watch': {
+      id: '/dashboard/watch'
+      path: '/watch'
+      fullPath: '/dashboard/watch'
+      preLoaderRoute: typeof DashboardWatchRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/wb6': {
+      id: '/dashboard/wb6'
+      path: '/wb6'
+      fullPath: '/dashboard/wb6'
+      preLoaderRoute: typeof DashboardWb6RouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/weather': {
+      id: '/dashboard/weather'
+      path: '/weather'
+      fullPath: '/dashboard/weather'
+      preLoaderRoute: typeof DashboardWeatherRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/weekly': {
+      id: '/dashboard/weekly'
+      path: '/weekly'
+      fullPath: '/dashboard/weekly'
+      preLoaderRoute: typeof DashboardWeeklyRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/academy/': {
