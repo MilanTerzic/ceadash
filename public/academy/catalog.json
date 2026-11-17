@@ -457,6 +457,73 @@
           "url": "https://www.energy-community.org/topics/electricity/market/implementation.html"
         }
       ]
+    },
+    {
+      "slug": "ep02-how-day-ahead-electricity-markets-work",
+      "number": 3,
+      "category": "short-term-markets",
+      "level": "beginner",
+      "title": {
+        "en": "How Day-Ahead Electricity Markets Work"
+      },
+      "summary": {
+        "en": "How offers and bids become one clearing price, with a step-by-step merit-order example."
+      },
+      "description": {
+        "en": "Why a day-ahead market exists, who trades in it and how orders are submitted. A simplified single-period uniform-price auction (illustrative figures) shows the merit order being built from three offers, demand added, and the last accepted offer setting the clearing price at 120 EUR/MWh, with every payment calculated. What-if cases show how lower demand or extra wind moves the price. The episode then covers European market coupling and congestion and SEEPEX as a regional example. It is a simplification and not a description of the EUPHEMIA algorithm."
+      },
+      "learn": [
+        {
+          "en": "Why the day-ahead market exists and who takes part"
+        },
+        {
+          "en": "Merit order: offers stacked from cheapest to most expensive"
+        },
+        {
+          "en": "The last accepted offer sets one price for everyone"
+        },
+        {
+          "en": "Why renewables and demand move the price"
+        },
+        {
+          "en": "Market coupling and congestion"
+        }
+      ],
+      "video": "/academy/videos/ep02-how-day-ahead-electricity-markets-work.mp4",
+      "poster": "/academy/posters/ep02-how-day-ahead-electricity-markets-work.jpg",
+      "durationSeconds": 273,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep02-how-day-ahead-electricity-markets-work.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "day-ahead"
+      ],
+      "foundational": false,
+      "related": [
+        "prices",
+        "borders"
+      ],
+      "sources": [
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"
+        },
+        {
+          "url": "https://seepex-spot.rs/spot-markets"
+        },
+        {
+          "url": "https://www.epexspot.com/en/news/market-coupling-steering-committee-confirms-go-live-15-minute-mtu-sdac-trading-day-30"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep02_day_ahead"
+      },
+      "status": "published"
     }
   ]
 }

@@ -1,0 +1,309 @@
+WEBVTT
+
+1
+00:00:00.620 --> 00:00:04.959
+Tomorrow, millions of homes, factories and trains will need electricity.
+
+2
+00:00:04.989 --> 00:00:09.571
+Someone has to decide which power plants will produce it, and at what price.
+
+3
+00:00:10.187 --> 00:00:13.115
+In this episode, we explore the day-ahead market:
+
+4
+00:00:13.145 --> 00:00:16.194
+the auction that sets tomorrow's electricity price.
+
+5
+00:00:18.450 --> 00:00:21.686
+Electricity cannot be stored cheaply at large scale,
+
+6
+00:00:21.716 --> 00:00:25.078
+and generation must match consumption at every moment.
+
+7
+00:00:25.108 --> 00:00:29.727
+So the market lets everyone plan the next day in advance, before delivery.
+
+8
+00:00:30.817 --> 00:00:35.004
+Sellers include power plants, renewable producers and traders.
+
+9
+00:00:35.034 --> 00:00:40.174
+Buyers include suppliers serving households and businesses, large consumers,
+
+10
+00:00:40.204 --> 00:00:40.990
+and traders.
+
+11
+00:00:41.020 --> 00:00:43.779
+They all send orders to a power exchange.
+
+12
+00:00:46.050 --> 00:00:49.718
+Before gate closure, around midday on the day before delivery,
+
+13
+00:00:49.748 --> 00:00:54.489
+every participant submits orders for each market time unit of the following day.
+
+14
+00:00:55.583 --> 00:01:01.480
+A sell offer states a quantity in megawatt-hours and the minimum price the seller will accept.
+
+15
+00:01:01.510 --> 00:01:05.830
+A buy bid states a quantity and the maximum price the buyer will pay.
+
+16
+00:01:05.860 --> 00:01:09.676
+After gate closure, one auction processes all orders at once.
+
+17
+00:01:11.950 --> 00:01:15.512
+Let's build the supply side with a simple example.
+
+18
+00:01:15.542 --> 00:01:16.087
+Offer A:
+
+19
+00:01:16.117 --> 00:01:18.745
+forty megawatt-hours at thirty euros.
+
+20
+00:01:18.775 --> 00:01:19.320
+Offer B:
+
+21
+00:01:19.350 --> 00:01:20.398
+forty at sixty.
+
+22
+00:01:20.428 --> 00:01:20.972
+Offer C:
+
+23
+00:01:21.002 --> 00:01:23.056
+twenty at one hundred twenty.
+
+24
+00:01:23.650 --> 00:01:27.419
+The auction sorts the offers from cheapest to most expensive.
+
+25
+00:01:27.449 --> 00:01:28.914
+This is the merit order.
+
+26
+00:01:28.944 --> 00:01:32.900
+Each block's width is its quantity, and its height is its price.
+
+27
+00:01:35.680 --> 00:01:36.629
+Now add demand:
+
+28
+00:01:36.659 --> 00:01:38.390
+one hundred megawatt-hours.
+
+29
+00:01:38.420 --> 00:01:43.543
+We treat it as price-insensitive, meaning buyers need this volume at any price.
+
+30
+00:01:44.147 --> 00:01:45.295
+Walk up the stack.
+
+31
+00:01:45.325 --> 00:01:47.651
+Offer A covers forty megawatt-hours.
+
+32
+00:01:47.681 --> 00:01:49.942
+Offer B brings the total to eighty.
+
+33
+00:01:49.972 --> 00:01:54.719
+Twenty are still missing, so offer C is needed, and it is fully accepted.
+
+34
+00:01:55.313 --> 00:01:57.993
+The last accepted offer is the marginal one,
+
+35
+00:01:58.023 --> 00:02:00.764
+and its price sets the market-clearing price:
+
+36
+00:02:00.794 --> 00:02:03.411
+one hundred twenty euros per megawatt-hour.
+
+37
+00:02:06.180 --> 00:02:11.328
+In a uniform-price auction, every accepted offer is paid the same clearing price.
+
+38
+00:02:11.358 --> 00:02:16.635
+Offer A earns forty times one hundred twenty, or four thousand eight hundred euros.
+
+39
+00:02:16.665 --> 00:02:18.105
+Offer B earns the same.
+
+40
+00:02:18.135 --> 00:02:20.663
+Offer C earns two thousand four hundred.
+
+41
+00:02:20.693 --> 00:02:22.900
+The total is twelve thousand euros:
+
+42
+00:02:22.930 --> 00:02:26.225
+one hundred megawatt-hours times one hundred twenty.
+
+43
+00:02:27.413 --> 00:02:30.823
+Remember, this is a simplified single-period example.
+
+44
+00:02:30.853 --> 00:02:34.717
+The real European auction uses an algorithm called EUPHEMIA,
+
+45
+00:02:34.747 --> 00:02:39.650
+which handles many periods, order types and network limits at the same time.
+
+46
+00:02:42.410 --> 00:02:44.216
+Now watch the price react.
+
+47
+00:02:44.246 --> 00:02:49.231
+If demand falls to seventy megawatt-hours, offer C is no longer needed,
+
+48
+00:02:49.261 --> 00:02:51.561
+and the marginal offer becomes B.
+
+49
+00:02:51.591 --> 00:02:53.751
+The price drops to sixty euros.
+
+50
+00:02:54.343 --> 00:02:57.921
+Add forty megawatt-hours of wind at a very low price,
+
+51
+00:02:57.951 --> 00:03:00.235
+and the stack shifts to the right.
+
+52
+00:03:00.265 --> 00:03:05.885
+Offer C is rejected, offer B is only partly accepted, and the price is again sixty.
+
+53
+00:03:05.915 --> 00:03:08.948
+These what-if cases use hypothetical numbers.
+
+54
+00:03:09.543 --> 00:03:14.270
+That is why prices fall when renewable output is high or demand is low,
+
+55
+00:03:14.300 --> 00:03:16.681
+and rise when cheap supply runs out.
+
+56
+00:03:18.940 --> 00:03:22.123
+Europe does not run these auctions in isolation.
+
+57
+00:03:22.153 --> 00:03:24.332
+In the single day-ahead coupling,
+
+58
+00:03:24.362 --> 00:03:29.486
+exchanges and grid operators run one joint auction across many bidding zones.
+
+59
+00:03:29.516 --> 00:03:33.034
+Power flows from low-price zones to high-price zones,
+
+60
+00:03:33.064 --> 00:03:35.913
+as long as interconnector capacity remains.
+
+61
+00:03:36.507 --> 00:03:39.399
+If capacity is large enough, prices converge.
+
+62
+00:03:39.429 --> 00:03:44.466
+If the line is full, there is congestion, and the zones keep different prices.
+
+63
+00:03:44.496 --> 00:03:46.674
+The numbers here are illustrative.
+
+64
+00:03:48.940 --> 00:03:52.288
+In Serbia, the day-ahead market is operated by SEEPEX,
+
+65
+00:03:52.318 --> 00:03:54.414
+the Belgrade-based power exchange.
+
+66
+00:03:54.444 --> 00:04:01.294
+Serbia is a contracting party of the Energy Community and is working toward coupling with the European market.
+
+67
+00:04:01.324 --> 00:04:06.361
+Timelines have shifted before, so always check the latest official announcements.
+
+68
+00:04:08.640 --> 00:04:09.694
+Three takeaways.
+
+69
+00:04:09.724 --> 00:04:09.965
+One:
+
+70
+00:04:09.995 --> 00:04:14.843
+the day-ahead auction lets the market plan tomorrow's supply and demand.
+
+71
+00:04:14.873 --> 00:04:15.114
+Two:
+
+72
+00:04:15.144 --> 00:04:17.418
+offers are stacked in merit order,
+
+73
+00:04:17.448 --> 00:04:21.212
+and the last accepted offer sets the price for everyone.
+
+74
+00:04:21.241 --> 00:04:21.618
+Three:
+
+75
+00:04:21.648 --> 00:04:25.954
+coupling links zones, and congestion explains price differences.
+
+76
+00:04:26.573 --> 00:04:30.247
+Next time, we move closer to delivery with intraday trading.
+
+77
+00:04:30.277 --> 00:04:32.346
+Thanks for watching Power Academy.
