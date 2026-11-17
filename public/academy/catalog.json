@@ -120,6 +120,7 @@
     },
     {
       "slug": "day-ahead-how-seepex-forms-the-price",
+      "draft": true,
       "number": 1,
       "category": "short-term-markets",
       "level": "beginner",
@@ -178,6 +179,7 @@
     },
     {
       "slug": "intraday-trading-when-forecasts-change",
+      "draft": true,
       "number": 2,
       "category": "short-term-markets",
       "level": "beginner",
@@ -236,6 +238,7 @@
     },
     {
       "slug": "balancing-what-ems-does-in-real-time",
+      "draft": true,
       "number": 1,
       "category": "balancing-and-reserves",
       "level": "beginner",
@@ -294,6 +297,7 @@
     },
     {
       "slug": "ancillary-services-fcr-afrr-mfrr",
+      "draft": true,
       "number": 2,
       "category": "balancing-and-reserves",
       "level": "beginner",
@@ -350,6 +354,7 @@
     },
     {
       "slug": "futures-and-forwards-hedging-the-serbian-price",
+      "draft": true,
       "number": 1,
       "category": "forwards-and-hedging",
       "level": "beginner",
@@ -405,6 +410,7 @@
     },
     {
       "slug": "cross-border-trading-why-balkan-prices-diverge",
+      "draft": true,
       "number": 1,
       "category": "cross-border",
       "level": "beginner",

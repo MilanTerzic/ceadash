@@ -211,19 +211,22 @@ test("key points and sources are parsed; non-http sources are dropped", () => {
   );
 });
 
-test("the shipped series lists episodes 1 to 7 in order", async () => {
+test("the shipped series lists episodes 1 to 7 in order, all playable", async () => {
   const raw = JSON.parse(await readFile(path.join(root, "public/academy/catalog.json"), "utf8"));
   const catalog = lib.parseCatalog(raw);
-  assert.equal(catalog.episodes.length, 7);
-  assert.equal(catalog.episodes[0].slug, "how-european-power-markets-work");
   assert.deepEqual(
-    catalog.episodes.slice(1).map((item) => item.status),
-    Array(6).fill("coming-soon"),
+    catalog.episodes.map((item) => item.slug),
+    [
+      "how-european-power-markets-work",
+      "ep02-how-day-ahead-electricity-markets-work",
+      "ep03-intraday-electricity-trading",
+      "ep04-balancing-markets-and-imbalance-settlement",
+      "ep05-ancillary-services-fcr-afrr-mfrr-explained",
+      "ep06-power-futures-forwards-and-hedging",
+      "ep07-cross-border-trading-and-market-coupling",
+    ],
   );
-  // Durations exist only for videos that exist; none are guessed for announced episodes.
-  assert.ok(
-    catalog.episodes
-      .filter((item) => item.status === "coming-soon")
-      .every((item) => item.durationSeconds === undefined),
-  );
+  // Nothing is announced as "coming soon" in the library; every listed episode has a video.
+  assert.ok(catalog.episodes.every((item) => item.status === "published" && item.video));
+  assert.ok(catalog.episodes.every((item) => item.durationSeconds > 0));
 });
