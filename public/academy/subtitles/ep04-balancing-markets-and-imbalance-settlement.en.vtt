@@ -1,0 +1,225 @@
+WEBVTT
+
+1
+00:00:00.620 --> 00:00:05.858
+Every second, the amount of electricity generated must match the amount consumed.
+
+2
+00:00:05.888 --> 00:00:07.939
+But forecasts are never perfect.
+
+3
+00:00:07.969 --> 00:00:11.450
+A cloud passes, a plant trips, a factory starts early.
+
+4
+00:00:11.480 --> 00:00:14.182
+Someone must correct the gap in real time.
+
+5
+00:00:14.787 --> 00:00:17.480
+In this episode, we look at balancing markets,
+
+6
+00:00:17.510 --> 00:00:19.966
+and how the cost of deviations is settled.
+
+7
+00:00:22.220 --> 00:00:23.818
+In Europe, every producer,
+
+8
+00:00:23.848 --> 00:00:27.511
+supplier and trader belongs to a balance responsible party.
+
+9
+00:00:27.541 --> 00:00:32.520
+It submits a schedule to the grid operator for each period, based on its trades,
+
+10
+00:00:32.550 --> 00:00:36.965
+and it is financially responsible for any deviation from that schedule.
+
+11
+00:00:38.053 --> 00:00:38.362
+Here,
+
+12
+00:00:38.392 --> 00:00:43.783
+wind portfolio A scheduled one hundred megawatt-hours but produced only seventy,
+
+13
+00:00:43.813 --> 00:00:45.476
+so it is short by thirty.
+
+14
+00:00:45.506 --> 00:00:50.490
+Portfolio B scheduled fifty but produced seventy, so it is long by twenty.
+
+15
+00:00:52.750 --> 00:00:57.882
+The transmission system operator watches the total imbalance of the whole system.
+
+16
+00:00:57.912 --> 00:01:00.877
+Here the system is short by ten megawatt-hours:
+
+17
+00:01:00.907 --> 00:01:03.426
+thirty missing, minus twenty in surplus.
+
+18
+00:01:03.456 --> 00:01:10.181
+So the operator activates upward balancing energy from providers who agreed to raise output or cut demand.
+
+19
+00:01:10.783 --> 00:01:15.940
+If the system were long instead, the operator would activate downward balancing,
+
+20
+00:01:15.970 --> 00:01:19.182
+asking providers to reduce output or consume more.
+
+21
+00:01:19.212 --> 00:01:22.229
+These reserves react within seconds to minutes,
+
+22
+00:01:22.259 --> 00:01:24.822
+and the next episode explains each type.
+
+23
+00:01:27.080 --> 00:01:28.251
+Now the settlement.
+
+24
+00:01:28.281 --> 00:01:32.929
+Balancing has a cost, and it is charged to those who caused the imbalance.
+
+25
+00:01:32.959 --> 00:01:34.636
+For each settlement period,
+
+26
+00:01:34.666 --> 00:01:40.262
+the operator calculates an imbalance price from the cost of the balancing energy it used.
+
+27
+00:01:40.292 --> 00:01:43.802
+Suppose it is one hundred fifty euros per megawatt-hour.
+
+28
+00:01:44.413 --> 00:01:48.836
+Portfolio A is short thirty, so it pays thirty times one hundred fifty:
+
+29
+00:01:48.866 --> 00:01:50.905
+four thousand five hundred euros.
+
+30
+00:01:50.935 --> 00:01:52.598
+Portfolio B is long twenty,
+
+31
+00:01:52.628 --> 00:01:56.800
+and under a single price it is paid twenty times one hundred fifty:
+
+32
+00:01:56.830 --> 00:02:00.562
+three thousand euros, because its surplus helped the system.
+
+33
+00:02:00.592 --> 00:02:05.077
+The net amount, fifteen hundred euros, helps cover the operator's costs.
+
+34
+00:02:05.680 --> 00:02:07.450
+All numbers are illustrative.
+
+35
+00:02:07.480 --> 00:02:10.367
+Imbalance prices can be far from market prices,
+
+36
+00:02:10.397 --> 00:02:16.325
+which is why participants try to correct their positions in the intraday market before delivery.
+
+37
+00:02:18.580 --> 00:02:21.102
+Imbalances are settled in short periods.
+
+38
+00:02:21.132 --> 00:02:26.462
+The European balancing rules set the imbalance settlement period at fifteen minutes,
+
+39
+00:02:26.492 --> 00:02:29.525
+so each hour has four separate imbalance prices.
+
+40
+00:02:29.555 --> 00:02:33.544
+A participant can be short in one period, and long in the next.
+
+41
+00:02:35.810 --> 00:02:39.074
+In Serbia, the transmission system operator, EMS,
+
+42
+00:02:39.104 --> 00:02:43.645
+is responsible for balancing the system and for settling imbalances.
+
+43
+00:02:43.675 --> 00:02:47.679
+Serbia belongs to the Continental European synchronous area,
+
+44
+00:02:47.709 --> 00:02:51.713
+and its rules continue to be aligned with European practice,
+
+45
+00:02:51.743 --> 00:02:54.670
+so always check the latest EMS publications.
+
+46
+00:02:56.940 --> 00:02:57.991
+Three takeaways.
+
+47
+00:02:58.021 --> 00:02:58.262
+One:
+
+48
+00:02:58.292 --> 00:03:01.911
+every participant is responsible for its own schedule.
+
+49
+00:03:01.941 --> 00:03:02.181
+Two:
+
+50
+00:03:02.211 --> 00:03:05.357
+the operator balances the system with reserves,
+
+51
+00:03:05.387 --> 00:03:08.668
+and the cost is charged through imbalance prices.
+
+52
+00:03:08.698 --> 00:03:09.074
+Three:
+
+53
+00:03:09.104 --> 00:03:14.480
+correcting positions early, in the intraday market, helps avoid imbalance costs.
+
+54
+00:03:15.073 --> 00:03:19.316
+Next, we look at the reserves that keep the grid stable:
+
+55
+00:03:19.346 --> 00:03:20.765
+FCR, aFRR and mFRR.
+
+56
+00:03:20.795 --> 00:03:23.359
+Thanks for watching Power Academy.

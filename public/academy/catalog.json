@@ -524,6 +524,315 @@
         "reference": "episodes/ep02_day_ahead"
       },
       "status": "published"
+    },
+    {
+      "slug": "ep03-intraday-electricity-trading",
+      "number": 4,
+      "category": "short-term-markets",
+      "level": "beginner",
+      "title": {
+        "en": "Intraday Electricity Trading"
+      },
+      "summary": {
+        "en": "How a position is corrected after the day-ahead auction: the order book, a worked trade and the SIDC auctions."
+      },
+      "description": {
+        "en": "The day-ahead plan changes when forecasts do. This episode shows continuous intraday trading through an order book, where each trade is priced at the order already waiting, with a worked example (illustrative figures): a 30 MWh buy order matches 20 MWh at 78 EUR and 10 MWh at 82 EUR for an average of 79.33 EUR/MWh. It explains cross-border matching through SIDC and its dependence on available capacity, the three SIDC intraday auctions, and SEEPEX's continuous intraday market, launched in July 2023."
+      },
+      "learn": [
+        {
+          "en": "Why intraday exists: forecasts change after the auction"
+        },
+        {
+          "en": "The continuous order book: best bid, best offer, matching"
+        },
+        {
+          "en": "A worked trade: different prices for each match"
+        },
+        {
+          "en": "Cross-border matching and the SIDC intraday auctions"
+        }
+      ],
+      "video": "/academy/videos/ep03-intraday-electricity-trading.mp4",
+      "poster": "/academy/posters/ep03-intraday-electricity-trading.jpg",
+      "durationSeconds": 214,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep03-intraday-electricity-trading.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "intraday"
+      ],
+      "foundational": false,
+      "related": [
+        "prices",
+        "bess"
+      ],
+      "sources": [
+        {
+          "url": "https://ote-cr.cz/en/short-term-markets/market-coupling-intraday-market/sidc"
+        },
+        {
+          "url": "https://www.nemo-committee.eu/ida"
+        },
+        {
+          "url": "https://bsp-southpool.com/2023/08/16/seepex-successfully-launches-serbian-continuous-intraday-market"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep03_intraday"
+      },
+      "status": "published"
+    },
+    {
+      "slug": "ep04-balancing-markets-and-imbalance-settlement",
+      "number": 3,
+      "category": "balancing-and-reserves",
+      "level": "intermediate",
+      "title": {
+        "en": "Balancing Markets and Imbalance Settlement"
+      },
+      "summary": {
+        "en": "How the system operator balances the grid and how deviations are charged."
+      },
+      "description": {
+        "en": "Generation must match consumption every second, but forecasts are never perfect. This episode explains balance responsible parties and their schedules, how the transmission system operator activates upward and downward balancing energy, and how the cost is recovered through the imbalance price in 15-minute settlement periods. A worked example (illustrative figures) settles two portfolios, one short by 30 MWh and one long by 20 MWh, at 150 EUR/MWh. It closes with the role of EMS in Serbia."
+      },
+      "learn": [
+        {
+          "en": "Balance responsible parties and their schedules"
+        },
+        {
+          "en": "Short, long and the system imbalance"
+        },
+        {
+          "en": "Upward and downward balancing energy"
+        },
+        {
+          "en": "The imbalance price and 15-minute settlement periods"
+        }
+      ],
+      "video": "/academy/videos/ep04-balancing-markets-and-imbalance-settlement.mp4",
+      "poster": "/academy/posters/ep04-balancing-markets-and-imbalance-settlement.jpg",
+      "durationSeconds": 205,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep04-balancing-markets-and-imbalance-settlement.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "balancing"
+      ],
+      "foundational": false,
+      "related": [
+        "bess",
+        "ppa"
+      ],
+      "sources": [
+        {
+          "url": "https://www.acer.europa.eu/sites/default/files/documents/Individual%20Decisions_annex/ACER%2520Decision%252018-2020%2520on%2520balancing%2520ISHP%2520-%2520Annex%2520I_0.pdf"
+        },
+        {
+          "url": "https://legislation.gov.uk/eur/2017/2195/pdfs/eur_20172195_adopted_en.pdf"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep04_balancing"
+      },
+      "status": "published"
+    },
+    {
+      "slug": "ep05-ancillary-services-fcr-afrr-mfrr-explained",
+      "number": 4,
+      "category": "balancing-and-reserves",
+      "level": "intermediate",
+      "title": {
+        "en": "Ancillary Services: FCR, aFRR and mFRR"
+      },
+      "summary": {
+        "en": "The three layers of reserves that stop a frequency fall and restore 50 Hz."
+      },
+      "description": {
+        "en": "What happens to frequency when a plant trips and how three reserves respond one after another: FCR (frequency containment reserve, full activation within 30 seconds), aFRR (automatic restoration, about five minutes) and mFRR (manual restoration, about 12.5 minutes). It introduces the European platforms PICASSO (aFRR) and MARI (mFRR) and separates the capacity payment for availability from the energy payment for activation with an illustrative battery example: 320 EUR for availability plus 180 EUR for activation."
+      },
+      "learn": [
+        {
+          "en": "Frequency, and why it falls when a plant trips"
+        },
+        {
+          "en": "FCR contains, aFRR and mFRR restore"
+        },
+        {
+          "en": "PICASSO and MARI as European platforms"
+        },
+        {
+          "en": "Capacity versus energy payments for reserve providers"
+        }
+      ],
+      "video": "/academy/videos/ep05-ancillary-services-fcr-afrr-mfrr-explained.mp4",
+      "poster": "/academy/posters/ep05-ancillary-services-fcr-afrr-mfrr-explained.jpg",
+      "durationSeconds": 203,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep05-ancillary-services-fcr-afrr-mfrr-explained.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "balancing",
+        "ancillary",
+        "battery"
+      ],
+      "foundational": false,
+      "related": [
+        "bess"
+      ],
+      "sources": [
+        {
+          "url": "https://hrcak.srce.hr/file/453805"
+        },
+        {
+          "url": "https://acer.europa.eu/en/Electricity/MARKET-CODES/ELECTRICITY-BALANCING/05%20mFRR%20IF/Action%201%20-%20mFRR%20IF%20explanatory%20document.pdf"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep05_ancillary"
+      },
+      "status": "published"
+    },
+    {
+      "slug": "ep06-power-futures-forwards-and-hedging",
+      "number": 2,
+      "category": "forwards-and-hedging",
+      "level": "intermediate",
+      "title": {
+        "en": "Power Futures, Forwards and Hedging"
+      },
+      "summary": {
+        "en": "How a supplier locks in a margin with futures, and what it gives up."
+      },
+      "description": {
+        "en": "A supplier sells at a fixed price but buys on a moving market. This episode contrasts forwards and exchange-traded futures with a clearing house, explains standard products (month, quarter, year, baseload) and works through a hedge with illustrative figures: 10 MW of baseload (87,600 MWh) sold at 85 EUR/MWh and hedged at 80 EUR/MWh locks in a 438,000 EUR margin whether spot ends at 110 or 60. It also covers daily variation margin and liquidity, and regional examples such as the EEX Phelix-DE baseload future and Hungarian power futures."
+      },
+      "learn": [
+        {
+          "en": "Forwards versus futures and the role of the clearing house"
+        },
+        {
+          "en": "Baseload products: month, quarter, year"
+        },
+        {
+          "en": "A hedge locks the margin: results at spot 110 and spot 60"
+        },
+        {
+          "en": "Variation margin and liquidity planning"
+        }
+      ],
+      "video": "/academy/videos/ep06-power-futures-forwards-and-hedging.mp4",
+      "poster": "/academy/posters/ep06-power-futures-forwards-and-hedging.jpg",
+      "durationSeconds": 189,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep06-power-futures-forwards-and-hedging.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "futures"
+      ],
+      "foundational": false,
+      "related": [
+        "forwards",
+        "ppa"
+      ],
+      "sources": [
+        {
+          "url": "https://www.eex.com/de/marktdaten/strom/futures/phelix-deat-futures"
+        },
+        {
+          "url": "https://hupx.hu/2026/02/26/eex-pxe-hungarian-power-futures-physical-delivery-available"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep06_futures"
+      },
+      "status": "published"
+    },
+    {
+      "slug": "ep07-cross-border-trading-and-market-coupling",
+      "number": 2,
+      "category": "cross-border",
+      "level": "intermediate",
+      "title": {
+        "en": "Cross-Border Trading and Market Coupling"
+      },
+      "summary": {
+        "en": "Why scarce interconnector capacity splits prices, and how coupling uses it."
+      },
+      "description": {
+        "en": "Explains cross-border capacity and congestion, explicit versus implicit allocation, and how market coupling sends power from low-price to high-price zones. A two-zone example with illustrative supply curves shows prices of 50 and 90 EUR/MWh converging to about 63 EUR/MWh with enough capacity, and staying apart at 57.50 and 75 EUR/MWh when the line is limited to 15 MWh, yielding a congestion income of 262.50 EUR. It also introduces flow-based capacity calculation and the situation in Southeast Europe."
+      },
+      "learn": [
+        {
+          "en": "Why interconnector capacity is scarce"
+        },
+        {
+          "en": "Explicit versus implicit allocation"
+        },
+        {
+          "en": "A two-zone coupling example: converging and congested prices"
+        },
+        {
+          "en": "Flow-based capacity calculation"
+        }
+      ],
+      "video": "/academy/videos/ep07-cross-border-trading-and-market-coupling.mp4",
+      "poster": "/academy/posters/ep07-cross-border-trading-and-market-coupling.jpg",
+      "durationSeconds": 172,
+      "subtitles": [
+        {
+          "lang": "en",
+          "label": "English",
+          "src": "/academy/subtitles/ep07-cross-border-trading-and-market-coupling.en.vtt",
+          "default": true
+        }
+      ],
+      "topics": [
+        "cross-border"
+      ],
+      "foundational": false,
+      "related": [
+        "borders",
+        "prices"
+      ],
+      "sources": [
+        {
+          "url": "https://www.entsoe.eu/network_codes/cacm/implementation/sdac/"
+        },
+        {
+          "url": "https://www.jao.eu/sites/default/files/2025-11/PC%20report%20-%20ME-RS.pdf"
+        }
+      ],
+      "source": {
+        "type": "power-academy-studio",
+        "reference": "episodes/ep07_crossborder"
+      },
+      "status": "published"
     }
   ]
 }
