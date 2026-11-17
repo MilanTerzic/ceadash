@@ -386,3 +386,51 @@ test("alerts: each rule kind reports triggered, clear or no data with the observ
     1,
   );
 });
+
+test("a delivery day counts as published only when most markets hold all its hours", () => {
+  const day = "2026-11-18"; // CET, 24 hours
+  const full = series("2026-11-17T23:00:00Z", Array(24).fill(100));
+  const partial = series("2026-11-17T23:00:00Z", Array(10).fill(100));
+  const none = series("2026-11-16T23:00:00Z", Array(24).fill(100)); // the previous day only
+
+  assert.deepEqual(a.dayCoverage(full, day), { hours: 24, expected: 24, complete: true });
+  assert.equal(a.dayCoverage(partial, day).complete, false);
+  assert.equal(a.dayCoverage(none, day).hours, 0);
+  assert.equal(a.dayCoverage(undefined, day).hours, 0);
+
+  // One early market out of six is not enough.
+  const early = a.dayPublication([full, none, none, none, none, none], day);
+  assert.equal(early.published, false);
+  assert.equal(early.markets, 1);
+  assert.equal(early.total, 6);
+  // Half the markets is.
+  assert.equal(a.dayPublication([full, full, full, none, partial, undefined], day).published, true);
+  // Nothing loaded is never published.
+  assert.equal(a.dayPublication([], day).published, false);
+});
+
+test("a series that runs past the day still counts only the day's own hours", () => {
+  const spans = series("2026-11-17T23:00:00Z", Array(48).fill(100)); // 18 and 19 Nov
+  assert.equal(a.dayCoverage(spans, "2026-11-18").hours, 24);
+  assert.equal(a.dayCoverage(spans, "2026-11-19").hours, 24);
+  assert.equal(a.dayCoverage(spans, "2026-11-17").hours, 0);
+});
+
+test("baseload matrix gives one cell per day and never invents a missing value", () => {
+  const rs = series("2026-11-16T23:00:00Z", [...Array(24).fill(100), ...Array(12).fill(200)]); // 17th full, 18th half
+  const matrix = a.baseloadMatrix(
+    [
+      { code: "RS", series: rs },
+      { code: "BA", series: undefined },
+    ],
+    ["2026-11-17", "2026-11-18", "2026-11-19"],
+  );
+  const [first, second] = matrix;
+  assert.equal(first.cells[0].base, 100);
+  assert.equal(first.cells[0].complete, true);
+  assert.equal(first.cells[1].base, 200);
+  assert.equal(first.cells[1].complete, false);
+  assert.equal(first.cells[1].hours, 12);
+  assert.equal(first.cells[2].base, null);
+  assert.ok(second.cells.every((cell) => cell.base === null && cell.hours === 0));
+});

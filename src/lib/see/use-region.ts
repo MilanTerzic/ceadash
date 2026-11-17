@@ -4,8 +4,16 @@ import { buildRegion, type Focus } from "./region";
 import { useBorderSeries, useSeePrices } from "./use-see-data";
 
 /** Loads prices and border series for the shell period and derives the regional view. */
-export function useRegion(focus: Focus, options: { scheduled?: boolean; ntc?: boolean } = {}) {
-  const prices = useSeePrices();
+export function useRegion(
+  focus: Focus,
+  options: {
+    scheduled?: boolean;
+    ntc?: boolean;
+    /** Price range when it should differ from the shell period, e.g. to include tomorrow. */
+    priceRange?: { from: string; to: string };
+  } = {},
+) {
+  const prices = useSeePrices(undefined, options.priceRange);
   const physical = useBorderSeries("physical");
   const scheduled = useBorderSeries("scheduled", undefined, Boolean(options.scheduled));
   const ntc = useBorderSeries("ntc", undefined, Boolean(options.ntc));

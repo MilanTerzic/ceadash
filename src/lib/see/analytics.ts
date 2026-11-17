@@ -637,3 +637,88 @@ export function histogram(values: number[], targetBins = 20): HistogramBin[] {
   for (const bin of bins) bin.share = bin.count / values.length;
   return bins;
 }
+
+// ---------------------------------------------------------------------------
+// Day-ahead publication and per-day baseload tables
+// ---------------------------------------------------------------------------
+
+export interface DayCoverage {
+  hours: number;
+  expected: number;
+  complete: boolean;
+}
+
+/** How many of a delivery day's market hours a series holds. */
+export function dayCoverage(series: Series | undefined, day: string): DayCoverage {
+  const expected = deliveryHours(day);
+  let hours = 0;
+  if (series) {
+    // Series are time-ordered, so walk back from the end and stop once past the day.
+    for (let i = series.t.length - 1; i >= 0; i--) {
+      const d = marketTime(series.t[i]).day;
+      if (d === day) hours += 1;
+      else if (d < day) break;
+    }
+  }
+  return { hours, expected, complete: hours >= expected };
+}
+
+export interface DayPublication {
+  /** Enough markets hold a complete delivery day for it to count as published. */
+  published: boolean;
+  /** Markets with a complete delivery day. */
+  markets: number;
+  /** Markets considered. */
+  total: number;
+}
+
+/**
+ * Whether a delivery day's day-ahead prices are out. The coupled markets publish together
+ * on ENTSO-E, so the day counts as published once at least `threshold` of the markets
+ * hold all its hours. One early market, such as a single exchange, does not count.
+ */
+export function dayPublication(
+  seriesByMarket: Array<Series | undefined>,
+  day: string,
+  threshold = 0.5,
+): DayPublication {
+  const total = seriesByMarket.length;
+  const markets = seriesByMarket.filter((series) => dayCoverage(series, day).complete).length;
+  return { published: total > 0 && markets / total >= threshold, markets, total };
+}
+
+export interface BaseCell {
+  day: string;
+  /** Mean of the available hours; null when the market has none for the day. */
+  base: number | null;
+  hours: number;
+  expected: number;
+  /** False when some hours of the day are missing, so the mean is not a full-day baseload. */
+  complete: boolean;
+}
+
+/** Baseload per market and delivery day, in the order of `days`. Missing days are null. */
+export function baseloadMatrix<C extends string>(
+  seriesByMarket: Array<{ code: C; series: Series | undefined }>,
+  days: string[],
+): Array<{ code: C; cells: BaseCell[] }> {
+  return seriesByMarket.map(({ code, series }) => {
+    const stats = new Map<string, DayStats>();
+    if (series) for (const stat of dailyStats(series)) stats.set(stat.day, stat);
+    return {
+      code,
+      cells: days.map((day) => {
+        const stat = stats.get(day);
+        if (!stat)
+          return { day, base: null, hours: 0, expected: deliveryHours(day), complete: false };
+        return {
+          day,
+          base: stat.base,
+          hours: stat.hours,
+          expected: stat.expected,
+          complete: stat.complete,
+        };
+      }),
+    };
+  });
+}

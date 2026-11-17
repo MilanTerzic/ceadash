@@ -3,13 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { HeatGrid } from "@/components/cea/charts";
 import { DataState, Panel, ProvenanceBadge } from "@/components/cea/primitives";
+import { DailyBaseTable, type TableColour } from "@/components/see/DailyBaseTable";
 import { FocusControl } from "@/components/see/FocusControl";
 import { BorderInspector, MarketInspector, RegionBrief } from "@/components/see/Inspector";
 import { LAYERS, buildLayer, type LayerId } from "@/components/see/layers";
 import { SeeMap } from "@/components/see/SeeMap";
-import { useDateRange } from "@/lib/date-range";
+import { addDaysISO, belgradeDateISO, useDateRange } from "@/lib/date-range";
 import { useLang } from "@/lib/i18n";
-import { hourProfile, marketTime } from "@/lib/see/analytics";
+import { baseloadMatrix, dayPublication, hourProfile, marketTime } from "@/lib/see/analytics";
 import { divergingColor } from "@/lib/see/colors";
 import { fmt, fmtMW, fmtPrice, fmtShare, fmtSigned } from "@/lib/see/format";
 import { daysBetween, type Focus } from "@/lib/see/region";
@@ -23,7 +24,7 @@ import {
 import { useSelection } from "@/lib/see/selection";
 import { worstState, type Provenance } from "@/lib/see/status";
 import { useRegion } from "@/lib/see/use-region";
-import { useSeeCapacity, useSeeFundamentalsMany } from "@/lib/see/use-see-data";
+import { useSeeCapacity, useSeeFundamentalsMany, useSeePrices } from "@/lib/see/use-see-data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/")({
@@ -40,42 +41,86 @@ function CommandCenter() {
   const { range } = useDateRange();
   const { market, border, selectMarket, selectBorder } = useSelection();
   const [layer, setLayer] = useState<LayerId>("price");
-  const days = useMemo(() => daysBetween(range.from, range.to), [range.from, range.to]);
-  const [focus, setFocus] = useState<Focus>({ mode: "day", day: days[days.length - 1] });
+  const today = belgradeDateISO();
+  const tomorrow = addDaysISO(today, 1);
+  // When the period reaches the present, tomorrow (D+1) is part of the picture: its
+  // day-ahead prices are published around midday and should then become the default day.
+  const reachesToday = range.to >= today;
+  const dataTo = reachesToday && range.to < tomorrow ? tomorrow : range.to;
+  const defaultDay = reachesToday ? today : range.to;
+  const days = useMemo(() => daysBetween(range.from, dataTo), [range.from, dataTo]);
+  const [focus, setFocus] = useState<Focus>({ mode: "day", day: defaultDay });
+  // The map follows the newest published day until the user picks a day themselves.
+  const [following, setFollowing] = useState(true);
+  const changeFocus = (next: Focus) => {
+    setFollowing(false);
+    setFocus(next);
+  };
 
   // Keep the focus day inside the period when the period changes.
   useEffect(() => {
+    setFollowing(true);
     setFocus((current) =>
       current.mode === "day" && !days.includes(current.day)
-        ? { mode: "day", day: days[days.length - 1] }
+        ? { mode: "day", day: defaultDay }
         : current,
     );
-  }, [days]);
+  }, [days, defaultDay]);
 
   const { region, prices, physical, scheduled, ntc } = useRegion(focus, {
     scheduled: layer === "scheduled",
     ntc: layer === "utilisation" || border !== null,
+    priceRange: { from: range.from, to: dataTo },
   });
 
-  // The period can end on a day whose prices are not published yet (D+1 before the
-  // auction). Once prices arrive, move the focus to the newest day that has any; if no
-  // day has prices the focus stays on the last day.
-  const [autoFocused, setAutoFocused] = useState(false);
-  useEffect(() => {
-    if (autoFocused || prices.isLoading) return;
+  // The last ten delivery days of baseload, plus tomorrow once published. This loads
+  // independently of the period, so the table and the D+1 check are always available.
+  const outlook = useSeePrices(PRICED_CODES, { from: addDaysISO(today, -9), to: tomorrow });
+  const d1 = useMemo(
+    () =>
+      dayPublication(
+        PRICED_CODES.map((code) => outlook.data[code]?.series),
+        tomorrow,
+      ),
+    [outlook.data, tomorrow],
+  );
+  const tableEnd = d1.published ? tomorrow : today;
+  const tableDays = useMemo(() => daysBetween(addDaysISO(tableEnd, -9), tableEnd), [tableEnd]);
+  const tableRows = useMemo(
+    () =>
+      baseloadMatrix(
+        PRICED_CODES.map((code) => ({ code, series: outlook.data[code]?.series })),
+        tableDays,
+      ),
+    [outlook.data, tableDays],
+  );
+  const [tableColour, setTableColour] = useState<TableColour>("level");
+
+  // Default day: tomorrow once D+1 is published, otherwise the newest day with prices.
+  // A single early market does not count as published (see dayPublication).
+  const newestDay = useMemo(() => {
+    if (d1.published && days.includes(tomorrow)) return tomorrow;
     let newest: string | null = null;
     for (const code of PRICED_CODES) {
-      const series = prices.data[code]?.series;
+      const series = outlook.data[code]?.series ?? prices.data[code]?.series;
       if (!series?.t.length) continue;
-      const day = marketTime(series.t[series.t.length - 1]).day;
-      if (!newest || day > newest) newest = day;
+      for (let i = series.t.length - 1; i >= 0; i--) {
+        const day = marketTime(series.t[i]).day;
+        if (day > today) continue;
+        if (!newest || day > newest) newest = day;
+        break;
+      }
     }
-    setAutoFocused(true);
-    if (newest && days.includes(newest)) {
-      setFocus((current) => (current.mode === "day" ? { mode: "day", day: newest } : current));
-    }
-  }, [autoFocused, prices.isLoading, prices.data, days]);
-  useEffect(() => setAutoFocused(false), [range.from, range.to]);
+    return newest;
+  }, [d1.published, days, tomorrow, today, outlook.data, prices.data]);
+  useEffect(() => {
+    if (!following || !newestDay || !days.includes(newestDay)) return;
+    setFocus((current) =>
+      current.mode === "day" && current.day !== newestDay
+        ? { mode: "day", day: newestDay }
+        : current,
+    );
+  }, [following, newestDay, days]);
 
   const selectedExplicit = border !== null && EXPLICIT_IDS.includes(border);
   const capacityIds = layer === "capacity" ? EXPLICIT_IDS : selectedExplicit ? [border!] : [];
@@ -203,154 +248,228 @@ function CommandCenter() {
 
   const activeLayer = LAYERS.find((item) => item.id === layer)!;
 
+  const tableState: Provenance | null = worstState(
+    PRICED_CODES.map((code) => outlook.data[code]?.status?.state).filter(Boolean) as Provenance[],
+  );
+
   return (
-    <div className="grid gap-2 p-2 xl:h-full xl:grid-cols-[minmax(0,1fr)_440px] xl:grid-rows-[minmax(0,1fr)_auto]">
-      <Panel
-        flush
-        className="min-h-[420px] md:min-h-[520px] xl:row-span-2 xl:min-h-0"
-        title={
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-foreground">
-              {lang === "sr" ? activeLayer.titleSr : activeLayer.titleEn}
+    <div>
+      <div className="grid gap-2 p-2 xl:h-[calc(100dvh-9.5rem)] xl:min-h-[640px] xl:grid-cols-[minmax(0,1fr)_440px] xl:grid-rows-[minmax(0,1fr)_auto]">
+        <Panel
+          flush
+          className="min-h-[420px] md:min-h-[520px] xl:row-span-2 xl:min-h-0"
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-foreground">
+                {lang === "sr" ? activeLayer.titleSr : activeLayer.titleEn}
+              </span>
             </span>
-          </span>
-        }
-        subtitle={`${t("Node", "Čvor")}: ${view.nodeMeaning[lang]}`}
-        status={<ProvenanceBadge state={layerLoading ? null : layerState} />}
-        actions={<FocusControl focus={focus} days={days} onChange={setFocus} />}
-        bodyClassName="flex flex-col"
-      >
-        <div className="flex gap-1 overflow-x-auto border-b border-border px-2 py-1.5 [scrollbar-width:none]">
-          {LAYERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={layer === item.id}
-              title={lang === "sr" ? item.titleSr : item.titleEn}
-              onClick={() => setLayer(item.id)}
-              className={cn(
-                "h-6 shrink-0 rounded-sm border px-2.5 font-condensed text-xs font-medium tracking-wide transition-colors",
-                layer === item.id
-                  ? "border-brand bg-brand/10 text-foreground"
-                  : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
-              )}
-            >
-              {lang === "sr" ? item.sr : item.en}
-            </button>
-          ))}
-        </div>
-        <div className="relative min-h-0 flex-1">
-          <SeeMap
-            nodes={view.nodes}
-            links={view.links}
-            countryFill={view.countryFill}
-            selectedMarket={market}
-            selectedBorder={border}
-            onSelectMarket={selectMarket}
-            onSelectBorder={selectBorder}
-            describeMarket={describeMarket}
-            describeBorder={describeBorder}
-          />
-          {(layerLoading || layerEmpty) && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-              <div className="pointer-events-auto rounded-sm border border-border-strong bg-popover/95 shadow-pop">
-                <DataState
-                  loading={layerLoading}
-                  state={layerState ?? "empty"}
-                  reason={
-                    PRICED_CODES.map((code) => region.markets[code].status?.reason).find(Boolean) ??
-                    undefined
-                  }
-                  height={64}
-                  compact
+          }
+          subtitle={`${t("Node", "Čvor")}: ${view.nodeMeaning[lang]}`}
+          status={<ProvenanceBadge state={layerLoading ? null : layerState} />}
+          actions={
+            <>
+              {focus.mode === "day" && focus.day === tomorrow && (
+                <span
+                  title={t(
+                    "Tomorrow's day-ahead prices are published",
+                    "Day-ahead cene za sutra su objavljene",
+                  )}
+                  className="rounded-sm border border-brand/60 bg-brand/10 px-1.5 py-px font-condensed text-[11px] font-semibold tracking-wider text-brand"
                 >
-                  {layer === "capacity" && layerState !== "unavailable"
-                    ? t(
-                        "No daily explicit auction results were published for this day.",
-                        "Nema objavljenih rezultata dnevnih eksplicitnih aukcija za ovaj dan.",
-                      )
-                    : layer === "utilisation" && layerState !== "unavailable"
+                  D+1
+                </span>
+              )}
+              {reachesToday && !d1.published && !outlook.isLoading && (
+                <span
+                  title={t(
+                    `Tomorrow's day-ahead prices are not published yet (${d1.markets} of ${d1.total} markets). The map shows the latest published day and switches to D+1 once they are out.`,
+                    `Day-ahead cene za sutra još nisu objavljene (${d1.markets} od ${d1.total} tržišta). Mapa prikazuje poslednji objavljen dan i prelazi na D+1 čim cene izađu.`,
+                  )}
+                  className="hidden rounded-sm border border-border px-1.5 py-px text-[11px] text-muted-foreground sm:inline"
+                >
+                  {t("D+1 not yet published", "D+1 još nije objavljen")}
+                </span>
+              )}
+              <FocusControl focus={focus} days={days} onChange={changeFocus} />
+            </>
+          }
+          bodyClassName="flex flex-col"
+        >
+          <div className="flex gap-1 overflow-x-auto border-b border-border px-2 py-1.5 [scrollbar-width:none]">
+            {LAYERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={layer === item.id}
+                title={lang === "sr" ? item.titleSr : item.titleEn}
+                onClick={() => setLayer(item.id)}
+                className={cn(
+                  "h-6 shrink-0 rounded-sm border px-2.5 font-condensed text-xs font-medium tracking-wide transition-colors",
+                  layer === item.id
+                    ? "border-brand bg-brand/10 text-foreground"
+                    : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+                )}
+              >
+                {lang === "sr" ? item.sr : item.en}
+              </button>
+            ))}
+          </div>
+          <div className="relative min-h-0 flex-1">
+            <SeeMap
+              nodes={view.nodes}
+              links={view.links}
+              countryFill={view.countryFill}
+              selectedMarket={market}
+              selectedBorder={border}
+              onSelectMarket={selectMarket}
+              onSelectBorder={selectBorder}
+              describeMarket={describeMarket}
+              describeBorder={describeBorder}
+            />
+            {(layerLoading || layerEmpty) && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+                <div className="pointer-events-auto rounded-sm border border-border-strong bg-popover/95 shadow-pop">
+                  <DataState
+                    loading={layerLoading}
+                    state={layerState ?? "empty"}
+                    reason={
+                      PRICED_CODES.map((code) => region.markets[code].status?.reason).find(
+                        Boolean,
+                      ) ?? undefined
+                    }
+                    height={64}
+                    compact
+                  >
+                    {layer === "capacity" && layerState !== "unavailable"
                       ? t(
-                          "No day-ahead NTC was published for these borders, so utilisation cannot be rated.",
-                          "Day-ahead NTC nije objavljen za ove granice, pa iskorišćenost ne može biti ocenjena.",
+                          "No daily explicit auction results were published for this day.",
+                          "Nema objavljenih rezultata dnevnih eksplicitnih aukcija za ovaj dan.",
                         )
-                      : undefined}
-                </DataState>
+                      : layer === "utilisation" && layerState !== "unavailable"
+                        ? t(
+                            "No day-ahead NTC was published for these borders, so utilisation cannot be rated.",
+                            "Day-ahead NTC nije objavljen za ove granice, pa iskorišćenost ne može biti ocenjena.",
+                          )
+                        : undefined}
+                  </DataState>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+          <p className="border-t border-border px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
+            {view.legend[lang]}
+            {physical.clipped &&
+            (layer === "flow" || layer === "utilisation" || layer === "scheduled")
+              ? ` ${t("Flows are loaded for the last 62 days of the period.", "Tokovi su učitani za poslednja 62 dana perioda.")}`
+              : ""}
+          </p>
+        </Panel>
+
+        <div className="min-h-[420px] xl:min-h-0">
+          {border ? (
+            <BorderInspector
+              id={border}
+              region={region}
+              capacity={capacity.data[border]}
+              capacityDay={capacity.day}
+            />
+          ) : market ? (
+            <MarketInspector code={market} region={region} />
+          ) : (
+            <RegionBrief region={region} loading={prices.isLoading} />
           )}
         </div>
-        <p className="border-t border-border px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
-          {view.legend[lang]}
-          {physical.clipped &&
-          (layer === "flow" || layer === "utilisation" || layer === "scheduled")
-            ? ` ${t("Flows are loaded for the last 62 days of the period.", "Tokovi su učitani za poslednja 62 dana perioda.")}`
-            : ""}
-        </p>
-      </Panel>
 
-      <div className="min-h-[420px] xl:min-h-0">
-        {border ? (
-          <BorderInspector
-            id={border}
-            region={region}
-            capacity={capacity.data[border]}
-            capacityDay={capacity.day}
-          />
-        ) : market ? (
-          <MarketInspector code={market} region={region} />
-        ) : (
-          <RegionBrief region={region} loading={prices.isLoading} />
-        )}
+        <Panel
+          title={t("Hourly price map", "Satna mapa cena")}
+          subtitle={
+            focus.mode === "day"
+              ? t("Day-ahead price by hour, market time", "Day-ahead cena po satu, tržišno vreme")
+              : t(
+                  "Mean day-ahead price by hour of day over the period",
+                  "Prosečna day-ahead cena po satu dana u periodu",
+                )
+          }
+          bodyClassName="!px-2.5 !pb-1 !pt-2"
+        >
+          {heat.centre === null ? (
+            <DataState
+              loading={prices.isLoading}
+              state={layerState ?? "empty"}
+              reason={PRICED_CODES.map((code) => region.markets[code].status?.reason).find(Boolean)}
+              height={120}
+              compact
+            />
+          ) : (
+            <HeatGrid
+              columns={HOURS}
+              compact
+              cellHeight={13}
+              rowHeader=""
+              summaryHeader="Base"
+              activeRow={market}
+              onRowClick={(id) => selectMarket(market === id ? null : (id as SeeCode))}
+              rows={heat.profiles.map(({ code, profile }) => ({
+                id: code,
+                label: SEE_MARKETS[code].short,
+                title: SEE_MARKETS[code].name,
+                summary: fmtPrice(region.markets[code].stats.base),
+                cells: profile.map((value) => ({
+                  value,
+                  color: divergingColor(value, heat.centre, heat.span),
+                })),
+              }))}
+              describe={(rowId, column, value) =>
+                `${SEE_MARKETS[rowId as SeeCode].name} · ${HOURS[column]}:00–${String(column + 1).padStart(2, "0")}:00 · ${
+                  value === null ? t("no observation", "nema podatka") : `${fmtPrice(value)} €/MWh`
+                } · ${t("grid mean", "prosek mape")} ${fmtPrice(heat.centre)}`
+              }
+            />
+          )}
+        </Panel>
       </div>
 
-      <Panel
-        title={t("Hourly price map", "Satna mapa cena")}
-        subtitle={
-          focus.mode === "day"
-            ? t("Day-ahead price by hour, market time", "Day-ahead cena po satu, tržišno vreme")
-            : t(
-                "Mean day-ahead price by hour of day over the period",
-                "Prosečna day-ahead cena po satu dana u periodu",
-              )
-        }
-        bodyClassName="!px-2.5 !pb-1 !pt-2"
-      >
-        {heat.centre === null ? (
-          <DataState
-            loading={prices.isLoading}
-            state={layerState ?? "empty"}
-            reason={PRICED_CODES.map((code) => region.markets[code].status?.reason).find(Boolean)}
-            height={120}
-            compact
-          />
-        ) : (
-          <HeatGrid
-            columns={HOURS}
-            compact
-            cellHeight={13}
-            rowHeader=""
-            summaryHeader="Base"
-            activeRow={market}
-            onRowClick={(id) => selectMarket(market === id ? null : (id as SeeCode))}
-            rows={heat.profiles.map(({ code, profile }) => ({
-              id: code,
-              label: SEE_MARKETS[code].short,
-              title: SEE_MARKETS[code].name,
-              summary: fmtPrice(region.markets[code].stats.base),
-              cells: profile.map((value) => ({
-                value,
-                color: divergingColor(value, heat.centre, heat.span),
-              })),
-            }))}
-            describe={(rowId, column, value) =>
-              `${SEE_MARKETS[rowId as SeeCode].name} · ${HOURS[column]}:00–${String(column + 1).padStart(2, "0")}:00 · ${
-                value === null ? t("no observation", "nema podatka") : `${fmtPrice(value)} €/MWh`
-              } · ${t("grid mean", "prosek mape")} ${fmtPrice(heat.centre)}`
-            }
-          />
-        )}
-      </Panel>
+      <div className="px-2 pb-2">
+        <Panel
+          flush
+          title={t("Baseload by market, last 10 days", "Baseload po tržištu, poslednjih 10 dana")}
+          subtitle={
+            d1.published
+              ? t(
+                  "Day-ahead baseload, €/MWh, ending with D+1",
+                  "Day-ahead baseload, €/MWh, zaključno sa D+1",
+                )
+              : t(
+                  "Day-ahead baseload, €/MWh, ending today; D+1 is added once published",
+                  "Day-ahead baseload, €/MWh, zaključno sa danas; D+1 se dodaje kad bude objavljen",
+                )
+          }
+          status={<ProvenanceBadge state={outlook.isLoading ? null : tableState} />}
+        >
+          {outlook.isLoading ? (
+            <DataState loading height={200} />
+          ) : tableRows.every((row) => row.cells.every((cell) => cell.base === null)) ? (
+            <DataState
+              state={tableState ?? "empty"}
+              reason={PRICED_CODES.map((code) => outlook.data[code]?.status?.reason).find(Boolean)}
+              height={160}
+            />
+          ) : (
+            <DailyBaseTable
+              rows={tableRows}
+              days={tableDays}
+              colour={tableColour}
+              onColourChange={setTableColour}
+              selectedMarket={market}
+              onSelectMarket={selectMarket}
+              focusDay={focus.mode === "day" ? focus.day : null}
+              today={today}
+              tomorrow={tomorrow}
+            />
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
