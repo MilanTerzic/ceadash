@@ -1,249 +1,249 @@
 WEBVTT
 
 1
-00:00:00.620 --> 00:00:04.163
+00:00:00.420 --> 00:00:03.793
 Yesterday's day-ahead auction gave a wind farm a plan:
 
 2
-00:00:04.193 --> 00:00:07.736
+00:00:03.823 --> 00:00:07.195
 deliver one hundred megawatt-hours tomorrow afternoon.
 
 3
-00:00:07.766 --> 00:00:10.317
+00:00:07.225 --> 00:00:09.653
 But this morning, the forecast changed.
 
 4
-00:00:10.347 --> 00:00:12.302
+00:00:09.683 --> 00:00:11.543
 Now only seventy are expected.
 
 5
-00:00:12.920 --> 00:00:14.981
+00:00:12.020 --> 00:00:13.975
 Thirty megawatt-hours are missing.
 
 6
-00:00:15.011 --> 00:00:18.364
+00:00:14.005 --> 00:00:17.185
 How can the wind farm fix its position before delivery?
 
 7
-00:00:18.394 --> 00:00:20.271
+00:00:17.215 --> 00:00:18.995
 The answer is intraday trading.
 
 8
-00:00:22.550 --> 00:00:25.778
+00:00:20.690 --> 00:00:23.739
 The day-ahead market closes well before delivery.
 
 9
-00:00:25.808 --> 00:00:29.435
+00:00:23.769 --> 00:00:27.195
 After that, wind forecasts change, plants trip offline,
 
 10
-00:00:29.465 --> 00:00:31.430
+00:00:27.225 --> 00:00:29.080
 and demand surprises everyone.
 
 11
-00:00:31.460 --> 00:00:36.749
+00:00:29.110 --> 00:00:34.107
 The intraday market lets participants adjust their positions closer to delivery.
 
 12
-00:00:37.350 --> 00:00:39.893
+00:00:34.590 --> 00:00:36.994
 It does not replace the day-ahead market.
 
 13
-00:00:39.923 --> 00:00:40.772
+00:00:37.024 --> 00:00:37.825
 It refines it.
 
 14
-00:00:40.802 --> 00:00:44.851
+00:00:37.855 --> 00:00:41.684
 Whatever is not corrected here will later appear as an imbalance,
 
 15
-00:00:44.881 --> 00:00:47.048
+00:00:41.714 --> 00:00:43.762
 which is the topic of episode four.
 
 16
-00:00:49.320 --> 00:00:53.202
+00:00:45.460 --> 00:00:49.181
 Most intraday trading is continuous, a bit like a stock market.
 
 17
-00:00:53.232 --> 00:00:56.432
+00:00:49.211 --> 00:00:52.277
 Orders arrive at any time and wait in an order book.
 
 18
-00:00:56.462 --> 00:01:01.151
+00:00:52.307 --> 00:00:56.802
 Sell offers are sorted from the lowest price, and buy bids from the highest.
 
 19
-00:01:01.753 --> 00:01:04.217
+00:00:57.293 --> 00:00:59.606
 The best offer and the best bid sit on top.
 
 20
-00:01:04.247 --> 00:01:08.160
+00:00:59.636 --> 00:01:03.311
 A trade happens when a new order reaches the other side of the book.
 
 21
-00:01:08.190 --> 00:01:11.814
+00:01:03.341 --> 00:01:06.743
 And each trade is priced at the order that was already waiting.
 
 22
-00:01:14.390 --> 00:01:15.746
+00:01:08.697 --> 00:01:09.967
 Back to our wind farm.
 
 23
-00:01:15.776 --> 00:01:17.698
+00:01:09.997 --> 00:01:11.799
 It needs thirty megawatt-hours,
 
 24
-00:01:17.728 --> 00:01:21.352
+00:01:11.829 --> 00:01:15.227
 so it sends a buy order with a limit of eighty-five euros.
 
 25
-00:01:21.382 --> 00:01:25.572
+00:01:15.257 --> 00:01:19.188
 The cheapest offer is twenty megawatt-hours at seventy-eight euros,
 
 26
-00:01:25.602 --> 00:01:27.651
+00:01:19.218 --> 00:01:21.138
 so twenty trade at seventy-eight.
 
 27
-00:01:28.257 --> 00:01:29.489
+00:01:21.630 --> 00:01:22.803
 Ten more are needed.
 
 28
-00:01:29.519 --> 00:01:34.665
+00:01:22.833 --> 00:01:27.733
 The next offer asks eighty-two euros, below the limit, so ten trade at eighty-two.
 
 29
-00:01:34.695 --> 00:01:39.209
+00:01:27.763 --> 00:01:32.063
 The total cost is twenty times seventy-eight, plus ten times eighty-two:
 
 30
-00:01:39.239 --> 00:01:41.734
+00:01:32.093 --> 00:01:34.468
 two thousand three hundred eighty euros,
 
 31
-00:01:41.764 --> 00:01:45.016
+00:01:34.498 --> 00:01:37.595
 an average of about seventy-nine euros thirty-three.
 
 32
-00:01:45.623 --> 00:01:46.976
+00:01:38.097 --> 00:01:39.388
 The position is closed.
 
 33
-00:01:47.006 --> 00:01:49.920
+00:01:39.418 --> 00:01:42.203
 Notice that the two trades have different prices,
 
 34
-00:01:49.950 --> 00:01:53.406
+00:01:42.233 --> 00:01:45.535
 unlike the single clearing price of the day-ahead auction.
 
 35
-00:01:53.436 --> 00:01:55.449
+00:01:45.565 --> 00:01:47.489
 All numbers here are illustrative.
 
 36
-00:01:57.720 --> 00:02:00.495
+00:01:49.160 --> 00:01:51.783
 Intraday orders can also match across borders.
 
 37
-00:02:00.525 --> 00:02:03.179
+00:01:51.813 --> 00:01:54.321
 The single intraday coupling, known as SIDC,
 
 38
-00:02:03.209 --> 00:02:05.801
+00:01:54.351 --> 00:01:56.800
 connects the order books of many countries,
 
 39
-00:02:05.831 --> 00:02:09.338
+00:01:56.830 --> 00:02:00.146
 so a buyer in one zone can trade with a seller in another.
 
 40
-00:02:09.953 --> 00:02:15.085
+00:02:00.627 --> 00:02:05.496
 But cross-border trades are possible only while interconnector capacity is available.
 
 41
-00:02:15.115 --> 00:02:18.425
+00:02:05.526 --> 00:02:08.667
 When the capacity is used up, the order books separate,
 
 42
-00:02:18.455 --> 00:02:20.611
+00:02:08.697 --> 00:02:10.742
 and prices can differ between zones.
 
 43
-00:02:22.890 --> 00:02:27.261
+00:02:12.430 --> 00:02:16.576
 Since 2024, SIDC also runs three intraday auctions.
 
 44
-00:02:27.291 --> 00:02:33.648
+00:02:16.606 --> 00:02:22.636
 The first closes at 15:00 on the day before delivery, the second at 22:00,
 
 45
-00:02:33.678 --> 00:02:39.948
+00:02:22.666 --> 00:02:28.614
 and the third at 10:00 on the delivery day, all in central European time.
 
 46
-00:02:40.557 --> 00:02:42.124
+00:02:29.097 --> 00:02:30.585
 Like the day-ahead auction,
 
 47
-00:02:42.154 --> 00:02:46.028
+00:02:30.615 --> 00:02:34.296
 each one finds a single clearing price for every period it covers,
 
 48
-00:02:46.058 --> 00:02:48.868
+00:02:34.326 --> 00:02:36.994
 while continuous trading carries on around them.
 
 49
-00:02:51.120 --> 00:02:56.171
+00:02:38.700 --> 00:02:43.478
 In Serbia, SEEPEX launched a continuous intraday market in July twenty twenty-three,
 
 50
-00:02:56.201 --> 00:03:00.465
+00:02:43.508 --> 00:02:47.541
 so participants can adjust their positions after the day-ahead auction.
 
 51
-00:03:00.495 --> 00:03:04.154
+00:02:47.571 --> 00:02:51.032
 Integration with the European intraday market remains a goal,
 
 52
-00:03:04.184 --> 00:03:07.965
+00:02:51.062 --> 00:02:54.638
 and timelines should be checked against official announcements.
 
 53
-00:03:10.220 --> 00:03:11.247
+00:02:56.330 --> 00:02:57.307
 Three takeaways.
 
 54
-00:03:11.277 --> 00:03:11.511
+00:02:57.337 --> 00:02:57.559
 One:
 
 55
-00:03:11.541 --> 00:03:16.727
+00:02:57.589 --> 00:03:02.532
 intraday trading lets participants correct their positions as forecasts change.
 
 56
-00:03:16.757 --> 00:03:16.991
+00:03:02.562 --> 00:03:02.784
 Two:
 
 57
-00:03:17.021 --> 00:03:19.963
+00:03:02.814 --> 00:03:05.617
 in continuous trading, orders wait in a book,
 
 58
-00:03:19.993 --> 00:03:23.000
+00:03:05.647 --> 00:03:08.513
 and each trade is priced at the waiting order.
 
 59
-00:03:23.030 --> 00:03:23.396
+00:03:08.543 --> 00:03:08.891
 Three:
 
 60
-00:03:23.426 --> 00:03:26.830
+00:03:08.921 --> 00:03:12.164
 cross-border matching depends on available capacity.
 
 61
-00:03:27.420 --> 00:03:31.256
+00:03:12.663 --> 00:03:16.190
 Next time, we look at balancing markets and imbalance settlement.
 
 62
-00:03:31.286 --> 00:03:33.278
+00:03:16.220 --> 00:03:18.050
 Thanks for watching Power Academy.

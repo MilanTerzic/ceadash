@@ -1,217 +1,217 @@
 WEBVTT
 
 1
-00:00:00.620 --> 00:00:03.651
+00:00:00.420 --> 00:00:03.315
 Electricity grids run at a nominal frequency:
 
 2
-00:00:03.681 --> 00:00:05.147
+00:00:03.345 --> 00:00:04.745
 fifty hertz in Europe.
 
 3
-00:00:05.177 --> 00:00:09.501
+00:00:04.775 --> 00:00:08.905
 When generation falls short of consumption, the frequency drops.
 
 4
-00:00:09.531 --> 00:00:12.630
+00:00:08.935 --> 00:00:11.896
 When generation exceeds consumption, it rises.
 
 5
-00:00:12.660 --> 00:00:16.099
+00:00:11.926 --> 00:00:15.211
 Keeping it steady is the job of ancillary services.
 
 6
-00:00:16.687 --> 00:00:21.869
+00:00:15.687 --> 00:00:20.552
 In this episode, we meet three reserves that restore the balance:
 
 7
-00:00:21.899 --> 00:00:23.392
+00:00:20.582 --> 00:00:21.983
 FCR, aFRR and mFRR.
 
 8
-00:00:25.950 --> 00:00:29.201
+00:00:23.917 --> 00:00:27.047
 Imagine a large power plant suddenly trips offline.
 
 9
-00:00:29.231 --> 00:00:34.605
+00:00:27.077 --> 00:00:32.253
 Generation falls below consumption, and within seconds the frequency starts to drop.
 
 10
-00:00:34.635 --> 00:00:37.436
+00:00:32.283 --> 00:00:34.979
 If nothing reacted, the fall would continue,
 
 11
-00:00:37.466 --> 00:00:41.231
+00:00:35.009 --> 00:00:38.636
 and protection systems could start disconnecting equipment.
 
 12
-00:00:42.350 --> 00:00:45.200
+00:00:39.517 --> 00:00:42.203
 To stop the fall and then restore the frequency,
 
 13
-00:00:45.230 --> 00:00:48.499
+00:00:42.233 --> 00:00:45.316
 grid operators use reserves that act one after another,
 
 14
-00:00:48.529 --> 00:00:52.699
+00:00:45.346 --> 00:00:49.277
 each one slower than the one before, and each one taking over from it.
 
 15
-00:00:55.780 --> 00:00:59.067
+00:00:51.617 --> 00:00:54.778
 First comes FCR, the frequency containment reserve.
 
 16
-00:00:59.097 --> 00:01:03.359
+00:00:54.808 --> 00:00:58.909
 It reacts automatically, in proportion to the frequency deviation,
 
 17
-00:01:03.389 --> 00:01:06.611
+00:00:58.939 --> 00:01:02.038
 and must be fully activated within thirty seconds.
 
 18
-00:01:06.641 --> 00:01:10.904
+00:01:02.068 --> 00:01:06.168
 It stops the fall, but does not bring the frequency back to fifty.
 
 19
-00:01:11.513 --> 00:01:15.186
+00:01:06.650 --> 00:01:10.202
 Next, aFRR, the automatic frequency restoration reserve.
 
 20
-00:01:15.216 --> 00:01:20.675
+00:01:10.232 --> 00:01:15.512
 The operator's controller sends a signal, and the reserve follows it automatically,
 
 21
-00:01:20.705 --> 00:01:24.047
+00:01:15.542 --> 00:01:18.774
 reaching full activation within about five minutes.
 
 22
-00:01:24.077 --> 00:01:26.560
+00:01:18.804 --> 00:01:21.205
 It brings the frequency back to fifty.
 
 23
-00:01:27.147 --> 00:01:30.976
+00:01:21.683 --> 00:01:25.316
 Finally, mFRR, the manual frequency restoration reserve.
 
 24
-00:01:31.006 --> 00:01:33.733
+00:01:25.346 --> 00:01:27.932
 Here the operator orders the activation,
 
 25
-00:01:33.763 --> 00:01:38.075
+00:01:27.962 --> 00:01:32.052
 with a full activation time of about twelve and a half minutes,
 
 26
-00:01:38.105 --> 00:01:41.796
+00:01:32.082 --> 00:01:35.584
 taking over from aFRR when the imbalance lasts longer.
 
 27
-00:01:44.080 --> 00:01:48.551
+00:01:37.280 --> 00:01:41.603
 In Europe, these reserves are increasingly shared across borders.
 
 28
-00:01:48.581 --> 00:01:53.884
+00:01:41.633 --> 00:01:46.760
 PICASSO is the European platform for aFRR, and MARI is the platform for mFRR,
 
 29
-00:01:53.914 --> 00:01:59.562
+00:01:46.790 --> 00:01:52.251
 so operators can use the cheapest available activation offers from many countries.
 
 30
-00:02:01.850 --> 00:02:03.864
+00:01:53.950 --> 00:01:55.866
 Providers earn from two things.
 
 31
-00:02:03.894 --> 00:02:06.897
+00:01:55.896 --> 00:01:58.752
 First, a capacity payment for being available.
 
 32
-00:02:06.927 --> 00:02:10.787
+00:01:58.782 --> 00:02:02.455
 Second, an energy payment when they are actually activated.
 
 33
-00:02:10.817 --> 00:02:14.874
+00:02:02.485 --> 00:02:06.346
 Suppose a battery offers ten megawatts of aFRR for four hours,
 
 34
-00:02:14.904 --> 00:02:17.314
+00:02:06.376 --> 00:02:08.668
 at eight euros per megawatt per hour.
 
 35
-00:02:17.344 --> 00:02:20.742
+00:02:08.698 --> 00:02:11.932
 That is three hundred twenty euros for availability.
 
 36
-00:02:21.350 --> 00:02:26.717
+00:02:12.417 --> 00:02:17.512
 If the operator then activates two megawatt-hours at ninety euros per megawatt-hour,
 
 37
-00:02:26.747 --> 00:02:29.994
+00:02:17.542 --> 00:02:20.623
 the battery earns another one hundred eighty euros.
 
 38
-00:02:30.024 --> 00:02:31.857
+00:02:20.653 --> 00:02:22.392
 In total, five hundred euros.
 
 39
-00:02:31.887 --> 00:02:33.849
+00:02:22.422 --> 00:02:24.284
 These numbers are illustrative.
 
 40
-00:02:36.120 --> 00:02:39.946
+00:02:25.980 --> 00:02:29.634
 In Southeast Europe, reserve markets are still developing,
 
 41
-00:02:39.976 --> 00:02:43.868
+00:02:29.664 --> 00:02:33.382
 and operators are expanding their cross-border cooperation.
 
 42
-00:02:43.898 --> 00:02:49.386
+00:02:33.412 --> 00:02:38.654
 Serbia is part of the Continental European synchronous area, and its operator, EMS,
 
 43
-00:02:49.416 --> 00:02:54.240
+00:02:38.684 --> 00:02:43.291
 procures reserves, so check the latest EMS publications for requirements,
 
 44
-00:02:54.270 --> 00:02:55.503
+00:02:43.321 --> 00:02:44.498
 volumes and prices.
 
 45
-00:02:57.790 --> 00:02:58.894
+00:02:46.180 --> 00:02:47.235
 Three takeaways.
 
 46
-00:02:58.924 --> 00:02:59.178
+00:02:47.265 --> 00:02:47.507
 One:
 
 47
-00:02:59.208 --> 00:03:04.566
+00:02:47.537 --> 00:02:52.661
 FCR reacts automatically within thirty seconds and stops the frequency fall.
 
 48
-00:03:04.596 --> 00:03:04.850
+00:02:52.691 --> 00:02:52.933
 Two:
 
 49
-00:03:04.880 --> 00:03:09.245
+00:02:52.963 --> 00:02:57.138
 aFRR and mFRR restore the balance, automatically and manually.
 
 50
-00:03:09.275 --> 00:03:09.671
+00:02:57.168 --> 00:02:57.545
 Three:
 
 51
-00:03:09.701 --> 00:03:13.499
+00:02:57.575 --> 00:03:01.208
 providers earn a capacity payment for being available,
 
 52
-00:03:13.529 --> 00:03:16.193
+00:03:01.238 --> 00:03:03.785
 plus an energy payment when activated.
 
 53
-00:03:16.790 --> 00:03:20.089
+00:03:04.280 --> 00:03:07.366
 Next, we turn to power futures, forwards and hedging.
 
 54
-00:03:20.119 --> 00:03:22.224
+00:03:07.396 --> 00:03:09.366
 Thanks for watching Power Academy.

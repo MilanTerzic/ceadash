@@ -497,13 +497,13 @@
       ],
       "video": "/academy/videos/ep02-how-day-ahead-electricity-markets-work.mp4",
       "poster": "/academy/posters/ep02-how-day-ahead-electricity-markets-work.jpg",
-      "durationSeconds": 273,
+      "durationSeconds": 254,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep02-how-day-ahead-electricity-markets-work.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
@@ -561,13 +561,13 @@
       ],
       "video": "/academy/videos/ep03-intraday-electricity-trading.mp4",
       "poster": "/academy/posters/ep03-intraday-electricity-trading.jpg",
-      "durationSeconds": 214,
+      "durationSeconds": 199,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep03-intraday-electricity-trading.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
@@ -625,13 +625,13 @@
       ],
       "video": "/academy/videos/ep04-balancing-markets-and-imbalance-settlement.mp4",
       "poster": "/academy/posters/ep04-balancing-markets-and-imbalance-settlement.jpg",
-      "durationSeconds": 205,
+      "durationSeconds": 192,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep04-balancing-markets-and-imbalance-settlement.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
@@ -686,13 +686,13 @@
       ],
       "video": "/academy/videos/ep05-ancillary-services-fcr-afrr-mfrr-explained.mp4",
       "poster": "/academy/posters/ep05-ancillary-services-fcr-afrr-mfrr-explained.jpg",
-      "durationSeconds": 203,
+      "durationSeconds": 190,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep05-ancillary-services-fcr-afrr-mfrr-explained.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
@@ -748,13 +748,13 @@
       ],
       "video": "/academy/videos/ep06-power-futures-forwards-and-hedging.mp4",
       "poster": "/academy/posters/ep06-power-futures-forwards-and-hedging.jpg",
-      "durationSeconds": 189,
+      "durationSeconds": 178,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep06-power-futures-forwards-and-hedging.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
@@ -809,13 +809,13 @@
       ],
       "video": "/academy/videos/ep07-cross-border-trading-and-market-coupling.mp4",
       "poster": "/academy/posters/ep07-cross-border-trading-and-market-coupling.jpg",
-      "durationSeconds": 172,
+      "durationSeconds": 161,
       "subtitles": [
         {
           "lang": "en",
           "label": "English",
           "src": "/academy/subtitles/ep07-cross-border-trading-and-market-coupling.en.vtt",
-          "default": true
+          "default": false
         }
       ],
       "topics": [
