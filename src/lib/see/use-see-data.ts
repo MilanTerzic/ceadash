@@ -4,7 +4,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 
-import { useDateRange } from "@/lib/date-range";
+import { addDaysISO, belgradeDateISO, useDateRange } from "@/lib/date-range";
 import { PRICED_CODES, SEE_BORDERS, type SeeCode } from "./registry";
 import {
   getSeeBorderSeries,
@@ -46,13 +46,18 @@ export function useSeePrices(
 ): Loadable<Partial<Record<SeeCode, MarketPrices>>> {
   const shellRange = useDateRange().range;
   const range = rangeOverride ?? shellRange;
+  // Day-ahead prices for tomorrow (D+1) are published around 12:30–13:00 CET.
+  // When the range ends today, fetch one extra day so D+1 shows up as soon as
+  // it is available; hours that are not published yet simply come back empty.
+  const fetchTo =
+    range.to >= belgradeDateISO() ? addDaysISO(range.to, 1) : range.to;
   const fn = useServerFn(getSeePrices);
   const key = codes.join(",");
   const batches = useMemo(() => chunk(key ? (key.split(",") as SeeCode[]) : [], BATCH), [key]);
   const results = useQueries({
     queries: batches.map((batch) => ({
-      queryKey: ["see-prices", range.from, range.to, batch.join(",")],
-      queryFn: () => fn({ data: { from: range.from, to: range.to, codes: batch } }),
+      queryKey: ["see-prices", range.from, fetchTo, batch.join(",")],
+      queryFn: () => fn({ data: { from: range.from, to: fetchTo, codes: batch } }),
       staleTime: STALE,
     })),
   });
