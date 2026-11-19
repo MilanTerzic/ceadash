@@ -529,7 +529,7 @@ function PpaStudio() {
                     </label>
                     <p className="text-[11px] leading-snug text-muted-foreground">
                       {csv
-                        ? `${csv.fileName}: ${csv.points.length} ${t("rows read", "redova učitano")}${csv.badLines.length ? `, ${t("unreadable lines", "nečitljive linije")}: ${csv.badLines.join(", ")}` : ""}. ${matched.t.length} ${t("hours overlap the price period.", "sati se poklapa sa periodom cena.")}`
+                        ? `${csv.fileName}: ${csv.points.length} ${t("rows read", "redova učitano")}${csv.badLines.length ? `, ${t("unreadable lines", "nečitljive linije")}: ${csv.badLines.join(", ")}` : ""}. ${matched.t.length} ${t("hours overlap the price period.", "sati se poklapaju sa periodom cena.")}`
                         : t(
                             "Two columns: timestamp, MW. Hourly or 15-minute. The file stays in your browser.",
                             "Dve kolone: vreme, MW. Satno ili 15-minutno. Fajl ostaje u vašem pregledaču.",

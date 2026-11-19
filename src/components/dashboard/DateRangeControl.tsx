@@ -99,13 +99,13 @@ function labelForPreset(preset: PresetKey, t: (en: string, sr: string) => string
     case "30d":
       return t("Last 30d", "Poslednjih 30 dana");
     case "mtd":
-      return t("MTD", "Od pocetka meseca");
+      return t("MTD", "Od početka meseca");
     case "prev_month":
       return t("Prev. month", "Prethodni mesec");
     case "ytd":
-      return t("YTD", "Od pocetka godine");
+      return t("YTD", "Od početka godine");
     default:
-      return t("Custom", "Prilagodjeno");
+      return t("Custom", "Prilagođeno");
   }
 }
 
@@ -392,7 +392,7 @@ export function DateRangeControl({
                     {!canApply && draftFromKey && draftToKey
                       ? t(
                           "End date must be after start date",
-                          "Krajnji datum mora biti posle pocetnog",
+                          "Krajnji datum mora biti posle početnog",
                         )
                       : t("Choose both dates, then apply", "Izaberite oba datuma, zatim primenite")}
                   </span>
@@ -442,7 +442,7 @@ export function DateRangeControl({
             </option>
             <option value="previous_month">{t("Previous month", "Prethodni mesec")}</option>
             <option value="previous_year">{t("Previous year", "Prethodna godina")}</option>
-            <option value="none">{t("No comparison", "Bez poredjenja")}</option>
+            <option value="none">{t("No comparison", "Bez poređenja")}</option>
           </select>
         </div>
       </div>
@@ -485,7 +485,7 @@ export function DateRangeControl({
             disabled={isRefreshing || disabled}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            {t("Refresh", "Osvezi")}
+            {t("Refresh", "Osveži")}
           </Button>
         )}
       </div>

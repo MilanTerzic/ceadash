@@ -470,29 +470,37 @@
       "category": "short-term-markets",
       "level": "beginner",
       "title": {
-        "en": "How Day-Ahead Electricity Markets Work"
+        "en": "How Day-Ahead Electricity Markets Work",
+        "sr": "Kako funkcioniše tržište električne energije za dan unapred"
       },
       "summary": {
-        "en": "How offers and bids become one clearing price, with a step-by-step merit-order example."
+        "en": "How offers and bids become one clearing price, with a step-by-step merit-order example.",
+        "sr": "Kako ponude za prodaju i kupovinu postaju jedna cena poravnanja, na primeru korak po korak."
       },
       "description": {
-        "en": "Why a day-ahead market exists, who trades in it and how orders are submitted. A simplified single-period uniform-price auction (illustrative figures) shows the merit order being built from three offers, demand added, and the last accepted offer setting the clearing price at 120 EUR/MWh, with every payment calculated. What-if cases show how lower demand or extra wind moves the price. The episode then covers European market coupling and congestion and SEEPEX as a regional example. It is a simplification and not a description of the EUPHEMIA algorithm."
+        "en": "Why a day-ahead market exists, who trades in it and how orders are submitted. A simplified single-period uniform-price auction (illustrative figures) shows the merit order being built from three offers, demand added, and the last accepted offer setting the clearing price at 120 EUR/MWh, with every payment calculated. What-if cases show how lower demand or extra wind moves the price. The episode then covers European market coupling and congestion and SEEPEX as a regional example. It is a simplification and not a description of the EUPHEMIA algorithm.",
+        "sr": "Zašto postoji tržište za dan unapred, ko na njemu trguje i kako se podnose nalozi. Pojednostavljena aukcija sa jednim periodom i jedinstvenom cenom (ilustrativni brojevi) pokazuje kako se iz tri ponude gradi redosled po ceni, dodaje potražnja, a poslednja prihvaćena ponuda određuje cenu poravnanja od 120 EUR/MWh, uz obračun svih isplata. Primeri „šta ako“ pokazuju kako manja potražnja ili dodatni vetar pomeraju cenu. Zatim se objašnjavaju evropsko povezivanje tržišta i zagušenja, a SEEPEX je regionalni primer. Epizoda je pojednostavljenje i ne opisuje algoritam EUPHEMIA."
       },
       "learn": [
         {
-          "en": "Why the day-ahead market exists and who takes part"
+          "en": "Why the day-ahead market exists and who takes part",
+          "sr": "Zašto postoji tržište za dan unapred i ko učestvuje"
         },
         {
-          "en": "Merit order: offers stacked from cheapest to most expensive"
+          "en": "Merit order: offers stacked from cheapest to most expensive",
+          "sr": "Redosled po ceni: ponude od najjeftinije do najskuplje"
         },
         {
-          "en": "The last accepted offer sets one price for everyone"
+          "en": "The last accepted offer sets one price for everyone",
+          "sr": "Poslednja prihvaćena ponuda određuje jednu cenu za sve"
         },
         {
-          "en": "Why renewables and demand move the price"
+          "en": "Why renewables and demand move the price",
+          "sr": "Zašto obnovljivi izvori i potražnja pomeraju cenu"
         },
         {
-          "en": "Market coupling and congestion"
+          "en": "Market coupling and congestion",
+          "sr": "Povezivanje tržišta i zagušenja"
         }
       ],
       "video": "/academy/videos/ep02-how-day-ahead-electricity-markets-work.mp4",
@@ -529,7 +537,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep02_day_ahead"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep02-how-day-ahead-electricity-markets-work-sr.mp4",
+      "posterSr": "/academy/posters/ep02-how-day-ahead-electricity-markets-work-sr.jpg"
     },
     {
       "slug": "ep03-intraday-electricity-trading",
@@ -537,26 +547,33 @@
       "category": "short-term-markets",
       "level": "beginner",
       "title": {
-        "en": "Intraday Electricity Trading"
+        "en": "Intraday Electricity Trading",
+        "sr": "Unutardnevna trgovina električnom energijom"
       },
       "summary": {
-        "en": "How a position is corrected after the day-ahead auction: the order book, a worked trade and the SIDC auctions."
+        "en": "How a position is corrected after the day-ahead auction: the order book, a worked trade and the SIDC auctions.",
+        "sr": "Kako se pozicija ispravlja posle aukcije za dan unapred: knjiga naloga, primer trgovine i SIDC aukcije."
       },
       "description": {
-        "en": "The day-ahead plan changes when forecasts do. This episode shows continuous intraday trading through an order book, where each trade is priced at the order already waiting, with a worked example (illustrative figures): a 30 MWh buy order matches 20 MWh at 78 EUR and 10 MWh at 82 EUR for an average of 79.33 EUR/MWh. It explains cross-border matching through SIDC and its dependence on available capacity, the three SIDC intraday auctions, and SEEPEX's continuous intraday market, launched in July 2023."
+        "en": "The day-ahead plan changes when forecasts do. This episode shows continuous intraday trading through an order book, where each trade is priced at the order already waiting, with a worked example (illustrative figures): a 30 MWh buy order matches 20 MWh at 78 EUR and 10 MWh at 82 EUR for an average of 79.33 EUR/MWh. It explains cross-border matching through SIDC and its dependence on available capacity, the three SIDC intraday auctions, and SEEPEX's continuous intraday market, launched in July 2023.",
+        "sr": "Plan iz aukcije za dan unapred menja se kada se promene prognoze. Epizoda prikazuje kontinuiranu unutardnevnu trgovinu kroz knjigu naloga, gde se svaka trgovina obračunava po ceni naloga koji već čeka, uz primer sa ilustrativnim brojevima: nalog za kupovinu od 30 MWh podudara se sa 20 MWh po 78 EUR i 10 MWh po 82 EUR, što daje prosek od 79,33 EUR/MWh. Objašnjava prekogranično podudaranje preko SIDC-a i njegovu zavisnost od raspoloživog kapaciteta, tri SIDC unutardnevne aukcije i SEEPEX-ovo kontinuirano unutardnevno tržište, pokrenuto jula 2023."
       },
       "learn": [
         {
-          "en": "Why intraday exists: forecasts change after the auction"
+          "en": "Why intraday exists: forecasts change after the auction",
+          "sr": "Zašto postoji unutardnevno tržište: prognoze se menjaju posle aukcije"
         },
         {
-          "en": "The continuous order book: best bid, best offer, matching"
+          "en": "The continuous order book: best bid, best offer, matching",
+          "sr": "Kontinuirana knjiga naloga: najbolja ponuda, najbolja kupovna ponuda, podudaranje"
         },
         {
-          "en": "A worked trade: different prices for each match"
+          "en": "A worked trade: different prices for each match",
+          "sr": "Primer trgovine: različita cena za svako podudaranje"
         },
         {
-          "en": "Cross-border matching and the SIDC intraday auctions"
+          "en": "Cross-border matching and the SIDC intraday auctions",
+          "sr": "Prekogranično podudaranje i SIDC unutardnevne aukcije"
         }
       ],
       "video": "/academy/videos/ep03-intraday-electricity-trading.mp4",
@@ -593,7 +610,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep03_intraday"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep03-intraday-electricity-trading-sr.mp4",
+      "posterSr": "/academy/posters/ep03-intraday-electricity-trading-sr.jpg"
     },
     {
       "slug": "ep04-balancing-markets-and-imbalance-settlement",
@@ -601,26 +620,33 @@
       "category": "balancing-and-reserves",
       "level": "intermediate",
       "title": {
-        "en": "Balancing Markets and Imbalance Settlement"
+        "en": "Balancing Markets and Imbalance Settlement",
+        "sr": "Tržišta za balansiranje i obračun debalansa"
       },
       "summary": {
-        "en": "How the system operator balances the grid and how deviations are charged."
+        "en": "How the system operator balances the grid and how deviations are charged.",
+        "sr": "Kako operator balansira mrežu i kako se naplaćuju odstupanja."
       },
       "description": {
-        "en": "Generation must match consumption every second, but forecasts are never perfect. This episode explains balance responsible parties and their schedules, how the transmission system operator activates upward and downward balancing energy, and how the cost is recovered through the imbalance price in 15-minute settlement periods. A worked example (illustrative figures) settles two portfolios, one short by 30 MWh and one long by 20 MWh, at 150 EUR/MWh. It closes with the role of EMS in Serbia."
+        "en": "Generation must match consumption every second, but forecasts are never perfect. This episode explains balance responsible parties and their schedules, how the transmission system operator activates upward and downward balancing energy, and how the cost is recovered through the imbalance price in 15-minute settlement periods. A worked example (illustrative figures) settles two portfolios, one short by 30 MWh and one long by 20 MWh, at 150 EUR/MWh. It closes with the role of EMS in Serbia.",
+        "sr": "Proizvodnja mora da se poklapa sa potrošnjom u svakoj sekundi, ali prognoze nikad nisu savršene. Epizoda objašnjava balansno odgovorne strane i njihove rasporede, kako operator prenosnog sistema aktivira energiju balansiranja naviše i naniže, i kako se trošak naplaćuje kroz cenu debalansa u petnaestominutnim obračunskim periodima. Primer sa ilustrativnim brojevima obračunava dva portfolija, jedan sa manjkom od 30 MWh i jedan sa viškom od 20 MWh, po ceni od 150 EUR/MWh. Završava se ulogom EMS-a u Srbiji."
       },
       "learn": [
         {
-          "en": "Balance responsible parties and their schedules"
+          "en": "Balance responsible parties and their schedules",
+          "sr": "Balansno odgovorne strane i njihovi rasporedi"
         },
         {
-          "en": "Short, long and the system imbalance"
+          "en": "Short, long and the system imbalance",
+          "sr": "Manjak, višak i debalans sistema"
         },
         {
-          "en": "Upward and downward balancing energy"
+          "en": "Upward and downward balancing energy",
+          "sr": "Energija balansiranja naviše i naniže"
         },
         {
-          "en": "The imbalance price and 15-minute settlement periods"
+          "en": "The imbalance price and 15-minute settlement periods",
+          "sr": "Cena debalansa i petnaestominutni obračunski periodi"
         }
       ],
       "video": "/academy/videos/ep04-balancing-markets-and-imbalance-settlement.mp4",
@@ -654,7 +680,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep04_balancing"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep04-balancing-markets-and-imbalance-settlement-sr.mp4",
+      "posterSr": "/academy/posters/ep04-balancing-markets-and-imbalance-settlement-sr.jpg"
     },
     {
       "slug": "ep05-ancillary-services-fcr-afrr-mfrr-explained",
@@ -662,26 +690,33 @@
       "category": "balancing-and-reserves",
       "level": "intermediate",
       "title": {
-        "en": "Ancillary Services: FCR, aFRR and mFRR"
+        "en": "Ancillary Services: FCR, aFRR and mFRR",
+        "sr": "Pomoćne usluge: FCR, aFRR i mFRR"
       },
       "summary": {
-        "en": "The three layers of reserves that stop a frequency fall and restore 50 Hz."
+        "en": "The three layers of reserves that stop a frequency fall and restore 50 Hz.",
+        "sr": "Tri sloja rezervi koji zaustavljaju pad frekvencije i vraćaju 50 Hz."
       },
       "description": {
-        "en": "What happens to frequency when a plant trips and how three reserves respond one after another: FCR (frequency containment reserve, full activation within 30 seconds), aFRR (automatic restoration, about five minutes) and mFRR (manual restoration, about 12.5 minutes). It introduces the European platforms PICASSO (aFRR) and MARI (mFRR) and separates the capacity payment for availability from the energy payment for activation with an illustrative battery example: 320 EUR for availability plus 180 EUR for activation."
+        "en": "What happens to frequency when a plant trips and how three reserves respond one after another: FCR (frequency containment reserve, full activation within 30 seconds), aFRR (automatic restoration, about five minutes) and mFRR (manual restoration, about 12.5 minutes). It introduces the European platforms PICASSO (aFRR) and MARI (mFRR) and separates the capacity payment for availability from the energy payment for activation with an illustrative battery example: 320 EUR for availability plus 180 EUR for activation.",
+        "sr": "Šta se dešava sa frekvencijom kada elektrana ispadne i kako tri rezerve reaguju jedna za drugom: FCR (rezerva za zadržavanje frekvencije, puna aktivacija u roku od 30 sekundi), aFRR (automatski povratak, oko pet minuta) i mFRR (ručni povratak, oko 12,5 minuta). Predstavlja evropske platforme PICASSO (aFRR) i MARI (mFRR) i razdvaja naknadu za kapacitet, zbog raspoloživosti, od naknade za energiju, zbog aktivacije, na ilustrativnom primeru baterije: 320 EUR za raspoloživost plus 180 EUR za aktivaciju."
       },
       "learn": [
         {
-          "en": "Frequency, and why it falls when a plant trips"
+          "en": "Frequency, and why it falls when a plant trips",
+          "sr": "Frekvencija i zašto pada kada elektrana ispadne"
         },
         {
-          "en": "FCR contains, aFRR and mFRR restore"
+          "en": "FCR contains, aFRR and mFRR restore",
+          "sr": "FCR zadržava, aFRR i mFRR vraćaju"
         },
         {
-          "en": "PICASSO and MARI as European platforms"
+          "en": "PICASSO and MARI as European platforms",
+          "sr": "PICASSO i MARI kao evropske platforme"
         },
         {
-          "en": "Capacity versus energy payments for reserve providers"
+          "en": "Capacity versus energy payments for reserve providers",
+          "sr": "Naknada za kapacitet i naknada za energiju kod pružalaca rezervi"
         }
       ],
       "video": "/academy/videos/ep05-ancillary-services-fcr-afrr-mfrr-explained.mp4",
@@ -716,7 +751,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep05_ancillary"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep05-ancillary-services-fcr-afrr-mfrr-explained-sr.mp4",
+      "posterSr": "/academy/posters/ep05-ancillary-services-fcr-afrr-mfrr-explained-sr.jpg"
     },
     {
       "slug": "ep06-power-futures-forwards-and-hedging",
@@ -724,26 +761,33 @@
       "category": "forwards-and-hedging",
       "level": "intermediate",
       "title": {
-        "en": "Power Futures, Forwards and Hedging"
+        "en": "Power Futures, Forwards and Hedging",
+        "sr": "Fjučersi, forvardi i zaštita od rizika na tržištu struje"
       },
       "summary": {
-        "en": "How a supplier locks in a margin with futures, and what it gives up."
+        "en": "How a supplier locks in a margin with futures, and what it gives up.",
+        "sr": "Kako snabdevač fiksira maržu fjučersima i čega se pritom odriče."
       },
       "description": {
-        "en": "A supplier sells at a fixed price but buys on a moving market. This episode contrasts forwards and exchange-traded futures with a clearing house, explains standard products (month, quarter, year, baseload) and works through a hedge with illustrative figures: 10 MW of baseload (87,600 MWh) sold at 85 EUR/MWh and hedged at 80 EUR/MWh locks in a 438,000 EUR margin whether spot ends at 110 or 60. It also covers daily variation margin and liquidity, and regional examples such as the EEX Phelix-DE baseload future and Hungarian power futures."
+        "en": "A supplier sells at a fixed price but buys on a moving market. This episode contrasts forwards and exchange-traded futures with a clearing house, explains standard products (month, quarter, year, baseload) and works through a hedge with illustrative figures: 10 MW of baseload (87,600 MWh) sold at 85 EUR/MWh and hedged at 80 EUR/MWh locks in a 438,000 EUR margin whether spot ends at 110 or 60. It also covers daily variation margin and liquidity, and regional examples such as the EEX Phelix-DE baseload future and Hungarian power futures.",
+        "sr": "Snabdevač prodaje po fiksnoj ceni, a kupuje na tržištu koje se menja. Epizoda poredi forvarde i fjučerse kojima se trguje na berzi uz klirinšku kuću, objašnjava standardne proizvode (mesec, kvartal, godina, bazna energija) i prolazi kroz zaštitu na ilustrativnim brojevima: 10 MW bazne energije (87.600 MWh) prodato po 85 EUR/MWh i zaštićeno po 80 EUR/MWh zaključava maržu od 438.000 EUR bez obzira na to da li spot završi na 110 ili na 60. Obuhvata i dnevnu varijacionu maržu i likvidnost, kao i regionalne primere: EEX Phelix-DE fjučers na baznu energiju i mađarske fjučerse na struju."
       },
       "learn": [
         {
-          "en": "Forwards versus futures and the role of the clearing house"
+          "en": "Forwards versus futures and the role of the clearing house",
+          "sr": "Forvardi i fjučersi i uloga klirinške kuće"
         },
         {
-          "en": "Baseload products: month, quarter, year"
+          "en": "Baseload products: month, quarter, year",
+          "sr": "Proizvodi bazne energije: mesec, kvartal, godina"
         },
         {
-          "en": "A hedge locks the margin: results at spot 110 and spot 60"
+          "en": "A hedge locks the margin: results at spot 110 and spot 60",
+          "sr": "Zaštita zaključava maržu: rezultati pri spotu 110 i 60"
         },
         {
-          "en": "Variation margin and liquidity planning"
+          "en": "Variation margin and liquidity planning",
+          "sr": "Varijaciona marža i planiranje likvidnosti"
         }
       ],
       "video": "/academy/videos/ep06-power-futures-forwards-and-hedging.mp4",
@@ -777,7 +821,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep06_futures"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep06-power-futures-forwards-and-hedging-sr.mp4",
+      "posterSr": "/academy/posters/ep06-power-futures-forwards-and-hedging-sr.jpg"
     },
     {
       "slug": "ep07-cross-border-trading-and-market-coupling",
@@ -785,26 +831,33 @@
       "category": "cross-border",
       "level": "intermediate",
       "title": {
-        "en": "Cross-Border Trading and Market Coupling"
+        "en": "Cross-Border Trading and Market Coupling",
+        "sr": "Prekogranična trgovina i povezivanje tržišta"
       },
       "summary": {
-        "en": "Why scarce interconnector capacity splits prices, and how coupling uses it."
+        "en": "Why scarce interconnector capacity splits prices, and how coupling uses it.",
+        "sr": "Zašto oskudan kapacitet interkonekcije razdvaja cene i kako ga povezivanje koristi."
       },
       "description": {
-        "en": "Explains cross-border capacity and congestion, explicit versus implicit allocation, and how market coupling sends power from low-price to high-price zones. A two-zone example with illustrative supply curves shows prices of 50 and 90 EUR/MWh converging to about 63 EUR/MWh with enough capacity, and staying apart at 57.50 and 75 EUR/MWh when the line is limited to 15 MWh, yielding a congestion income of 262.50 EUR. It also introduces flow-based capacity calculation and the situation in Southeast Europe."
+        "en": "Explains cross-border capacity and congestion, explicit versus implicit allocation, and how market coupling sends power from low-price to high-price zones. A two-zone example with illustrative supply curves shows prices of 50 and 90 EUR/MWh converging to about 63 EUR/MWh with enough capacity, and staying apart at 57.50 and 75 EUR/MWh when the line is limited to 15 MWh, yielding a congestion income of 262.50 EUR. It also introduces flow-based capacity calculation and the situation in Southeast Europe.",
+        "sr": "Objašnjava prekogranični kapacitet i zagušenja, eksplicitnu i implicitnu raspodelu i kako povezivanje tržišta šalje struju iz zona sa niskom cenom u zone sa visokom cenom. Primer sa dve zone i ilustrativnim krivama ponude pokazuje kako se cene od 50 i 90 EUR/MWh približavaju na oko 63 EUR/MWh kada kapaciteta ima dovoljno, a ostaju razdvojene na 57,50 i 75 EUR/MWh kada je vod ograničen na 15 MWh, uz prihod od zagušenja od 262,50 EUR. Predstavlja i proračun kapaciteta zasnovan na tokovima i stanje u jugoistočnoj Evropi."
       },
       "learn": [
         {
-          "en": "Why interconnector capacity is scarce"
+          "en": "Why interconnector capacity is scarce",
+          "sr": "Zašto je kapacitet interkonekcije oskudan"
         },
         {
-          "en": "Explicit versus implicit allocation"
+          "en": "Explicit versus implicit allocation",
+          "sr": "Eksplicitna i implicitna raspodela"
         },
         {
-          "en": "A two-zone coupling example: converging and congested prices"
+          "en": "A two-zone coupling example: converging and congested prices",
+          "sr": "Primer sa dve zone: približene i razdvojene cene"
         },
         {
-          "en": "Flow-based capacity calculation"
+          "en": "Flow-based capacity calculation",
+          "sr": "Proračun kapaciteta zasnovan na tokovima"
         }
       ],
       "video": "/academy/videos/ep07-cross-border-trading-and-market-coupling.mp4",
@@ -838,7 +891,9 @@
         "type": "power-academy-studio",
         "reference": "episodes/ep07_crossborder"
       },
-      "status": "published"
+      "status": "published",
+      "videoSr": "/academy/videos/ep07-cross-border-trading-and-market-coupling-sr.mp4",
+      "posterSr": "/academy/posters/ep07-cross-border-trading-and-market-coupling-sr.jpg"
     }
   ]
 }

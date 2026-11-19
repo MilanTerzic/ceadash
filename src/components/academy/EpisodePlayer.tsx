@@ -41,8 +41,9 @@ export function EpisodePlayer({
   const [ended, setEnded] = useState(false);
   const [resumedAt, setResumedAt] = useState<number | null>(null);
 
-  const src = resolveMedia(episode.video, mediaBase) ?? "";
-  const poster = resolveMedia(episode.poster, mediaBase);
+  const serbian = lang === "sr" && Boolean(episode.videoSr);
+  const src = resolveMedia(serbian ? episode.videoSr : episode.video, mediaBase) ?? "";
+  const poster = resolveMedia(serbian && episode.posterSr ? episode.posterSr : episode.poster, mediaBase);
   const tracks = episode.subtitles.map((track) => ({
     ...track,
     src: resolveMedia(track.src, mediaBase) ?? track.src,
@@ -56,7 +57,7 @@ export function EpisodePlayer({
     setEnded(false);
     setResumedAt(null);
     lastSaved.current = 0;
-  }, [episode.slug]);
+  }, [episode.slug, src]);
 
   // Keep the last position when leaving mid-video.
   useEffect(() => {
@@ -103,7 +104,7 @@ export function EpisodePlayer({
         ) : (
           <video
             ref={videoRef}
-            key={episode.slug}
+            key={`${episode.slug}-${serbian ? "sr" : "en"}`}
             className="absolute inset-0 h-full w-full bg-black"
             controls
             playsInline

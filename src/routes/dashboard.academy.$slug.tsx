@@ -108,12 +108,12 @@ function AcademyEpisodePage() {
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
                 <p className="eyebrow !text-brand">{t("Coming soon", "Uskoro")}</p>
                 <p className="max-w-md font-display text-lg font-semibold text-white">
-                  {t("This episode is in production", "Ova epizoda je u produkciji")}
+                  {t("This episode is in production", "Ova epizoda je u izradi")}
                 </p>
                 <p className="max-w-md text-xs leading-relaxed text-white/70">
                   {t(
                     "The video has not been published yet. The summary below says what it will cover.",
-                    "Video još nije objavljen. Rezime ispod kaže šta će epizoda pokriti.",
+                    "Video još nije objavljen. Rezime ispod opisuje šta će epizoda obuhvatiti.",
                   )}
                 </p>
               </div>
@@ -199,7 +199,7 @@ function AcademyEpisodePage() {
               <p className="text-[11px] text-muted-foreground">
                 {t(
                   "All figures in the examples are illustrative, not market quotations.",
-                  "Sve vrednosti u primerima su ilustrativne, nisu tržišni kotiranja.",
+                  "Sve vrednosti u primerima su ilustrativne i nisu tržišne kotacije.",
                 )}
               </p>
             </section>

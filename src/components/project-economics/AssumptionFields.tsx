@@ -261,16 +261,16 @@ function NegativePriceFields<T extends SolarAssumptions | WindAssumptions>({
         value={value.negativePriceRule}
         options={[
           { value: "always", label: t("Always produce", "Uvek proizvodi") },
-          { value: "curtail_negative", label: t("Curtail below zero", "Ogranicenje ispod nule") },
+          { value: "curtail_negative", label: t("Curtail below zero", "Ograničenje ispod nule") },
           {
             value: "curtail_threshold",
-            label: t("Curtail below threshold", "Ogranicenje ispod praga"),
+            label: t("Curtail below threshold", "Ograničenje ispod praga"),
           },
         ]}
         onChange={(negativePriceRule) => onChange({ ...value, negativePriceRule } as T)}
       />
       <NumberField
-        label={t("Curtailment threshold", "Prag ogranicenja")}
+        label={t("Curtailment threshold", "Prag ograničenja")}
         value={value.curtailThresholdEurPerMWh}
         unit="EUR/MWh"
         onChange={(curtailThresholdEurPerMWh) => onChange({ ...value, curtailThresholdEurPerMWh })}
@@ -308,7 +308,7 @@ export function SolarFields({
             },
             {
               key: "gridMWac",
-              label: t("Grid connection", "Prikljucna snaga"),
+              label: t("Grid connection", "Priključna snaga"),
               unit: "MWac",
               min: 0,
             },
@@ -334,14 +334,14 @@ export function SolarFields({
             },
             {
               key: "curtailmentPct",
-              label: t("Curtailment", "Ogranicenje"),
+              label: t("Curtailment", "Ograničenje"),
               unit: "%",
               min: 0,
               max: 100,
             },
             {
               key: "lifetimeYears",
-              label: t("Project lifetime", "Vek projekta"),
+              label: t("Project lifetime", "Životni vek projekta"),
               unit: t("years", "god."),
               min: 1,
             },
@@ -391,10 +391,10 @@ export function WindFields({
               unit: "MW",
               min: 0,
             },
-            { key: "gridMW", label: t("Grid connection", "Prikljucna snaga"), unit: "MW", min: 0 },
+            { key: "gridMW", label: t("Grid connection", "Priključna snaga"), unit: "MW", min: 0 },
             {
               key: "netCapacityFactorPct",
-              label: t("Expected net capacity factor", "Ocekivani neto CF"),
+              label: t("Expected net capacity factor", "Očekivani neto CF"),
               unit: "%",
               min: 0,
               max: 100,
@@ -414,14 +414,14 @@ export function WindFields({
             },
             {
               key: "availabilityPct",
-              label: t("Availability", "Raspolozivost"),
+              label: t("Availability", "Raspoloživost"),
               unit: "%",
               min: 0,
               max: 100,
             },
             {
               key: "wakeElectricalLossPct",
-              label: t("Wake/electrical losses", "Wake/elektricni gubici"),
+              label: t("Wake/electrical losses", "Wake/električni gubici"),
               unit: "%",
               min: 0,
               max: 100,
@@ -435,14 +435,14 @@ export function WindFields({
             },
             {
               key: "curtailmentPct",
-              label: t("Curtailment", "Ogranicenje"),
+              label: t("Curtailment", "Ograničenje"),
               unit: "%",
               min: 0,
               max: 100,
             },
             {
               key: "lifetimeYears",
-              label: t("Project lifetime", "Vek projekta"),
+              label: t("Project lifetime", "Životni vek projekta"),
               unit: t("years", "god."),
               min: 1,
             },
@@ -479,7 +479,7 @@ export function BessFields({
           rows={[
             {
               key: "powerMW",
-              label: t("Charge/discharge power", "Snaga punjenja/praznjenja"),
+              label: t("Charge/discharge power", "Snaga punjenja/pražnjenja"),
               unit: "MW",
               min: 0,
             },
@@ -524,7 +524,7 @@ export function BessFields({
             },
             {
               key: "availabilityPct",
-              label: t("Availability", "Raspolozivost"),
+              label: t("Availability", "Raspoloživost"),
               unit: "%",
               min: 0,
               max: 100,
@@ -562,7 +562,7 @@ export function BessFields({
             },
             {
               key: "variableThroughputEurPerMWh",
-              label: t("Variable throughput cost", "Trosak protoka"),
+              label: t("Variable throughput cost", "Trošak protoka"),
               unit: "EUR/MWh",
               min: 0,
             },
@@ -574,13 +574,13 @@ export function BessFields({
             },
             {
               key: "augmentationCostPct",
-              label: t("Augmentation cost", "Trosak augmentacije"),
+              label: t("Augmentation cost", "Trošak augmentacije"),
               unit: "% CAPEX",
               min: 0,
             },
             {
               key: "lifetimeYears",
-              label: t("Project lifetime", "Vek projekta"),
+              label: t("Project lifetime", "Životni vek projekta"),
               unit: t("years", "god."),
               min: 1,
             },
@@ -601,10 +601,10 @@ export function BessFields({
           label={t("Commercial structure", "Komercijalna struktura")}
           value={value.revenueStructure}
           options={[
-            { value: "merchant", label: t("Merchant arbitrage", "Merchant arbitraza") },
+            { value: "merchant", label: t("Merchant arbitrage", "Merchant arbitraža") },
             {
               value: "tolling",
-              label: t("Fixed tolling / availability", "Fiksni tolling / raspolozivost"),
+              label: t("Fixed tolling / availability", "Fiksni tolling / raspoloživost"),
             },
             { value: "hybrid", label: t("Hybrid tolling plus merchant", "Tolling plus merchant") },
           ]}
@@ -633,7 +633,7 @@ export function BessFields({
               key: "ancillaryEurPerMWYear",
               label: t(
                 "Manual ancillary-services assumption",
-                "Rucna pretpostavka pomocnih usluga",
+                "Ručna pretpostavka pomoćnih usluga",
               ),
               unit: "EUR/MW/yr",
               min: 0,
@@ -681,19 +681,19 @@ export function HybridFields({
           rows={[
             {
               key: "sharedGridExportMW",
-              label: t("Shared grid export limit", "Zajednicki limit izvoza"),
+              label: t("Shared grid export limit", "Zajednički limit izvoza"),
               unit: "MW",
               min: 0,
             },
             {
               key: "sharedGridImportMW",
-              label: t("Shared grid import limit", "Zajednicki limit uvoza"),
+              label: t("Shared grid import limit", "Zajednički limit uvoza"),
               unit: "MW",
               min: 0,
             },
             {
               key: "lifetimeYears",
-              label: t("Project lifetime", "Vek projekta"),
+              label: t("Project lifetime", "Životni vek projekta"),
               unit: t("years", "god."),
               min: 1,
             },
@@ -764,9 +764,9 @@ export function HybridFields({
           }
         />
       </FieldGroup>
-      <FieldGroup title={t("Dispatch priorities", "Prioriteti dispeciranja")}>
+      <FieldGroup title={t("Dispatch priorities", "Prioriteti dispečiranja")}>
         <ToggleField
-          label={t("Grid charging allowed", "Punjenje iz mreze dozvoljeno")}
+          label={t("Grid charging allowed", "Punjenje iz mreže dozvoljeno")}
           checked={value.gridChargingAllowed}
           onChange={(gridChargingAllowed) => patch({ gridChargingAllowed })}
         />
@@ -776,7 +776,7 @@ export function HybridFields({
           onChange={(chargeOnlyFromRenewables) => patch({ chargeOnlyFromRenewables })}
         />
         <ToggleField
-          label={t("PPA volume eligible for shifting", "PPA kolicina podobna za pomeranje")}
+          label={t("PPA volume eligible for shifting", "PPA količina podobna za pomeranje")}
           checked={value.ppaVolumeEligibleForShifting}
           onChange={(ppaVolumeEligibleForShifting) => patch({ ppaVolumeEligibleForShifting })}
         />
@@ -786,7 +786,7 @@ export function HybridFields({
           onChange={(exportAboveRenewableOutput) => patch({ exportAboveRenewableOutput })}
         />
         <ToggleField
-          label={t("Recover clipped energy", "Povrati odsecenu energiju")}
+          label={t("Recover clipped energy", "Povrati odsečenu energiju")}
           checked={value.curtailmentRecovery}
           onChange={(curtailmentRecovery) => patch({ curtailmentRecovery })}
         />
@@ -806,7 +806,7 @@ export function HybridFields({
             },
             {
               value: "partial_ppa",
-              label: t("Partial PPA plus merchant", "Delimicni PPA plus merchant"),
+              label: t("Partial PPA plus merchant", "Delimični PPA plus merchant"),
             },
             {
               value: "baseload_ppa",

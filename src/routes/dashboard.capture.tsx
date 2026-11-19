@@ -666,7 +666,7 @@ function CapturePage() {
           )}
           description={t(
             "Higher bars mean greater merchant downside exposure during negative-price hours.",
-            "Više kolone znače veću downside izloženost u negativnim satima.",
+            "Više kolone znače veću merchant izloženost padu cena u satima sa negativnom cenom.",
           )}
         >
           <ResponsiveContainer width="100%" height={260}>

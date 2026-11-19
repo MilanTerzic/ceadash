@@ -42,10 +42,10 @@ function CashflowChart({ cashflows }: { cashflows: number[] }) {
   const { t } = useLang();
   return (
     <ChartCard
-      title={t("Project cash flow", "Novcani tok projekta")}
+      title={t("Project cash flow", "Novčani tok projekta")}
       description={t(
         "Equity cash flow after debt service.",
-        "Novcani tok kapitala nakon otplate duga.",
+        "Novčani tok kapitala nakon otplate duga.",
       )}
     >
       <div className="h-64">
@@ -57,7 +57,7 @@ function CashflowChart({ cashflows }: { cashflows: number[] }) {
             <Tooltip formatter={(value) => `${number(Number(value), 2)} mEUR`} />
             <Line
               dataKey="value"
-              name={t("Cash flow", "Novcani tok")}
+              name={t("Cash flow", "Novčani tok")}
               stroke="var(--color-chart-2)"
               dot={false}
             />
@@ -75,7 +75,7 @@ function SensitivityChart({ rows }: { rows: Array<{ label: string; npvEur: numbe
       title={t("Price sensitivity", "Osetljivost na cenu")}
       description={t(
         "NPV under lower, base and higher merchant-price scenarios.",
-        "NPV pri nizem, osnovnom i visem merchant cenovnom scenariju.",
+        "NPV pri nižem, osnovnom i višem merchant cenovnom scenariju.",
       )}
     >
       <div className="h-64">
@@ -105,7 +105,7 @@ function RenewableView({
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
-          label={t("Annual generation", "Godisnja proizvodnja")}
+          label={t("Annual generation", "Godišnja proizvodnja")}
           value={energy(result.annualGenerationMWh)}
         />
         <KpiCard
@@ -152,16 +152,16 @@ function RenewableView({
         />
         <KpiCard label={t("PPA revenue", "PPA prihod")} value={money(result.ppaRevenueEur)} />
         <KpiCard
-          label={t("Curtailed generation", "Ogranicena proizvodnja")}
+          label={t("Curtailed generation", "Ograničena proizvodnja")}
           value={energy(result.curtailedGenerationMWh)}
         />
         <KpiCard
-          label={t("Negative-price exposure", "Izlozenost negativnim cenama")}
+          label={t("Negative-price exposure", "Izloženost negativnim cenama")}
           value={energy(result.negativePriceGenerationMWh)}
         />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title={t("Monthly generation", "Mesecna proizvodnja")}>
+        <ChartCard title={t("Monthly generation", "Mesečna proizvodnja")}>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={result.monthlyGenerationMWh}>
@@ -178,7 +178,7 @@ function RenewableView({
             </ResponsiveContainer>
           </div>
         </ChartCard>
-        <ChartCard title={t("Monthly revenue", "Mesecni prihod")}>
+        <ChartCard title={t("Monthly revenue", "Mesečni prihod")}>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -222,11 +222,11 @@ function BessView({
           unit="h"
         />
         <KpiCard
-          label={t("Annual charged energy", "Godisnja energija punjenja")}
+          label={t("Annual charged energy", "Godišnja energija punjenja")}
           value={energy(result.annualChargedMWh)}
         />
         <KpiCard
-          label={t("Annual discharged energy", "Godisnja energija praznjenja")}
+          label={t("Annual discharged energy", "Godišnja energija pražnjenja")}
           value={energy(result.annualDischargedMWh)}
         />
         <KpiCard
@@ -234,12 +234,12 @@ function BessView({
           value={number(result.equivalentFullCycles, 0)}
         />
         <KpiCard
-          label={t("Average charging price", "Prosecna cena punjenja")}
+          label={t("Average charging price", "Prosečna cena punjenja")}
           value={number(result.averageChargingPriceEurPerMWh, 1)}
           unit="EUR/MWh"
         />
         <KpiCard
-          label={t("Average discharging price", "Prosecna cena praznjenja")}
+          label={t("Average discharging price", "Prosečna cena pražnjenja")}
           value={number(result.averageDischargingPriceEurPerMWh, 1)}
           unit="EUR/MWh"
         />
@@ -249,7 +249,7 @@ function BessView({
           unit="EUR/MWh"
         />
         <KpiCard
-          label={t("Gross arbitrage", "Bruto arbitraza")}
+          label={t("Gross arbitrage", "Bruto arbitraža")}
           value={money(result.grossArbitrageRevenueEur)}
         />
         <KpiCard
@@ -257,7 +257,7 @@ function BessView({
           value={money(result.tollingRevenueEur)}
         />
         <KpiCard
-          label={t("Ancillary assumption", "Pretpostavka pomocnih usluga")}
+          label={t("Ancillary assumption", "Pretpostavka pomoćnih usluga")}
           value={money(result.ancillaryRevenueEur)}
         />
         <KpiCard label="LCOS" value={number(result.lcosEurPerMWh, 1)} unit="EUR/MWh" />
@@ -274,10 +274,10 @@ function BessView({
         <KpiCard label="DSCR" value={number(result.dscrMin, 2)} />
       </div>
       <ChartCard
-        title={t("Representative dispatch day", "Reprezentativni dan dispeciranja")}
+        title={t("Representative dispatch day", "Reprezentativni dan dispečiranja")}
         description={t(
           "Deterministic daily arbitrage heuristic; it is not mathematical optimisation.",
-          "Deterministicka dnevna arbitrazna heuristika; nije matematicka optimizacija.",
+          "Deterministička dnevna arbitražna heuristika; nije matematička optimizacija.",
         )}
       >
         <div className="h-72">
@@ -304,7 +304,7 @@ function BessView({
               <Bar
                 yAxisId="power"
                 dataKey="dischargingMW"
-                name={t("Discharging", "Praznjenje")}
+                name={t("Discharging", "Pražnjenje")}
                 fill="var(--color-chart-2)"
               />
               <Line
@@ -325,7 +325,7 @@ function BessView({
           </ResponsiveContainer>
         </div>
       </ChartCard>
-      <ChartCard title={t("Annual operating revenue", "Godisnji operativni prihod")}>
+      <ChartCard title={t("Annual operating revenue", "Godišnji operativni prihod")}>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -372,25 +372,25 @@ function HybridView({
           label={t("Renewable generation", "OIE proizvodnja")}
           value={energy(result.totalRenewableGenerationMWh)}
         />
-        <KpiCard label={t("Grid export", "Izvoz u mrezu")} value={energy(result.gridExportMWh)} />
+        <KpiCard label={t("Grid export", "Izvoz u mrežu")} value={energy(result.gridExportMWh)} />
         <KpiCard
           label={t("Renewable BESS charge", "BESS punjenje iz OIE")}
           value={energy(result.bessChargingFromRenewablesMWh)}
         />
         <KpiCard
-          label={t("Grid BESS charge", "BESS punjenje iz mreze")}
+          label={t("Grid BESS charge", "BESS punjenje iz mreže")}
           value={energy(result.bessChargingFromGridMWh)}
         />
         <KpiCard
-          label={t("BESS discharge", "BESS praznjenje")}
+          label={t("BESS discharge", "BESS pražnjenje")}
           value={energy(result.bessDischargeMWh)}
         />
         <KpiCard
-          label={t("Recovered clipped energy", "Povracena odsecena energija")}
+          label={t("Recovered clipped energy", "Povraćena odsečena energija")}
           value={energy(result.recoveredClippedEnergyMWh)}
         />
         <KpiCard
-          label={t("Remaining curtailment", "Preostalo ogranicenje")}
+          label={t("Remaining curtailment", "Preostalo ograničenje")}
           value={energy(result.remainingCurtailmentMWh)}
         />
         <KpiCard
@@ -402,7 +402,7 @@ function HybridView({
           }
         />
         <KpiCard
-          label={t("Capture price before storage", "Capture cena pre skladistenja")}
+          label={t("Capture price before storage", "Capture cena pre skladištenja")}
           value={number(result.capturePriceBeforeStorageEurPerMWh, 1)}
           unit="EUR/MWh"
         />
@@ -420,7 +420,7 @@ function HybridView({
         <KpiCard label="NPV" value={money(result.npvEur)} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title={t("Monthly energy flows", "Mesecni tokovi energije")}>
+        <ChartCard title={t("Monthly energy flows", "Mesečni tokovi energije")}>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={result.monthlyEnergyMWh}>
@@ -437,7 +437,7 @@ function HybridView({
                 />
                 <Bar
                   dataKey="batteryDischarge"
-                  name={t("BESS discharge", "BESS praznjenje")}
+                  name={t("BESS discharge", "BESS pražnjenje")}
                   stackId="a"
                   fill="var(--color-chart-2)"
                 />
@@ -450,7 +450,7 @@ function HybridView({
             </ResponsiveContainer>
           </div>
         </ChartCard>
-        <ChartCard title={t("Monthly revenue", "Mesecni prihod")}>
+        <ChartCard title={t("Monthly revenue", "Mesečni prihod")}>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart

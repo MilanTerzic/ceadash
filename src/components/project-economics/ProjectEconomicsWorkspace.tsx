@@ -142,7 +142,7 @@ function PricePanel({
       title={t("Revenue and price assumptions", "Pretpostavke prihoda i cena")}
       description={t(
         "Futures settlements anchor monthly averages while preserving the historical hourly shape. This is a scenario, not a live hourly forecast.",
-        "Futures poravnanja sidre mesecne proseke uz ocuvanje istorijskog satnog profila. Ovo je scenario, a ne ziva satna prognoza.",
+        "Futures poravnanja sidre mesečne proseke uz očuvanje istorijskog satnog profila. Ovo je scenario, a ne živa satna prognoza.",
       )}
       right={
         <span className="rounded border border-border/60 bg-muted px-2 py-1 text-xs uppercase text-muted-foreground">
@@ -167,18 +167,18 @@ function PricePanel({
               value: "historical",
               label: t("Historical/demo hourly prices", "Istorijske/demo satne cene"),
             },
-            { value: "manual", label: t("Manual flat price", "Rucna fiksna cena") },
+            { value: "manual", label: t("Manual flat price", "Ručna fiksna cena") },
           ]}
           onChange={(mode) => onChange({ ...assumptions, mode: mode as PriceAssumptions["mode"] })}
         />
         <SelectField
-          label={t("Futures market", "Futures trziste")}
+          label={t("Futures market", "Futures tržište")}
           value={assumptions.market}
           options={marketOptions}
           onChange={(market) => onChange({ ...assumptions, market })}
         />
         <SelectField
-          label={t("Load product", "Proizvod opterecenja")}
+          label={t("Load product", "Proizvod opterećenja")}
           value={assumptions.loadType}
           options={[
             { value: "base", label: t("Baseload", "Baseload") },
@@ -189,13 +189,13 @@ function PricePanel({
           }
         />
         <NumberField
-          label={t("Manual fallback / flat price", "Rucna rezervna / fiksna cena")}
+          label={t("Manual fallback / flat price", "Ručna rezervna / fiksna cena")}
           value={assumptions.manualPriceEurPerMWh}
           unit="EUR/MWh"
           onChange={(manualPriceEurPerMWh) => onChange({ ...assumptions, manualPriceEurPerMWh })}
         />
         <NumberField
-          label={t("Terminal annual escalation", "Godisnja terminalna eskalacija")}
+          label={t("Terminal annual escalation", "Godišnja terminalna eskalacija")}
           value={assumptions.terminalEscalationPct}
           unit="%/yr"
           onChange={(terminalEscalationPct) => onChange({ ...assumptions, terminalEscalationPct })}
@@ -233,7 +233,7 @@ function PricePanel({
             <div>
               {t(
                 "Futures data may be unavailable, partial, stale or sourced from a public snapshot. The displayed fallback is explicit and no futures price is fabricated.",
-                "Futures podaci mogu biti nedostupni, delimicni, zastareli ili iz javnog snimka. Prikazana rezerva je eksplicitna i futures cena se ne izmisljava.",
+                "Futures podaci mogu biti nedostupni, delimični, zastareli ili iz javnog snimka. Prikazana rezerva je eksplicitna i futures cena se ne izmišlja.",
               )}
             </div>
             {priceCurve.warnings.slice(0, 3).map((warning) => (
@@ -261,11 +261,11 @@ function PricePanel({
           <dd className="mt-1 font-medium">{profileSource}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">{t("Calculated", "Izracunato")}</dt>
+          <dt className="text-muted-foreground">{t("Calculated", "Izračunato")}</dt>
           <dd className="mt-1 font-medium">{calculationTimestamp ?? "-"}</dd>
         </div>
         <div className="sm:col-span-2 xl:col-span-4">
-          <dt className="text-muted-foreground">{t("Contracts used", "Korisceni ugovori")}</dt>
+          <dt className="text-muted-foreground">{t("Contracts used", "Korišćeni ugovori")}</dt>
           <dd className="mt-1 font-medium">
             {priceCurve.contractsUsed.length
               ? priceCurve.contractsUsed.join(", ")
@@ -465,7 +465,7 @@ export function ProjectEconomicsWorkspace({
       const result = await pvgisFn({ data: { lat, lon, peakpower: 1 } });
       setSolarProfile(result.hourly);
       setProfileSource(`PVGIS - ${result.yearlyKwhPerKwp.toFixed(0)} kWh/kWp/year`);
-      toast.success(t("PVGIS hourly profile loaded", "PVGIS satni profil ucitan"));
+      toast.success(t("PVGIS hourly profile loaded", "PVGIS satni profil učitan"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "PVGIS request failed");
     }
@@ -534,7 +534,7 @@ export function ProjectEconomicsWorkspace({
             return toast.error(t("Invalid hourly price CSV", "Neispravan CSV satnih cena"));
           setUploadedPrices(rows.map((row) => ({ ts: row.ts, priceEurPerMWh: row.value })));
           setPriceAssumptions((current) => ({ ...current, mode: "historical" }));
-          toast.success(t("Hourly price CSV loaded", "CSV satnih cena ucitan"));
+          toast.success(t("Hourly price CSV loaded", "CSV satnih cena učitan"));
         }}
       />
 
@@ -566,12 +566,12 @@ export function ProjectEconomicsWorkspace({
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Input
-                    placeholder={t("Custom latitude", "Rucna sirina")}
+                    placeholder={t("Custom latitude", "Ručna širina")}
                     value={customLat}
                     onChange={(event) => setCustomLat(event.target.value)}
                   />
                   <Input
-                    placeholder={t("Custom longitude", "Rucna duzina")}
+                    placeholder={t("Custom longitude", "Ručna dužina")}
                     value={customLon}
                     onChange={(event) => setCustomLon(event.target.value)}
                   />
@@ -584,7 +584,7 @@ export function ProjectEconomicsWorkspace({
                   onClick={loadPvgis}
                 >
                   <Database className="h-4 w-4" />
-                  {t("Load PVGIS hourly profile", "Ucitaj PVGIS satni profil")}
+                  {t("Load PVGIS hourly profile", "Učitaj PVGIS satni profil")}
                 </Button>
               </FieldGroup>
               <SolarFields value={solar} onChange={setSolar} />
@@ -596,12 +596,12 @@ export function ProjectEconomicsWorkspace({
                 <p className="text-xs text-muted-foreground">
                   {t(
                     "The default hourly wind shape is indicative and not site-specific. It is scaled to the selected net capacity factor.",
-                    "Podrazumevani satni profil vetra je indikativan i nije lokacijski specifican. Skalira se na izabrani neto faktor kapaciteta.",
+                    "Podrazumevani satni profil vetra je indikativan i nije lokacijski specifičan. Skalira se na izabrani neto faktor kapaciteta.",
                   )}
                 </p>
                 <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-input px-3 text-xs hover:bg-muted">
                   <Upload className="h-4 w-4" />
-                  {t("Upload hourly wind CSV", "Ucitaj CSV satnog vetra")}
+                  {t("Upload hourly wind CSV", "Učitaj CSV satnog vetra")}
                   <Input
                     type="file"
                     accept=".csv,text/csv"
@@ -631,7 +631,7 @@ export function ProjectEconomicsWorkspace({
           <p className="border-t border-border/60 pt-4 text-xs text-muted-foreground">
             {t(
               "Indicative calculations only. This tool is not financial or investment advice.",
-              "Samo indikativni proracuni. Alat ne predstavlja finansijski niti investicioni savet.",
+              "Samo indikativni proračuni. Alat ne predstavlja finansijski niti investicioni savet.",
             )}
           </p>
         </aside>
@@ -644,36 +644,36 @@ export function ProjectEconomicsWorkspace({
             hybrid={asset === "hybrid" ? hybridResult : undefined}
             sensitivity={sensitivity}
           />
-          <ChartCard title={t("Methodology and limitations", "Metodologija i ogranicenja")}>
+          <ChartCard title={t("Methodology and limitations", "Metodologija i ograničenja")}>
             <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
               <li>
                 {t(
                   "Futures anchoring shifts each month of the hourly shape to the most granular available month, quarter or year settlement.",
-                  "Futures sidrenje pomera svaki mesec satnog profila na najgranularnije dostupno mesecno, kvartalno ili godisnje poravnanje.",
+                  "Futures sidrenje pomera svaki mesec satnog profila na najgranularnije dostupno mesečno, kvartalno ili godišnje poravnanje.",
                 )}
               </li>
               <li>
                 {t(
                   "Years beyond futures coverage use the last covered annual price and the editable terminal escalation.",
-                  "Godine izvan futures pokrivenosti koriste poslednju pokrivenu godisnju cenu i izmenjivu terminalnu eskalaciju.",
+                  "Godine izvan futures pokrivenosti koriste poslednju pokrivenu godišnju cenu i izmenjivu terminalnu eskalaciju.",
                 )}
               </li>
               <li>
                 {t(
                   "BESS dispatch is a chronological daily heuristic, not a claim of mathematical optimality.",
-                  "BESS dispeciranje je hronoloska dnevna heuristika, bez tvrdnje o matematickoj optimalnosti.",
+                  "BESS dispečiranje je hronološka dnevna heuristika, bez tvrdnje o matematičkoj optimalnosti.",
                 )}
               </li>
               <li>
                 {t(
                   "Ancillary-services revenue is a manual assumption and is not presented as ENTSO-E data.",
-                  "Prihod od pomocnih usluga je rucna pretpostavka i ne prikazuje se kao ENTSO-E podatak.",
+                  "Prihod od pomoćnih usluga je ručna pretpostavka i ne prikazuje se kao ENTSO-E podatak.",
                 )}
               </li>
               <li>
                 {t(
                   "Taxes, inflation, detailed debt sculpting, imbalance costs and site-specific engineering losses are outside this indicative model.",
-                  "Porezi, inflacija, detaljno oblikovanje duga, troskovi debalansa i lokacijski inzenjerski gubici nisu deo ovog indikativnog modela.",
+                  "Porezi, inflacija, detaljno oblikovanje duga, troškovi debalansa i lokacijski inženjerski gubici nisu deo ovog indikativnog modela.",
                 )}
               </li>
             </ul>

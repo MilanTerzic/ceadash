@@ -40,6 +40,10 @@ export interface AcademyEpisode {
   status: EpisodeStatus;
   /** Absolute URL, root-relative path, or a path under `mediaBase`. Empty while coming soon. */
   video: string;
+  /** Optional Serbian-narrated video, played instead of `video` when the interface language is Serbian. */
+  videoSr?: string;
+  /** Optional poster for the Serbian video. */
+  posterSr?: string;
   /** Key points the episode covers, shown on its page. */
   learn: Localized[];
   /** Public references the episode is based on. */
@@ -169,6 +173,8 @@ function parseEpisode(raw: unknown): { episode?: AcademyEpisode; reason?: string
       description,
       status,
       video: nonEmpty(raw.video) ? raw.video.trim() : "",
+      videoSr: nonEmpty(raw.videoSr) ? raw.videoSr.trim() : undefined,
+      posterSr: nonEmpty(raw.posterSr) ? raw.posterSr.trim() : undefined,
       learn: (Array.isArray(raw.learn) ? raw.learn : [])
         .map(localized)
         .filter((item): item is Localized => item !== null),
